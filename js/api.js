@@ -47,14 +47,18 @@ async function checkBackend() {
       const timeoutId = setTimeout(() => controller.abort(), 1200);
       const res = await fetch(`${baseUrl}/api/health`, { signal: controller.signal });
       clearTimeout(timeoutId);
-      return res.ok;
+      if (!res.ok) return false;
+      const data = await res.json();
+      return data && (data.status === 'healthy' || data.status === 'success');
     } catch (e) {
       try {
         const controller = new AbortController();
         const timeoutId = setTimeout(() => controller.abort(), 1200);
         const res = await fetch(`${baseUrl}/health`, { signal: controller.signal });
         clearTimeout(timeoutId);
-        return res.ok;
+        if (!res.ok) return false;
+        const data = await res.json();
+        return data && (data.status === 'healthy' || data.status === 'success');
       } catch (err) {
         return false;
       }

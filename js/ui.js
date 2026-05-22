@@ -40,6 +40,29 @@ const UI = (() => {
     return sign + parseFloat(val).toFixed(2) + '%';
   }
   function colorClass(val) { return val >= 0 ? 'pos' : 'neg'; }
+  function getFinancialYear(period) {
+    if (!period) return 'N/A';
+    if (period.includes('-')) {
+      const parts = period.split('-');
+      if (parts.length >= 2) {
+        const year = parseInt(parts[0], 10);
+        const month = parseInt(parts[1], 10);
+        if (!isNaN(year) && !isNaN(month)) {
+          const fy = month >= 4 ? year + 1 : year;
+          return `FY${fy - 2000}`;
+        }
+      }
+    }
+    const match = period.match(/FY(\d{2,4})/i);
+    if (match) {
+      const fyNum = parseInt(match[1], 10);
+      if (fyNum > 100) {
+        return `FY${fyNum - 2000}`;
+      }
+      return `FY${fyNum}`;
+    }
+    return 'N/A';
+  }
 
   // ── Market ticker strip
   function renderMarketTickers(indices) {
@@ -227,18 +250,66 @@ const UI = (() => {
         </div>
       </div>
 
+      const uniqueFYs = Array.from(new Set(
+        result.earnings.quarterly.map(q => getFinancialYear(q.period))
+      )).filter(fy => fy !== 'N/A');
+
+      document.getElementById('tab-fundamental').innerHTML = `
+      <div class="fundamental-grid">
+        ${fundCard('P/E Ratio', fmt(f.pe, 1), f.forwardPE ? `Fwd: ${fmt(f.forwardPE,1)}` : '', peColor(f.pe))}
+        ${fundCard('Industry P/E', f.industryPe ? fmt(f.industryPe, 1) : 'N/A', 'Sector Average', '')}
+        ${fundCard('EPS', f.eps ? '₹' + fmt(f.eps, 2) : 'N/A', 'Trailing 12M', '')}
+        ${fundCard('P/B Ratio', fmt(f.pb, 2), 'Price to Book', pbColor(f.pb))}
+        ${fundCard('ROE', f.roe ? fmt(f.roe, 1) + '%' : 'N/A', 'Return on Equity', roeColor(f.roe))}
+        ${fundCard('Debt/Equity', fmt(f.debtToEquity, 2), 'Leverage ratio', deColor(f.debtToEquity))}
+        ${fundCard('Revenue Growth', f.revenueGrowth ? fmtPct(f.revenueGrowth) : 'N/A', 'Year-on-Year', growthColor(f.revenueGrowth))}
+        ${fundCard('Earnings Growth', f.earningsGrowth ? fmtPct(f.earningsGrowth) : 'N/A', 'YoY earnings', growthColor(f.earningsGrowth))}
+        ${fundCard('Profit Margin', f.profitMargin ? fmt(f.profitMargin, 1) + '%' : 'N/A', 'Net margin', roeColor(f.profitMargin))}
+        ${fundCard('Market Cap', fmtCr(f.marketCap || quote.marketCap), 'Total market value', '')}
+        ${fundCard('Beta', fmt(f.beta, 2), 'Market sensitivity', betaColor(f.beta))}
+        ${fundCard('Dividend Yield', f.dividendYield ? fmt(f.dividendYield, 2) + '%' : '—', 'Annual dividend', '')}
+        ${fundCard('Current Ratio', fmt(f.currentRatio, 2), 'Liquidity ratio', crColor(f.currentRatio))}
+      </div>
+
+      <div class="disclaimer">
+        ⚠️ &nbsp; Fundamental data sourced from Yahoo Finance. May have 15–24hr delay.
+      </div>
+
       <div class="earnings-section" style="margin-top:20px">
-        <div class="section-title">🗓 Quarterly Table</div>
+        <div class="section-title">📊 Quarterly Earnings History</div>
+        <div class="chart-wrap" style="height:240px">
+          <canvas id="chart-earnings-quarterly"></canvas>
+        </div>
+      </div>
+      <div class="earnings-section" style="margin-top:20px">
+        <div class="section-title">📈 Annual Revenue & Income (5 Years)</div>
+        <div class="chart-wrap" style="height:220px">
+          <canvas id="chart-earnings-annual"></canvas>
+        </div>
+      </div>
+
+      <div class="earnings-section" style="margin-top:20px">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px">
+          <div class="section-title" style="margin-bottom:0">🗓 Quarterly Table</div>
+          <div class="quarter-filter-wrap" style="display: flex; align-items: center; gap: 8px;">
+            <span style="font-size: 0.8rem; color: var(--text-muted);">Year:</span>
+            <select id="quarter-filter-select" class="dropdown-filter" style="background: var(--bg-elevated); border: 1px solid var(--border); color: var(--text-color); padding: 4px 8px; border-radius: 4px; font-size: 0.8rem; cursor: pointer; outline: none; transition: var(--transition);">
+              <option value="ALL">All</option>
+              ${uniqueFYs.map(fy => `<option value="${fy}">${fy}</option>`).join('')}
+            </select>
+          </div>
+        </div>
         <div style="overflow-x:auto">
           <table class="data-table">
             <thead><tr>
               <th>Period</th><th>Revenue (₹ Cr)</th><th>Net Income (₹ Cr)</th><th>EPS</th><th>YoY Rev</th>
             </tr></thead>
             <tbody>
-              ${result.earnings.quarterly.slice(0, 8).map((q, i, arr) => {
-                const prev = arr[i + 1];
+              ${result.earnings.quarterly.map((q, i, arr) => {
+                const prev = arr[i + 4];
                 const yoy = prev && prev.revenue ? ((q.revenue - prev.revenue) / prev.revenue * 100) : null;
-                return `<tr>
+                const fy = getFinancialYear(q.period);
+                return `<tr class="quarter-row" data-fy="${fy}">
                   <td>${q.period}</td>
                   <td>₹${(q.revenue/1e7).toFixed(0)}</td>
                   <td class="${q.netIncome >= 0 ? 'pos' : 'neg'}">₹${(q.netIncome/1e7).toFixed(0)}</td>
@@ -284,6 +355,21 @@ const UI = (() => {
     setTimeout(() => {
       Charts.renderEarningsChart('chart-earnings-quarterly', result.earnings);
       Charts.renderAnnualEarningsChart('chart-earnings-annual', result.earnings);
+
+      const filterSelect = document.getElementById('quarter-filter-select');
+      if (filterSelect) {
+        filterSelect.addEventListener('change', (e) => {
+          const selectedFy = e.target.value;
+          const rows = document.querySelectorAll('.quarter-row');
+          rows.forEach(row => {
+            if (selectedFy === 'ALL' || row.dataset.fy === selectedFy) {
+              row.style.display = '';
+            } else {
+              row.style.display = 'none';
+            }
+          });
+        });
+      }
     }, 50);
   }
 
@@ -524,6 +610,52 @@ const UI = (() => {
     const negNews = news.filter(n => n.sentiment === 'negative').length;
     const neutNews = news.filter(n => n.sentiment === 'neutral').length;
 
+    const hasNews = news && news.length > 0;
+    const majorNewsHtml = hasNews ? (() => {
+      const major = news[0];
+      const dotColor = major.sentiment === 'positive' ? 'var(--green)' : major.sentiment === 'negative' ? 'var(--red)' : 'var(--yellow)';
+      const bgGradient = major.sentiment === 'positive' 
+        ? 'linear-gradient(135deg, rgba(16, 185, 129, 0.12) 0%, rgba(16, 185, 129, 0.02) 100%)' 
+        : major.sentiment === 'negative' 
+          ? 'linear-gradient(135deg, rgba(239, 68, 68, 0.12) 0%, rgba(239, 68, 68, 0.02) 100%)' 
+          : 'linear-gradient(135deg, rgba(245, 158, 11, 0.12) 0%, rgba(245, 158, 11, 0.02) 100%)';
+      const borderStroke = major.sentiment === 'positive' ? 'rgba(16, 185, 129, 0.25)' : major.sentiment === 'negative' ? 'rgba(239, 68, 68, 0.25)' : 'rgba(245, 158, 11, 0.25)';
+      return `
+        <div class="section-title" style="margin-bottom:12px">🔥 Major News</div>
+        <div class="major-news-banner" onclick="window.open('${major.url}','_blank')" style="background:${bgGradient}; border: 1px solid ${borderStroke}; border-radius: 12px; padding: 18px; margin-bottom: 20px; cursor: pointer; transition: all 0.25s ease-in-out; position: relative; overflow: hidden; display: flex; flex-direction: column; gap: 8px;">
+          <div style="position: absolute; top: 0; right: 0; background: ${dotColor}; color: #111827; font-size: 0.65rem; font-weight: 700; padding: 4px 10px; border-bottom-left-radius: 8px; text-transform: uppercase; letter-spacing: 0.5px;">
+            ${major.sentiment}
+          </div>
+          <div style="font-size: 1.05rem; font-weight: 600; line-height: 1.45; color: var(--text-color); margin-top: 4px; padding-right: 70px;">
+            ${major.headline}
+          </div>
+          <div style="display: flex; align-items: center; gap: 8px; font-size: 0.78rem; color: var(--text-muted); margin-top: 4px;">
+            <span style="font-weight: 600; color: var(--text-color);">${major.source}</span>
+            <span>•</span>
+            <span>${major.time}</span>
+          </div>
+        </div>
+      `;
+    })() : '';
+
+    const recentNewsHtml = hasNews ? news.slice(1).map(n => {
+      const dotColor = n.sentiment === 'positive' ? 'var(--green)' : n.sentiment === 'negative' ? 'var(--red)' : 'var(--yellow)';
+      return `
+        <div class="news-item" onclick="window.open('${n.url}','_blank')">
+          <div class="news-sentiment-dot" style="background:${dotColor}"></div>
+          <div class="news-content">
+            <div class="news-headline">${n.headline}</div>
+            <div class="news-meta">
+              <span>${n.source}</span>
+              <span>•</span>
+              <span>${n.time}</span>
+              <span style="color:${dotColor};font-weight:600">${n.sentiment.toUpperCase()}</span>
+            </div>
+          </div>
+        </div>
+      `;
+    }).join('') : '<div style="color:var(--text-muted);font-size:0.85rem;padding:12px;">No recent news found for this ticker.</div>';
+
     document.getElementById('tab-sentiment').innerHTML = `
       <div class="sentiment-grid">
         <div class="sentiment-card">
@@ -554,25 +686,11 @@ const UI = (() => {
         </div>
       </div>
 
+      ${majorNewsHtml}
+
       <div class="section-title" style="margin-bottom:12px">📰 Recent News</div>
       <div class="news-feed">
-        ${news.map(n => {
-          const dotColor = n.sentiment === 'positive' ? 'var(--green)' : n.sentiment === 'negative' ? 'var(--red)' : 'var(--yellow)';
-          return `
-            <div class="news-item" onclick="window.open('${n.url}','_blank')">
-              <div class="news-sentiment-dot" style="background:${dotColor}"></div>
-              <div class="news-content">
-                <div class="news-headline">${n.headline}</div>
-                <div class="news-meta">
-                  <span>${n.source}</span>
-                  <span>•</span>
-                  <span>${n.time}</span>
-                  <span style="color:${dotColor};font-weight:600">${n.sentiment.toUpperCase()}</span>
-                </div>
-              </div>
-            </div>
-          `;
-        }).join('')}
+        ${recentNewsHtml}
       </div>
 
       <div class="section-title" style="margin-top:20px; margin-bottom:12px">🎯 Score Breakdown — Sentiment & Flows</div>

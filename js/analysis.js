@@ -184,88 +184,231 @@ function detectTrend(data) {
 // SCORING ENGINE (0–100)
 // ============================================================
 
-function scoreFundamentals(fund) {
+function scoreFundamentals(fund, symbol, sector) {
   if (!fund) {
     return {
       score: 0,
       checklist: [
-        { label: 'Valuation Quality', passed: false, value: 'N/A', desc: 'Trailing PE vs Industry PE or PB < 3.0', score: 0, max: 9 },
-        { label: 'Earnings & Revenue Growth', passed: false, value: 'N/A', desc: 'YoY Revenue Growth > 10% and EPS Growth > 12%', score: 0, max: 8 },
-        { label: 'Balance Sheet & ROE', passed: false, value: 'N/A', desc: 'Debt/Equity < 1.0 and ROE > 12%', score: 0, max: 8 }
+        { label: 'Valuation Quality', passed: false, value: 'N/A', desc: 'PE below industry average or PB ratio under 3.0 indicates healthy valuation.', score: 0, max: 9 },
+        { label: 'Earnings & Revenue Growth', passed: false, value: 'N/A', desc: 'Strong double digit top-line and bottom-line growth confirms business expansion.', score: 0, max: 8 },
+        { label: 'Balance Sheet & ROE', passed: false, value: 'N/A', desc: 'Debt-to-equity below 1.0 limits insolvency risk, while ROE above 12% shows efficient capital use.', score: 0, max: 8 }
       ]
     };
   }
 
   const checklist = [];
-  let score = 0;
+  
+  // Clean symbol and sector
+  const sym = (symbol || '').toUpperCase();
+  const sec = (sector || '').toUpperCase();
+  
+  // Determine if financial sector (Banking, Financial Services, NBFCs)
+  const isFinancial = sec.includes('BANK') || sec.includes('NBFC') || sec.includes('FINANCIAL') || 
+                      ['HDFCBANK.NS', 'ICICIBANK.NS', 'AXISBANK.NS', 'SBIN.NS', 'KOTAKBANK.NS', 'BAJFINANCE.NS', 'BAJAJFINSV.NS', 'JPM', 'GS', 'MS'].includes(sym);
+                      
+  // Determine if Mega Cap (Market Cap > 1.5 Lakh Crore / 1.5 Trillion INR for Indian, or > 150B USD for US)
+  const isIndian = sym.endsWith('.NS') || sym.endsWith('.BO');
+  const marketCap = fund.marketCap || 0;
+  const isMegaCap = isIndian ? (marketCap > 1.5e12) : (marketCap > 1.5e11);
 
   // 1. Valuation Quality (9 pts)
-  let valPassed = false;
-  let valVal = [];
-  if (fund.pe !== null && fund.industryPe !== null && fund.pe > 0 && fund.pe < fund.industryPe) {
-    valPassed = true;
-    valVal.push(`PE (${fund.pe.toFixed(1)}) < Industry (${fund.industryPe.toFixed(1)})`);
+  let peScore = 0;
+  let peDesc = '';
+  if (fund.pe === null || fund.pe === undefined || fund.pe <= 0) {
+    peScore = 5;
+    peDesc = 'PE: N/A';
+  } else if (fund.pe < 15) {
+    peScore = 9;
+    peDesc = `PE: ${fund.pe.toFixed(1)} (Highly Undervalued)`;
+  } else if (fund.pe < 30) {
+    peScore = 7;
+    peDesc = `PE: ${fund.pe.toFixed(1)} (Reasonable/Fair)`;
+  } else if (fund.pe < 45) {
+    peScore = 5;
+    peDesc = `PE: ${fund.pe.toFixed(1)} (Premium Valuation)`;
+  } else {
+    peScore = 2;
+    peDesc = `PE: ${fund.pe.toFixed(1)} (Highly Stretched)`;
   }
-  if (fund.pb !== null && fund.pb < 3.0 && fund.pb > 0) {
-    valPassed = true;
-    valVal.push(`PB (${fund.pb.toFixed(2)}) < 3.0`);
+  
+  // P/E industry comparison bonus point
+  let peBonus = 0;
+  if (fund.pe !== null && fund.pe !== undefined && fund.industryPe !== null && fund.industryPe !== undefined && fund.pe > 0) {
+    // If PE is less than industry PE or within 10% premium
+    if (fund.pe < fund.industryPe * 1.1) {
+      peBonus = 1;
+      peDesc += ` [Industry PE: ${fund.industryPe.toFixed(1)}]`;
+    }
   }
-  const valScore = valPassed ? 9 : 3;
-  score += valScore;
+  
+  let pbScore = 0;
+  let pbDesc = '';
+  if (fund.pb === null || fund.pb === undefined || fund.pb <= 0) {
+    pbScore = 5;
+    pbDesc = 'PB: N/A';
+  } else if (fund.pb < 3) {
+    pbScore = 9;
+    pbDesc = `PB: ${fund.pb.toFixed(2)} (Value)`;
+  } else if (fund.pb < 6) {
+    pbScore = 7;
+    pbDesc = `PB: ${fund.pb.toFixed(2)} (Reasonable)`;
+  } else {
+    pbScore = 4;
+    pbDesc = `PB: ${fund.pb.toFixed(2)} (Stretched)`;
+  }
+  
+  const valScore = Math.min(9, Math.round((peScore + pbScore) / 2) + peBonus);
+  const valPassed = valScore >= 6;
   checklist.push({
     label: 'Valuation Quality',
     passed: valPassed,
-    value: valVal.length > 0 ? valVal.join(', ') : `PE: ${fund.pe || 'N/A'}, PB: ${fund.pb || 'N/A'}`,
-    desc: 'PE below industry average or PB ratio under 3.0 indicates healthy valuation.',
+    value: `${peDesc}, ${pbDesc}`,
+    desc: 'Assesses P/E vs industry averages and P/B ratios. Moat companies are allowed premium multiples.',
     score: valScore,
     max: 9
   });
 
   // 2. Earnings & Revenue Growth (8 pts)
-  let growthPassed = false;
-  let growthVal = [];
-  if (fund.revenueGrowth !== null && fund.revenueGrowth > 10) {
-    growthPassed = true;
-    growthVal.push(`Rev: +${fund.revenueGrowth.toFixed(1)}%`);
+  let revScore = 0;
+  let revDesc = '';
+  if (fund.revenueGrowth === null || fund.revenueGrowth === undefined) {
+    revScore = 1;
+    revDesc = 'N/A';
+  } else if (fund.revenueGrowth > 12) {
+    revScore = 4;
+    revDesc = `Rev YoY: +${fund.revenueGrowth.toFixed(1)}%`;
+  } else if (fund.revenueGrowth > 6) {
+    revScore = 3;
+    revDesc = `Rev YoY: +${fund.revenueGrowth.toFixed(1)}%`;
+  } else if (fund.revenueGrowth >= 0) {
+    revScore = 2;
+    revDesc = `Rev YoY: +${fund.revenueGrowth.toFixed(1)}%`;
+  } else {
+    revScore = 0;
+    revDesc = `Rev YoY: ${fund.revenueGrowth.toFixed(1)}% (Decline)`;
   }
-  if (fund.earningsGrowth !== null && fund.earningsGrowth > 12) {
-    growthPassed = true;
-    growthVal.push(`EPS: +${fund.earningsGrowth.toFixed(1)}%`);
+
+  let earnScore = 0;
+  let earnDesc = '';
+  if (fund.earningsGrowth === null || fund.earningsGrowth === undefined) {
+    earnScore = 1;
+    earnDesc = 'N/A';
+  } else if (fund.earningsGrowth > 15) {
+    earnScore = 4;
+    earnDesc = `EPS YoY: +${fund.earningsGrowth.toFixed(1)}%`;
+  } else if (fund.earningsGrowth > 8) {
+    earnScore = 3;
+    earnDesc = `EPS YoY: +${fund.earningsGrowth.toFixed(1)}%`;
+  } else if (fund.earningsGrowth >= 0) {
+    earnScore = 2;
+    earnDesc = `EPS YoY: +${fund.earningsGrowth.toFixed(1)}%`;
+  } else {
+    earnScore = 0;
+    earnDesc = `EPS YoY: ${fund.earningsGrowth.toFixed(1)}% (Decline)`;
   }
-  const growthScore = growthPassed ? 8 : 2;
-  score += growthScore;
+
+  const growthScore = Math.min(8, revScore + earnScore);
+  const growthPassed = growthScore >= 5;
   checklist.push({
     label: 'Earnings & Revenue Growth',
     passed: growthPassed,
-    value: growthVal.length > 0 ? growthVal.join(', ') : 'Slow Growth',
-    desc: 'Strong double digit top-line and bottom-line growth confirms business expansion.',
+    value: `${revDesc}, ${earnDesc}`,
+    desc: 'Measures top-line revenue expansion and bottom-line EPS acceleration year-over-year.',
     score: growthScore,
     max: 8
   });
 
   // 3. Balance Sheet & ROE (8 pts)
-  let balancePassed = false;
-  let balanceVal = [];
-  if (fund.debtToEquity !== null && fund.debtToEquity < 1.0) {
-    balancePassed = true;
-    balanceVal.push(`D/E: ${fund.debtToEquity.toFixed(2)}`);
+  let debtScore = 0;
+  let debtDesc = '';
+  if (isFinancial) {
+    if (fund.currentRatio !== null && fund.currentRatio !== undefined) {
+      if (fund.currentRatio > 1.2) {
+        debtScore = 4;
+        debtDesc = `Financials: Strong Liquidity (Current Ratio: ${fund.currentRatio.toFixed(2)})`;
+      } else {
+        debtScore = 3;
+        debtDesc = `Financials: Adequate Liquidity (Current Ratio: ${fund.currentRatio.toFixed(2)})`;
+      }
+    } else {
+      debtScore = 4;
+      debtDesc = `Leverage: N/A (Financial Sector)`;
+    }
+  } else if (fund.debtToEquity === null || fund.debtToEquity === undefined) {
+    debtScore = 2;
+    debtDesc = 'D/E: N/A';
+  } else if (fund.debtToEquity < 0.5) {
+    debtScore = 4;
+    debtDesc = `D/E: ${fund.debtToEquity.toFixed(2)} (Minimal Debt)`;
+  } else if (fund.debtToEquity < 1.0) {
+    debtScore = 3;
+    debtDesc = `D/E: ${fund.debtToEquity.toFixed(2)} (Healthy)`;
+  } else if (fund.debtToEquity < 1.5) {
+    debtScore = 2;
+    debtDesc = `D/E: ${fund.debtToEquity.toFixed(2)} (Moderate Debt)`;
+  } else {
+    debtScore = 1;
+    debtDesc = `D/E: ${fund.debtToEquity.toFixed(2)} (Leveraged)`;
   }
-  if (fund.roe !== null && fund.roe > 12) {
-    balancePassed = true;
-    balanceVal.push(`ROE: ${fund.roe.toFixed(1)}%`);
+
+  let roeScore = 0;
+  let roeDesc = '';
+  const roeVal = (fund.roe !== null && fund.roe !== undefined) ? fund.roe : ((fund.roce !== null && fund.roce !== undefined) ? fund.roce : null);
+  const isRoceFallback = fund.roe === null || fund.roe === undefined;
+  const metricLabel = isRoceFallback ? 'ROCE' : 'ROE';
+
+  if (roeVal === null || roeVal === undefined) {
+    roeScore = 1;
+    roeDesc = 'Profitability: N/A';
+  } else if (isMegaCap) {
+    if (roeVal > 12) {
+      roeScore = 4;
+      roeDesc = `${metricLabel}: ${roeVal.toFixed(1)}% (Excellent for scale)`;
+    } else if (roeVal > 9) {
+      roeScore = 3;
+      roeDesc = `${metricLabel}: ${roeVal.toFixed(1)}% (Solid for scale)`;
+    } else if (roeVal >= 5) {
+      roeScore = 2;
+      roeDesc = `${metricLabel}: ${roeVal.toFixed(1)}% (Low/Consolidating)`;
+    } else {
+      roeScore = 1;
+      roeDesc = `${metricLabel}: ${roeVal.toFixed(1)}% (Poor)`;
+    }
+  } else {
+    if (roeVal > 15) {
+      roeScore = 4;
+      roeDesc = `${metricLabel}: ${roeVal.toFixed(1)}% (Excellent)`;
+    } else if (roeVal > 10) {
+      roeScore = 3;
+      roeDesc = `${metricLabel}: ${roeVal.toFixed(1)}% (Good)`;
+    } else if (roeVal >= 6) {
+      roeScore = 2;
+      roeDesc = `${metricLabel}: ${roeVal.toFixed(1)}% (Subpar)`;
+    } else {
+      roeScore = 1;
+      roeDesc = `${metricLabel}: ${roeVal.toFixed(1)}% (Poor)`;
+    }
   }
-  const balanceScore = balancePassed ? 8 : 3;
-  score += balanceScore;
+
+  // Margin bonus point
+  let marginBonus = 0;
+  if (fund.profitMargin !== null && fund.profitMargin !== undefined && fund.profitMargin > 15) {
+    marginBonus = 1;
+    roeDesc += ` [Margin: ${fund.profitMargin.toFixed(1)}%]`;
+  }
+
+  const balanceScore = Math.min(8, debtScore + roeScore + marginBonus);
+  const balancePassed = balanceScore >= 6;
   checklist.push({
     label: 'Balance Sheet & ROE',
     passed: balancePassed,
-    value: balanceVal.length > 0 ? balanceVal.join(', ') : 'Leverage/ROE weak',
-    desc: 'Debt-to-equity below 1.0 limits insolvency risk, while ROE above 12% shows efficient capital use.',
+    value: `${debtDesc}, ${roeDesc}`,
+    desc: 'Verifies leverage limits to avoid insolvency and confirms capital efficiency via Return on Equity.',
     score: balanceScore,
     max: 8
   });
 
-  return { score: Math.min(25, score), checklist };
+  return { score: Math.min(25, valScore + growthScore + balanceScore), checklist };
 }
 
 function scoreTechnicalSetup(data, quote) {
@@ -719,7 +862,7 @@ async function analyzeStock(symbol, name, sector) {
     throw new Error(`No price data available for ${symbol}. Check if the ticker symbol is correct.`);
   }
 
-  const fundResult  = scoreFundamentals(fund);
+  const fundResult  = scoreFundamentals(fund, symbol, sector);
   const setupResult = scoreTechnicalSetup(historical, quote);
   const momResult   = scoreMomentum(historical);
   const flowResult  = scoreSentimentFlows(fearGreed, news, setupResult.indicators?.volData, fund);

@@ -36,6 +36,47 @@ function renderPriceChart(canvasId, historical, symbol) {
   const closes = data.map(d => d.close);
   const volumes = data.map(d => d.volume);
 
+  const sr = Analysis.calcSupportResistance(historical) || {};
+  const annotations = {};
+  if (sr.s1) {
+    annotations.s1Line = {
+      type: 'line',
+      yMin: sr.s1,
+      yMax: sr.s1,
+      borderColor: 'rgba(16, 185, 129, 0.65)',
+      borderWidth: 1.5,
+      borderDash: [6, 4],
+      label: {
+        display: true,
+        content: `S1: ₹${sr.s1.toFixed(1)}`,
+        position: 'start',
+        backgroundColor: 'rgba(16, 185, 129, 0.85)',
+        color: '#fff',
+        font: { size: 8, weight: '600' },
+        padding: { top: 2, bottom: 2, left: 4, right: 4 }
+      }
+    };
+  }
+  if (sr.r1) {
+    annotations.r1Line = {
+      type: 'line',
+      yMin: sr.r1,
+      yMax: sr.r1,
+      borderColor: 'rgba(239, 68, 68, 0.65)',
+      borderWidth: 1.5,
+      borderDash: [6, 4],
+      label: {
+        display: true,
+        content: `R1: ₹${sr.r1.toFixed(1)}`,
+        position: 'start',
+        backgroundColor: 'rgba(239, 68, 68, 0.85)',
+        color: '#fff',
+        font: { size: 8, weight: '600' },
+        padding: { top: 2, bottom: 2, left: 4, right: 4 }
+      }
+    };
+  }
+
   // Gradient fill
   const gradient = ctx.createLinearGradient(0, 0, 0, 300);
   gradient.addColorStop(0, 'rgba(59,130,246,0.3)');
@@ -54,7 +95,7 @@ function renderPriceChart(canvasId, historical, symbol) {
         pointRadius: 0,
         pointHoverRadius: 5,
         fill: true,
-        tension: 0.3,
+        tension: 0.4,
       }],
     },
     options: {
@@ -72,6 +113,9 @@ function renderPriceChart(canvasId, historical, symbol) {
             label: ctx => ` ₹${ctx.parsed.y.toLocaleString('en-IN', { minimumFractionDigits: 2 })}`,
           },
         },
+        annotation: {
+          annotations
+        }
       },
       scales: {
         x: {
@@ -128,6 +172,13 @@ function renderRSIChart(canvasId, historical) {
           annotations: {
             ob: { type: 'line', yMin: 70, yMax: 70, borderColor: 'rgba(239,68,68,0.4)', borderWidth: 1, borderDash: [4, 4] },
             os: { type: 'line', yMin: 30, yMax: 30, borderColor: 'rgba(16,185,129,0.4)', borderWidth: 1, borderDash: [4, 4] },
+            channel: {
+              type: 'box',
+              yMin: 30,
+              yMax: 70,
+              backgroundColor: 'rgba(139, 92, 246, 0.05)',
+              borderWidth: 0
+            }
           },
         },
       },
@@ -174,7 +225,18 @@ function renderMACDChart(canvasId, historical) {
         },
         {
           type: 'bar', label: 'Histogram', data: histogram.slice(-len),
-          backgroundColor: histogram.slice(-len).map(v => v >= 0 ? 'rgba(16,185,129,0.5)' : 'rgba(239,68,68,0.5)'),
+          backgroundColor: (() => {
+            const histSlice = histogram.slice(-len);
+            return histSlice.map((v, i) => {
+              if (i === 0) return v >= 0 ? 'rgba(16, 185, 129, 0.8)' : 'rgba(239, 68, 68, 0.8)';
+              const prev = histSlice[i - 1];
+              if (v >= 0) {
+                return v > prev ? 'rgba(16, 185, 129, 0.8)' : 'rgba(16, 185, 129, 0.35)';
+              } else {
+                return v < prev ? 'rgba(239, 68, 68, 0.8)' : 'rgba(239, 68, 68, 0.35)';
+              }
+            });
+          })(),
           order: 3,
         },
       ],
@@ -424,7 +486,7 @@ function renderBBChart(canvasId, historical) {
       datasets: [
         { label: 'Upper Band', data: bb.map(b => b.upper), borderColor: 'rgba(239,68,68,0.5)', borderWidth: 1, borderDash: [4,4], pointRadius: 0, fill: false },
         { label: 'Middle (SMA20)', data: bb.map(b => b.mid), borderColor: '#f59e0b', borderWidth: 1.5, pointRadius: 0, fill: false },
-        { label: 'Lower Band', data: bb.map(b => b.lower), borderColor: 'rgba(16,185,129,0.5)', borderWidth: 1, borderDash: [4,4], pointRadius: 0, fill: false },
+        { label: 'Lower Band', data: bb.map(b => b.lower), borderColor: 'rgba(16,185,129,0.5)', borderWidth: 1, borderDash: [4,4], pointRadius: 0, fill: '-2', backgroundColor: 'rgba(59, 130, 246, 0.04)' },
         { label: 'Price', data: closes, borderColor: '#3b82f6', borderWidth: 2, pointRadius: 0, fill: false },
       ],
     },

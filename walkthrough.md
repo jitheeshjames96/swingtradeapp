@@ -68,6 +68,20 @@
 - Market indices + Fear & Greed auto-refresh every **5 minutes** silently in background.
 - Live clock `🕐 HH:MM` in topbar showing last data update time (updates every minute).
 
+### 6. Refined Scoring Engine & Chart Aesthetics — ADDED
+- **Tiered Multi-level Valuations**: Replaced single thresholds with tiered valuation mapping (e.g. PE ranges <15, 15-30, 30-45, >=45; PB ranges <3, 3-6, >=6).
+- **Financial Sector Adaptation**: Excluded debt-to-equity threshold checks for Banking/NBFC symbols. Replaced with liquidity health check.
+- **Mega-cap Scaling**: Relaxed ROE requirements (>9% solid, >12% excellent) for mega-caps (>₹1.5 Lakh Cr) to honor stable large-scale compounders like `RELIANCE.NS`.
+- **Chart.js Enhancements**: Added support/resistance lines (S1/R1), semi-transparent Bollinger Bands channel fill, RSI 30-70 channel background, and standard 4-color MACD histogram coloring.
+
+### 7. Year-Based Financials Filter & YoY Correction — ADDED
+- **Financial Year Filter**: Added a dropdown selector `id="quarter-filter-select"` to filter quarterly financials dynamically by year (e.g., FY24, FY23).
+- **YoY quarterly comparison correction**: Updated YoY calculation to compare the current quarter with the quarter 4 positions back (`i + 4`) in the chronologically ordered 12-quarter scraper data.
+
+### 8. Featured News & Chat Fallback Reports — ADDED
+- **Major News Banner**: Featured the top sentiment news item at the top of the sentiment tab using a premium styled badge and gradient.
+- **API-Key Fallback Chat**: Added a server-side and client-side markdown generator that builds a detailed stock trading report when the Gemini API key is missing.
+
 ---
 
 ## Live Data Verification (as of deployment)

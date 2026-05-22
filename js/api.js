@@ -371,7 +371,7 @@ async function fetchEarnings(symbol) {
     const quarterly = result.incomeStatementHistoryQuarterly?.incomeStatementHistory || [];
     const annual = result.incomeStatementHistory?.incomeStatementHistory || [];
 
-    const parseQuarterly = quarterly.slice(0, 8).map(q => ({
+    const parseQuarterly = quarterly.slice(0, 12).map(q => ({
       period: q.endDate?.fmt || 'N/A',
       revenue: q.totalRevenue?.raw || 0,
       netIncome: q.netIncome?.raw || 0,
@@ -415,25 +415,50 @@ async function fetchMarketIndices() {
 
 // ── NEWS SENTIMENT (simulated from Yahoo Finance)
 async function fetchNewsSentiment(symbol) {
-  const url = `${YAHOO_BASE}/v1/finance/search?q=${symbol}&newsCount=8`;
-  const data = await proxyFetch(url);
-  const news = [];
-
-  if (data && data.news) {
-    data.news.slice(0, 6).forEach(n => {
-      const sentiment = analyzeSentimentKeywords(n.title || '');
-      news.push({
-        headline: n.title,
-        source: n.publisher,
-        time: n.providerPublishTime ? new Date(n.providerPublishTime * 1000).toLocaleDateString() : 'Recent',
-        sentiment,
-        url: n.link,
-      });
+  try {
+    const res = await fetch(`${BACKEND_URL}/api/news?symbol=${symbol}`, {
+      headers: { ...getAuthHeaders() }
     });
+    if (res.ok) {
+      const newsData = await res.json();
+      if (newsData && newsData.length > 0) return newsData;
+    }
+  } catch (e) {
+    console.warn('Backend news fetch failed, falling back to proxy:', e.message);
   }
 
-  if (news.length === 0) return generateMockNews(symbol);
-  return news;
+  const url = `${YAHOO_BASE}/v1/finance/search?q=${symbol}&newsCount=8`;
+  try {
+    const data = await proxyFetch(url);
+    const news = [];
+
+    if (data && data.news) {
+      data.news.slice(0, 6).forEach(n => {
+        const sentiment = analyzeSentimentKeywords(n.title || '');
+        let formattedTime = 'Recent';
+        if (n.providerPublishTime) {
+          const pubDate = new Date(n.providerPublishTime * 1000);
+          const day = pubDate.getDate();
+          const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+          const month = months[pubDate.getMonth()];
+          const year = pubDate.getFullYear();
+          formattedTime = `${day} ${month} ${year}`;
+        }
+        news.push({
+          headline: n.title,
+          source: n.publisher,
+          time: formattedTime,
+          sentiment,
+          url: n.link,
+        });
+      });
+    }
+
+    if (news.length === 0) return generateMockNews(symbol);
+    return news;
+  } catch (e) {
+    return generateMockNews(symbol);
+  }
 }
 
 // Basic keyword-based sentiment analyzer
@@ -528,7 +553,11 @@ function generateMockHistorical() {
 }
 
 function generateMockEarnings() {
-  const quarters = ['Q4 FY24','Q3 FY24','Q2 FY24','Q1 FY24','Q4 FY23','Q3 FY23','Q2 FY23','Q1 FY23'];
+  const quarters = [
+    'Q4 FY24','Q3 FY24','Q2 FY24','Q1 FY24',
+    'Q4 FY23','Q3 FY23','Q2 FY23','Q1 FY23',
+    'Q4 FY22','Q3 FY22','Q2 FY22','Q1 FY22'
+  ];
   const years    = ['FY2024','FY2023','FY2022','FY2021','FY2020'];
   let rev = 50000 + Math.random() * 200000;
   let inc = rev * 0.12;
@@ -597,6 +626,88 @@ Requirements:
   }
 }
 
+// Helper function to generate a rich markdown fallback report when Gemini key/backend is missing
+function generateDetailedFallbackReport(currentStockContext) {
+  if (!currentStockContext || !currentStockContext.symbol) {
+    return `Hello! I am **Invy**, your Swing Trading Assistant. 
+
+Currently, no stock is selected. Please select a stock from the search bar on the left to see a detailed report, or ask me any general trading question.
+
+Here is a quick checklist of what I look for when analyzing stocks:
+1. **Trend Structure**: Price above the 50-day and 200-day SMAs.
+2. **Fundamental Value**: Tiered PE/PB scoring to ensure fair valuations.
+3. **Momentum Zone**: RSI between 45 and 65 (bull phase) with strong volume expansion.
+4. **Sentiment & Flows**: Positive news sentiment and institutional backing.`;
+  }
+
+  const symbol = currentStockContext.symbol;
+  const name = currentStockContext.name || symbol;
+  const quote = currentStockContext.quote || {};
+  const scores = currentStockContext.scores || {};
+  const tradeSetup = currentStockContext.tradeSetup || {};
+  const composite = scores.composite || { total: 0, rating: 'N/A', emoji: '⚪' };
+
+  const checklist = scores.checklist || [];
+  const passedChecks = checklist.filter(c => c.passed).length;
+  const totalChecks = checklist.length || 12;
+  const winChance = Math.round(35 + (passedChecks / totalChecks) * 50);
+
+  const peVal = scores.fundamental?.checklist?.[0]?.value || 'N/A';
+  const growthVal = scores.fundamental?.checklist?.[1]?.value || 'N/A';
+  const debtVal = scores.fundamental?.checklist?.[2]?.value || 'N/A';
+
+  const trendVal = scores.technicalSetup?.checklist?.[0]?.value || 'N/A';
+  const patternVal = scores.technicalSetup?.checklist?.[2]?.value || 'N/A';
+
+  const rsiVal = scores.momentum?.checklist?.[0]?.value || 'N/A';
+  const macdVal = scores.momentum?.checklist?.[1]?.value || 'N/A';
+
+  const flowVal = scores.sentimentFlow?.checklist?.[0]?.value || 'N/A';
+  const fgVal = scores.sentimentFlow?.checklist?.[1]?.value || 'N/A';
+
+  const formatPrice = (p) => typeof p === 'number' ? '₹' + p.toLocaleString('en-IN', { minimumFractionDigits: 2 }) : 'N/A';
+
+  return `### 📊 Invy Swing Trading Report: ${name} (${symbol})
+
+**Rating**: ${composite.emoji || ''} **${composite.rating || 'N/A'}** (Composite Score: **${composite.total || 0}/100**)
+**Current Price**: ${formatPrice(quote.price)} (${(quote.changePct || 0) >= 0 ? '+' : ''}${(quote.changePct || 0).toFixed(2)}%)
+
+---
+
+#### 📈 Swing Trade Setup
+- **Suggested Entry Zone**: ${formatPrice(quote.price)} (Immediate or limit order within 1.5% range)
+- **Stop Loss (Hard)**: ${formatPrice(tradeSetup.stopLoss)} (Place below key support level)
+- **Target 1**: ${formatPrice(tradeSetup.target1)} (Take partial profit / short-term resistance)
+- **Target 2**: ${formatPrice(tradeSetup.target2)} (Medium-term target / trend continuation)
+- **Target 3**: ${formatPrice(tradeSetup.target3)} (Optimal extension)
+- **Risk/Reward Ratio**: **${tradeSetup.riskReward || 0}:1**
+- **Win Probability**: **${winChance}%** (Based on ${passedChecks}/${totalChecks} matches)
+
+---
+
+#### ⚖️ Evaluation Pillars (0–25 each)
+1. **Fundamentals**: **${scores.fundamental?.score || 0}/25**
+   - *Valuation*: ${peVal}
+   - *Leverage & Profitability*: ${debtVal}
+2. **Technical Setup**: **${scores.technicalSetup?.score || 0}/25**
+   - *Trend Alignment*: ${trendVal}
+   - *Chart Patterns*: ${patternVal}
+3. **Momentum**: **${scores.momentum?.score || 0}/25**
+   - *Speed & Trend*: RSI: ${rsiVal} | MACD: ${macdVal}
+4. **Sentiment & Flows**: **${scores.sentimentFlow?.score || 0}/25**
+   - *Smart Money / Market*: Flows: ${flowVal} | Fear & Greed: ${fgVal}
+
+---
+
+#### 🎯 Key Investment Insights
+- **Strengths & Moats**:
+  - *Growth Momentum*: ${growthVal}
+  - *Institutional Backing*: Supported by healthy promoter/FII holdings.
+- **Risks to Monitor**:
+  - Watch for resistance levels around target zones. Keep risk reward optimized.
+  - Market sentiment is currently in **${fgVal.split('-')[1]?.trim() || 'Neutral'}** territory.`;
+}
+
 // ── INVY AI CHAT SYSTEM (Client-side, quota-friendly with backend fallback)
 async function sendInvyChatMessage(history, message, currentStockContext) {
   const apiKey = localStorage.getItem('gemini_api_key');
@@ -620,8 +731,8 @@ async function sendInvyChatMessage(history, message, currentStockContext) {
       const data = await res.json();
       return data.response;
     } catch (e) {
-      console.warn('Backend proxy chat failed:', e.message);
-      throw new Error(`Invy AI Chat error: ${e.message}`);
+      console.warn('Backend proxy chat failed, using client-side offline generator:', e.message);
+      return generateDetailedFallbackReport(currentStockContext);
     }
   }
 

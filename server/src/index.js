@@ -185,21 +185,29 @@ app.get('/api/analyze', authMiddleware, async (req, res) => {
     const isIndian = cleanSymbol.endsWith('.NS') || cleanSymbol.endsWith('.BO');
     if (isIndian) {
       const screener = await scraper.fetchScreenerData(cleanSymbol);
+      let yahooFund = null;
+      try {
+        yahooFund = await scraper.fetchYahooFundamentals(cleanSymbol);
+      } catch (ye) {
+        console.warn(`Yahoo fundamentals fetch failed for ${cleanSymbol} during enrichment:`, ye.message);
+      }
+
       if (screener) {
-        fundamentals = { ...screener.fundamentals };
-        earnings = { ...screener.earnings };
-        shareholding = screener.shareholding || null;
-        
+        fundamentals = {
+          ...yahooFund,
+          ...screener.fundamentals
+        };
         // Dynamically calculate P/B ratio from quote price and scraped book value
-        if (fundamentals.bookValue && quote.price) {
-          fundamentals.pb = parseFloat((quote.price / fundamentals.bookValue).toFixed(2));
-        } else {
-          fundamentals.pb = null;
+        if (screener.fundamentals.bookValue && quote.price) {
+          fundamentals.pb = parseFloat((quote.price / screener.fundamentals.bookValue).toFixed(2));
+        } else if (!fundamentals.pb && yahooFund?.pb) {
+          fundamentals.pb = yahooFund.pb;
         }
-      } else {
-        const yahoo = await scraper.fetchYahooFundamentals(cleanSymbol);
-        fundamentals = yahoo;
-        shareholding = yahoo.shareholding || null;
+        earnings = { ...screener.earnings };
+        shareholding = screener.shareholding || yahooFund?.shareholding || null;
+      } else if (yahooFund) {
+        fundamentals = yahooFund;
+        shareholding = yahooFund.shareholding || null;
       }
     } else {
       const yahoo = await scraper.fetchYahooFundamentals(cleanSymbol);
@@ -314,6 +322,152 @@ app.get('/api/market-pulse', authMiddleware, async (req, res) => {
   }
 });
 
+
+// Route: Fetch Yahoo Finance news and analyze sentiment
+app.get('/api/news', authMiddleware, async (req, res) => {
+  const symbol = req.query.symbol;
+  if (!symbol) {
+    return res.status(400).json({ error: 'Symbol parameter is required' });
+  }
+
+  const cacheKey = `news_${symbol.toUpperCase()}`;
+  const cachedData = appCache.get(cacheKey);
+  if (cachedData) {
+    return res.json(cachedData);
+  }
+
+  try {
+    const url = `https://query1.finance.yahoo.com/v1/finance/search?q=${encodeURIComponent(symbol)}&newsCount=8`;
+    const response = await axios.get(url, { headers: { 'User-Agent': 'Mozilla/5.0' } });
+    const data = response.data;
+    const news = [];
+
+    if (data && data.news) {
+      data.news.slice(0, 6).forEach(n => {
+        // Sentiment detection based on title keywords
+        const t = (n.title || '').toLowerCase();
+        const bullish = ['surge', 'rally', 'gain', 'beat', 'strong', 'growth', 'profit', 'record', 'upgrade', 'buy', 'bull', 'rise', 'up', 'positive', 'boost', 'outperform', 'expand', 'win', 'exceed', 'high'];
+        const bearish = ['fall', 'drop', 'loss', 'miss', 'weak', 'decline', 'down', 'sell', 'bear', 'cut', 'downgrade', 'concern', 'risk', 'crash', 'plunge', 'slump', 'fail', 'negative', 'below', 'low'];
+        let sentimentScore = 0;
+        bullish.forEach(w => { if (t.includes(w)) sentimentScore++; });
+        bearish.forEach(w => { if (t.includes(w)) sentimentScore--; });
+
+        let sentiment = 'neutral';
+        if (sentimentScore > 0) sentiment = 'positive';
+        else if (sentimentScore < 0) sentiment = 'negative';
+
+        // Precise date formatting
+        let formattedTime = 'Recent';
+        if (n.providerPublishTime) {
+          const pubDate = new Date(n.providerPublishTime * 1000);
+          const day = pubDate.getDate();
+          const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+          const month = months[pubDate.getMonth()];
+          const year = pubDate.getFullYear();
+          formattedTime = `${day} ${month} ${year}`;
+        }
+
+        news.push({
+          headline: n.title,
+          source: n.publisher,
+          time: formattedTime,
+          sentiment,
+          url: n.link,
+        });
+      });
+    }
+
+    // Cache the news for 10 minutes
+    appCache.set(cacheKey, news, 600);
+    res.json(news);
+  } catch (error) {
+    console.warn(`Server news fetch failed for ${symbol}:`, error.message);
+    res.status(500).json({ error: 'Failed to retrieve news', details: error.message });
+  }
+});
+
+// Helper function to generate a rich markdown fallback report when Gemini key is missing
+function generateDetailedFallbackReport(currentStockContext) {
+  if (!currentStockContext || !currentStockContext.symbol) {
+    return `Hello! I am **Invy**, your Swing Trading Assistant. 
+
+Currently, no stock is selected. Please select a stock from the search bar on the left to see a detailed report, or ask me any general trading question.
+
+Here is a quick checklist of what I look for when analyzing stocks:
+1. **Trend Structure**: Price above the 50-day and 200-day SMAs.
+2. **Fundamental Value**: Tiered PE/PB scoring to ensure fair valuations.
+3. **Momentum Zone**: RSI between 45 and 65 (bull phase) with strong volume expansion.
+4. **Sentiment & Flows**: Positive news sentiment and institutional backing.`;
+  }
+
+  const symbol = currentStockContext.symbol;
+  const name = currentStockContext.name || symbol;
+  const quote = currentStockContext.quote || {};
+  const scores = currentStockContext.scores || {};
+  const tradeSetup = currentStockContext.tradeSetup || {};
+  const composite = scores.composite || { total: 0, rating: 'N/A', emoji: '⚪' };
+
+  const checklist = scores.checklist || [];
+  const passedChecks = checklist.filter(c => c.passed).length;
+  const totalChecks = checklist.length || 12;
+  const winChance = Math.round(35 + (passedChecks / totalChecks) * 50);
+
+  const peVal = scores.fundamental?.checklist?.[0]?.value || 'N/A';
+  const growthVal = scores.fundamental?.checklist?.[1]?.value || 'N/A';
+  const debtVal = scores.fundamental?.checklist?.[2]?.value || 'N/A';
+
+  const trendVal = scores.technicalSetup?.checklist?.[0]?.value || 'N/A';
+  const patternVal = scores.technicalSetup?.checklist?.[2]?.value || 'N/A';
+
+  const rsiVal = scores.momentum?.checklist?.[0]?.value || 'N/A';
+  const macdVal = scores.momentum?.checklist?.[1]?.value || 'N/A';
+
+  const flowVal = scores.sentimentFlow?.checklist?.[0]?.value || 'N/A';
+  const fgVal = scores.sentimentFlow?.checklist?.[1]?.value || 'N/A';
+
+  const formatPrice = (p) => typeof p === 'number' ? '₹' + p.toLocaleString('en-IN', { minimumFractionDigits: 2 }) : 'N/A';
+
+  return `### 📊 Invy Swing Trading Report: ${name} (${symbol})
+
+**Rating**: ${composite.emoji || ''} **${composite.rating || 'N/A'}** (Composite Score: **${composite.total || 0}/100**)
+**Current Price**: ${formatPrice(quote.price)} (${(quote.changePct || 0) >= 0 ? '+' : ''}${(quote.changePct || 0).toFixed(2)}%)
+
+---
+
+#### 📈 Swing Trade Setup
+- **Suggested Entry Zone**: ${formatPrice(quote.price)} (Immediate or limit order within 1.5% range)
+- **Stop Loss (Hard)**: ${formatPrice(tradeSetup.stopLoss)} (Place below key support level)
+- **Target 1**: ${formatPrice(tradeSetup.target1)} (Take partial profit / short-term resistance)
+- **Target 2**: ${formatPrice(tradeSetup.target2)} (Medium-term target / trend continuation)
+- **Target 3**: ${formatPrice(tradeSetup.target3)} (Optimal extension)
+- **Risk/Reward Ratio**: **${tradeSetup.riskReward || 0}:1**
+- **Win Probability**: **${winChance}%** (Based on ${passedChecks}/${totalChecks} matches)
+
+---
+
+#### ⚖️ Evaluation Pillars (0–25 each)
+1. **Fundamentals**: **${scores.fundamental?.score || 0}/25**
+   - *Valuation*: ${peVal}
+   - *Leverage & Profitability*: ${debtVal}
+2. **Technical Setup**: **${scores.technicalSetup?.score || 0}/25**
+   - *Trend Alignment*: ${trendVal}
+   - *Chart Patterns*: ${patternVal}
+3. **Momentum**: **${scores.momentum?.score || 0}/25**
+   - *Speed & Trend*: RSI: ${rsiVal} | MACD: ${macdVal}
+4. **Sentiment & Flows**: **${scores.sentimentFlow?.score || 0}/25**
+   - *Smart Money / Market*: Flows: ${flowVal} | Fear & Greed: ${fgVal}
+
+---
+
+#### 🎯 Key Investment Insights
+- **Strengths & Moats**:
+  - *Growth Momentum*: ${growthVal}
+  - *Institutional Backing*: Supported by healthy promoter/FII holdings.
+- **Risks to Monitor**:
+  - Watch for resistance levels around target zones. Keep risk reward optimized.
+  - Market sentiment is currently in **${fgVal.split('-')[1]?.trim() || 'Neutral'}** territory.`;
+}
+
 // Route: Invy AI Chat Backend Proxy
 app.post('/api/chat', authMiddleware, async (req, res) => {
   const { history, message, currentStockContext } = req.body;
@@ -329,18 +483,10 @@ app.post('/api/chat', authMiddleware, async (req, res) => {
 
   const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) {
-    const symbolText = symbol ? ` regarding ${symbol}` : '';
-    const fallbackResponse = `I am **Invy**, your Swing Trading Assistant. 
-
-Currently, the server is running in *Free Mode* without a Gemini API Key. Here is my professional assessment based on general trading principles${symbolText}:
-
-1. **Risk Management First**: Never enter a swing trade without setting a hard Stop Loss. Typically, place it just below the recent swing low or 1.5x to 2.0x the ATR.
-2. **Trend Alignment**: Only take long positions if the price is above the 50-day and 200-day Simple Moving Averages.
-3. **Momentum Check**: Look for an RSI value between 45 and 65 that is rising, supported by above-average volume.
-
-*Note: If you have a Gemini API Key, please save it in the settings panel (top-right gear icon) to unlock real-time custom AI chat.*`;
+    const fallbackResponse = generateDetailedFallbackReport(currentStockContext);
     return res.json({ response: fallbackResponse });
   }
+
 
   try {
     const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;

@@ -257,6 +257,86 @@ async function fetchScreenerData(symbol) {
       fund.eps = fund.marketCap / fund.pe / 1e7;
     }
 
+    // Balance Sheet Ratios (Debt to Equity)
+    let shareCapital = [];
+    let reserves = [];
+    let borrowings = [];
+    $('#balance-sheet table tbody tr').each((i, el) => {
+      const rowName = $(el).find('td').first().text().trim().toLowerCase().replace(/[\s\xa0]+/g, ' ');
+      const rowVals = [];
+      $(el).find('td').each((idx, td) => {
+        if (idx > 0) {
+          const val = parseFloat($(td).text().trim().replace(/,/g, ''));
+          rowVals.push(isNaN(val) ? 0 : val);
+        }
+      });
+      if (rowName.includes('equity capital') || rowName.includes('share capital')) {
+        shareCapital = rowVals;
+      } else if (rowName.includes('reserves')) {
+        reserves = rowVals;
+      } else if (rowName.includes('borrowings')) {
+        borrowings = rowVals;
+      }
+    });
+
+    if (!fund.debtToEquity && shareCapital.length > 0 && reserves.length > 0 && borrowings.length > 0) {
+      const latestEquity = shareCapital[shareCapital.length - 1] + reserves[reserves.length - 1];
+      const latestBorrowings = borrowings[borrowings.length - 1];
+      if (latestEquity > 0) {
+        fund.debtToEquity = parseFloat((latestBorrowings / latestEquity).toFixed(2));
+      }
+    }
+
+    // Profit & Loss Ratios (Growth and Margins)
+    let sales = [];
+    let netProfit = [];
+    let opm = [];
+    $('#profit-loss table tbody tr').each((i, el) => {
+      const rowName = $(el).find('td').first().text().trim().toLowerCase().replace(/[\s\xa0]+/g, ' ');
+      const rowVals = [];
+      $(el).find('td').each((idx, td) => {
+        if (idx > 0) {
+          const val = parseFloat($(td).text().trim().replace(/,/g, '').replace(/%/g, ''));
+          rowVals.push(isNaN(val) ? 0 : val);
+        }
+      });
+      if (rowName.includes('sales') || rowName.includes('revenue')) {
+        sales = rowVals;
+      } else if (rowName.includes('net profit')) {
+        netProfit = rowVals;
+      } else if (rowName.includes('opm')) {
+        opm = rowVals;
+      }
+    });
+
+    if (!fund.revenueGrowth && sales.length > 1) {
+      const latestSales = sales[sales.length - 1];
+      const prevSales = sales[sales.length - 2];
+      if (prevSales > 0) {
+        fund.revenueGrowth = parseFloat((((latestSales - prevSales) / prevSales) * 100).toFixed(1));
+      }
+    }
+
+    if (!fund.earningsGrowth && netProfit.length > 1) {
+      const latestProfit = netProfit[netProfit.length - 1];
+      const prevProfit = netProfit[netProfit.length - 2];
+      if (prevProfit > 0) {
+        fund.earningsGrowth = parseFloat((((latestProfit - prevProfit) / prevProfit) * 100).toFixed(1));
+      }
+    }
+
+    if (!fund.profitMargin) {
+      if (sales.length > 0 && netProfit.length > 0) {
+        const latestSales = sales[sales.length - 1];
+        const latestProfit = netProfit[netProfit.length - 1];
+        if (latestSales > 0) {
+          fund.profitMargin = parseFloat(((latestProfit / latestSales) * 100).toFixed(1));
+        }
+      } else if (opm.length > 0) {
+        fund.profitMargin = opm[opm.length - 1];
+      }
+    }
+
     // Scrape Shareholding Pattern (First Table only)
     const shareholding = { quarters: [], promoters: [], fii: [], dii: [], public: [] };
     const shTable = $('#shareholding table').first();
@@ -286,7 +366,7 @@ async function fetchScreenerData(symbol) {
     return {
       fundamentals: fund,
       earnings: {
-        quarterly: quarterly.reverse().slice(0, 8),
+        quarterly: quarterly.reverse().slice(0, 12),
         annual: annual.reverse().slice(0, 5)
       },
       shareholding

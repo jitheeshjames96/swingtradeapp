@@ -9,37 +9,24 @@ const DEFAULT_HEADERS = {
 
 async function testScrape(symbol) {
   const url = `https://www.screener.in/company/${encodeURIComponent(symbol)}/`;
-  console.log('Fetching', url);
+  console.log('\nFetching', url);
   try {
     const response = await axios.get(url, { headers: DEFAULT_HEADERS });
     const $ = cheerio.load(response.data);
     
-    // Test Shareholding Pattern
-    console.log('\n--- Shareholding Pattern (First Table only) ---');
-    const table = $('#shareholding table').first();
-    if (table.length > 0) {
-      const headers = [];
-      table.find('thead th').each((i, el) => {
-        headers.push($(el).text().trim());
-      });
-      console.log('Headers:', headers);
-      
-      table.find('tbody tr').each((i, el) => {
-        const rowName = $(el).find('td').first().text().trim();
-        const rowValues = [];
-        $(el).find('td').each((idx, cell) => {
-          if (idx > 0) {
-            rowValues.push($(cell).text().trim());
-          }
-        });
-        console.log(`${rowName}:`, rowValues);
-      });
-    } else {
-      console.log('No table found in shareholding section.');
-    }
+    console.log('--- Key Ratios ---');
+    $('#top-ratios li').each((i, el) => {
+      const name = $(el).find('.name').text().trim();
+      const val = $(el).find('.number').text().trim();
+      console.log(`${name}: ${val}`);
+    });
   } catch (e) {
     console.error('Error:', e.message);
   }
 }
 
-testScrape('TCS');
+async function run() {
+  await testScrape('TCS');
+  await testScrape('RELIANCE');
+}
+run();

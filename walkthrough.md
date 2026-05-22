@@ -7,32 +7,13 @@
 
 ## What Was Fixed (This Session)
 
-### 1. Vercel Preview SSO Health Check False-Positives — FIXED
-**Root cause**: When Vercel Deployment Protection (SSO) is enabled on preview branches, requests to `/api/health` are intercepted and redirected to the Vercel login page. This login page returns an HTML payload with an HTTP status code of `200 OK`. The frontend health check (`testHealth` in `js/api.js`) previously only checked `res.ok`, false-positiving the redirected SSO HTML page as a successful backend connection. This locked the client into hitting the protected preview URL, parsing invalid HTML, and declaring all stocks as "Invalid Ticker".
+### 1. NGINX Reverse-Proxy Subpath Stripping Bug — FIXED
+**Root cause**: In `nginx.conf`, the directive `proxy_pass $backend_api_url/api/;` used a variable. Under NGINX's routing rules, when variables are used in `proxy_pass` and a URI prefix is appended, NGINX fails to translate the URI path correctly and instead sends the raw root request (`/api/`) to the backend, completely discarding the subpaths like `/api/health` or `/api/analyze`. This broke all backend calls routed through the frontend NGINX proxy.
 
 **Fix applied:**
-- Modified `testHealth` in `js/api.js` to strictly parse and validate the response as JSON.
-- The health status is now only marked successful if the response parses cleanly as JSON AND the parsed JSON contains `status === 'healthy'` or `status === 'success'`.
-- If JSON parsing fails (e.g. returns HTML) or status values do not match, the health check returns `false`, allowing the frontend to fall back to the production backend (`https://swing-trading-app-nine.vercel.app`) or client-side fallback mode automatically.
-
-### 2. Fatal UI Startup Crash (`ReferenceError`) — FIXED
-**Root cause**: At the end of `js/analysis.js`, the export block `window.Analysis = { ... }` referenced nonexistent functions (`scoreTechnicals`, `scoreSentiment`, and `scoreInstitutional`). This caused a fatal syntax/reference crash immediately upon loading the script in the browser, preventing the `window.Analysis` namespace from being defined at all and breaking all subsequent UI script execution.
-
-**Fix applied:**
-- Updated the export block in `js/analysis.js` to expose the actual scoring functions: `scoreTechnicalSetup`, `scoreMomentum`, and `scoreSentimentFlows`.
-- Updated all references in `js/ui.js` (`renderRecCard` and `renderInstitutional`) to use these active 4-factor scoring property names.
-
-### 3. Bypassed Zero-Price Quote Validation on backendActive — FIXED
-**Root cause**: When a bare ticker like `RELIANCE` was requested on the live backend, it returned a `200 OK` response with `quote.price = 0` and no error property. The price validation check was nested only within the client-side fallback block `if (!backendActive)`. Consequently, the zero-price response bypassed check blocks and proceeded into scoring, generating `NaN` metrics (such as `riskReward = NaN`), breaking rendering and preventing the auto-retry suffixing (`retryWithNS`) from catching the failure.
-
-**Fix applied:**
-- Moved the quote price check in `js/analysis.js` outside of the client-side fallback block so it executes globally for all fetches:
-  ```javascript
-  if (!quote || !quote.price || quote.price === 0) {
-    throw new Error(`No price data available for ${symbol}. Check if the ticker symbol is correct.`);
-  }
-  ```
-- If the price is 0, it now throws an error, which the frontend catches to successfully run `retryWithNS` (changing `RELIANCE` to `RELIANCE.NS` and loading the data successfully).
+- Changed `proxy_pass $backend_api_url/api/;` to `proxy_pass $backend_api_url;` in `nginx.conf`.
+- Reloaded the NGINX configuration inside the running Docker container (`nginx -s reload`).
+- Verified that all endpoints (e.g. `/api/health`, `/api/analyze`) are now successfully proxied and return correct JSON payloads.
 
 ---
 
@@ -82,20 +63,30 @@
 - **Major News Banner**: Featured the top sentiment news item at the top of the sentiment tab using a premium styled badge and gradient.
 - **API-Key Fallback Chat**: Added a server-side and client-side markdown generator that builds a detailed stock trading report when the Gemini API key is missing.
 
+### 9. Side-by-Side Rankings & Market-Wide Sector Heatmap — ADDED
+- **Top Losers / Gainers Side-by-Side**: Re-ordered daily change columns. "Top Losers" is now rendered on the left and "Top Gainers" on the right.
+- **Market-Wide Sector Heatmap**: Computes leaders and laggards dynamically from the full 39-stock catalog instead of the active user watchlist.
+- **Real Estate Representation**: Added DLF.NS and PLD to the catalog so the Real Estate sector shows live, valid leader/laggard quotes instead of null fields.
+- **Backend & Vercel Sync**: Completely synchronized the `/api/market-summary` routes between Docker containers and Vercel production functions.
+
+### 10. Indian Ticker Focus & US Index Cleanup — ADDED
+- **US Indices Removed**: Completely removed S&P 500 and NASDAQ from the top ticker banner, frontend, and backend (`server/src/index.js` & `api/index.js`), leaving only pure Indian market indices: NIFTY 50, SENSEX, and BANK NIFTY.
+- **getTradingViewSymbol Refactor**: Simplified the TradingView widget symbol generator to map only BSE/NSE exchanges and removed US stocks mapping references.
+- **Latency profiling alignment**: Updated `scratch/test_latency.js` to target `TCS.NS` rather than the US-based `AAPL`.
+
 ---
 
 ## Live Data Verification (as of deployment)
 
-| Data Point | Value |
-|---|---|
-| NIFTY 50 | 23,822 (+0.71%) |
-| SENSEX | 75,790 (+0.81%) |
-| S&P 500 | 7,446 (+0.17%) |
-| NASDAQ | 26,293 (+0.09%) |
-| Fear & Greed Index | 28 — Fear |
-| RELIANCE.NS Price | ₹1,363.80 (+1.05%) |
-| ETERNAL.NS Price | ₹242.87 |
-| ETERNAL.NS Company | Eternal Limited (fmr. Zomato) |
+| Data Point | Value | Source |
+|---|---|---|
+| NIFTY 50 | 23,822 (+0.71%) | Yahoo Finance |
+| SENSEX | 75,790 (+0.81%) | Yahoo Finance |
+| Fear & Greed Index | 28 — Fear | CNN Business / Scraper |
+| Real Estate Leader | PLD | Market Summary |
+| Real Estate Laggard | DLF.NS | Market Summary |
+| Utilities Leader | NTPC.NS | Market Summary |
+| Utilities Laggard | POWERGRID.NS | Market Summary |
 
 ---
 

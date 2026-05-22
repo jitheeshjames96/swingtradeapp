@@ -25,21 +25,36 @@ const YAHOO_HEADERS = {
 // Simple cookie jar memory storage for NSE India sessions
 let nseCookies = '';
 let lastCookieFetch = 0;
+let pendingNseCookiesPromise = null;
 
 async function getNseCookies() {
   if (nseCookies && Date.now() - lastCookieFetch < 5 * 60 * 1000) {
     return nseCookies;
   }
-  try {
-    const response = await axios.get('https://www.nseindia.com', { headers: DEFAULT_HEADERS });
-    const cookies = response.headers['set-cookie'] || [];
-    nseCookies = cookies.map(cookie => cookie.split(';')[0]).join('; ');
-    lastCookieFetch = Date.now();
-    return nseCookies;
-  } catch (e) {
-    console.error('Failed to retrieve NSE cookies:', e.message);
-    return '';
+
+  if (pendingNseCookiesPromise) {
+    return pendingNseCookiesPromise;
   }
+
+  pendingNseCookiesPromise = (async () => {
+    try {
+      const response = await axios.get('https://www.nseindia.com', { 
+        headers: DEFAULT_HEADERS,
+        timeout: 4000 
+      });
+      const cookies = response.headers['set-cookie'] || [];
+      nseCookies = cookies.map(cookie => cookie.split(';')[0]).join('; ');
+      lastCookieFetch = Date.now();
+      return nseCookies;
+    } catch (e) {
+      console.error('Failed to retrieve NSE cookies:', e.message);
+      return '';
+    } finally {
+      pendingNseCookiesPromise = null;
+    }
+  })();
+
+  return pendingNseCookiesPromise;
 }
 
 /**
@@ -159,7 +174,7 @@ async function fetchScreenerData(symbol) {
   const url = `https://www.screener.in/company/${encodeURIComponent(baseSymbol)}/`;
   
   try {
-    const response = await axios.get(url, { headers: DEFAULT_HEADERS });
+    const response = await axios.get(url, { headers: DEFAULT_HEADERS, timeout: 12000 });
     const $ = cheerio.load(response.data);
     
     const fund = {};
@@ -380,6 +395,7 @@ async function fetchScreenerData(symbol) {
 let yahooCookie = '';
 let yahooCrumb = '';
 let lastYahooAuthFetch = 0;
+let pendingYahooAuthPromise = null;
 
 /**
  * Fetch a session cookie from fc.yahoo.com and a crumb token from query2.finance.yahoo.com
@@ -389,51 +405,63 @@ async function getYahooAuth() {
     return { cookie: yahooCookie, crumb: yahooCrumb };
   }
 
-  try {
-    const authHeaders = {
-      'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-      'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
-      'Accept-Language': 'en-US,en;q=0.5',
-    };
-
-    // 1. Get Cookie from fc.yahoo.com
-    const cookieResponse = await axios.get('https://fc.yahoo.com/', {
-      headers: authHeaders,
-      validateStatus: () => true
-    });
-
-    const cookies = cookieResponse.headers['set-cookie'] || [];
-    const cookieHeader = cookies.map(c => c.split(';')[0]).join('; ');
-
-    if (!cookieHeader) {
-      throw new Error('No cookie returned from fc.yahoo.com');
-    }
-
-    // 2. Get Crumb using the cookie
-    const crumbResponse = await axios.get('https://query2.finance.yahoo.com/v1/test/getcrumb', {
-      headers: {
-        ...authHeaders,
-        'Cookie': cookieHeader,
-      }
-    });
-
-    const crumb = crumbResponse.data;
-    if (!crumb) {
-      throw new Error('No crumb returned from getcrumb endpoint');
-    }
-
-    yahooCookie = cookieHeader;
-    yahooCrumb = crumb;
-    lastYahooAuthFetch = Date.now();
-
-    return { cookie: yahooCookie, crumb: yahooCrumb };
-  } catch (e) {
-    console.error('Failed to retrieve Yahoo cookie/crumb, using existing cache if available:', e.message);
-    if (yahooCookie && yahooCrumb) {
-      return { cookie: yahooCookie, crumb: yahooCrumb };
-    }
-    throw e;
+  if (pendingYahooAuthPromise) {
+    return pendingYahooAuthPromise;
   }
+
+  pendingYahooAuthPromise = (async () => {
+    try {
+      const authHeaders = {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+        'Accept-Language': 'en-US,en;q=0.5',
+      };
+
+      // 1. Get Cookie from fc.yahoo.com
+      const cookieResponse = await axios.get('https://fc.yahoo.com/', {
+        headers: authHeaders,
+        validateStatus: () => true,
+        timeout: 4000
+      });
+
+      const cookies = cookieResponse.headers['set-cookie'] || [];
+      const cookieHeader = cookies.map(c => c.split(';')[0]).join('; ');
+
+      if (!cookieHeader) {
+        throw new Error('No cookie returned from fc.yahoo.com');
+      }
+
+      // 2. Get Crumb using the cookie
+      const crumbResponse = await axios.get('https://query2.finance.yahoo.com/v1/test/getcrumb', {
+        headers: {
+          ...authHeaders,
+          'Cookie': cookieHeader,
+        },
+        timeout: 4000
+      });
+
+      const crumb = crumbResponse.data;
+      if (!crumb) {
+        throw new Error('No crumb returned from getcrumb endpoint');
+      }
+
+      yahooCookie = cookieHeader;
+      yahooCrumb = crumb;
+      lastYahooAuthFetch = Date.now();
+
+      return { cookie: yahooCookie, crumb: yahooCrumb };
+    } catch (e) {
+      console.error('Failed to retrieve Yahoo cookie/crumb, using existing cache if available:', e.message);
+      if (yahooCookie && yahooCrumb) {
+        return { cookie: yahooCookie, crumb: yahooCrumb };
+      }
+      throw e;
+    } finally {
+      pendingYahooAuthPromise = null;
+    }
+  })();
+
+  return pendingYahooAuthPromise;
 }
 
 /**
@@ -568,8 +596,75 @@ async function fetchYahooFundamentals(symbol) {
   }
 }
 
+/**
+ * Fetch quotes for multiple symbols in parallel or batch (Yahoo Finance /v7/finance/quote)
+ */
+async function fetchQuotes(symbols) {
+  if (!Array.isArray(symbols) || symbols.length === 0) return [];
+
+  // Deduplicate and filter symbols
+  const uniqueSymbols = [...new Set(symbols)].map(s => s.trim().toUpperCase());
+
+  try {
+    const auth = await getYahooAuth().catch(() => null);
+    if (auth) {
+      const { cookie, crumb } = auth;
+      const symbolsString = uniqueSymbols.join(',');
+      const url = `https://query1.finance.yahoo.com/v7/finance/quote?symbols=${encodeURIComponent(symbolsString)}&crumb=${encodeURIComponent(crumb)}`;
+      
+      const response = await axios.get(url, {
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+          'Accept': 'application/json',
+          'Cookie': cookie
+        },
+        timeout: 8000
+      });
+
+      const results = response.data?.quoteResponse?.result;
+      if (Array.isArray(results) && results.length > 0) {
+        return results.map(result => {
+          const symbol = result.symbol;
+          return {
+            symbol,
+            price: result.regularMarketPrice || 0,
+            change: result.regularMarketChange || 0,
+            changePct: result.regularMarketChangePercent || 0,
+            open: result.regularMarketOpen || result.regularMarketPrice || 0,
+            high: result.regularMarketDayHigh || result.regularMarketPrice || 0,
+            low: result.regularMarketDayLow || result.regularMarketPrice || 0,
+            volume: result.regularMarketVolume || 0,
+            marketCap: result.marketCap || 0,
+            currency: result.currency || (symbol.endsWith('.NS') || symbol.endsWith('.BO') ? 'INR' : 'USD'),
+            exchange: result.fullExchangeName || result.exchange || '',
+            longName: result.longName || result.shortName || symbol,
+          };
+        });
+      }
+    }
+  } catch (e) {
+    console.warn(`Yahoo batch /v7/finance/quote failed: ${e.message}. Falling back to individual fetches.`);
+  }
+
+  // Fallback to parallel single fetches if cookie/crumb query failed
+  console.log(`Executing individual fallback quote fetches for ${uniqueSymbols.length} symbols...`);
+  const promises = uniqueSymbols.map(async (symbol) => {
+    try {
+      return await fetchQuote(symbol);
+    } catch (err) {
+      console.warn(`Fallback fetchQuote failed for ${symbol}: ${err.message}`);
+      return null;
+    }
+  });
+
+  const results = await Promise.all(promises);
+  return results.filter(Boolean);
+}
+
 module.exports = {
   fetchQuote,
+  fetchQuotes,
   fetchScreenerData,
   fetchYahooFundamentals
 };
+

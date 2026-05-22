@@ -95,16 +95,131 @@ const UI = (() => {
   }
 
   // ── Sector Heatmap
-  function renderSectorHeatmap(sectors) {
+  function renderSectorHeatmap(sectors, resultsMap) {
     const grid = document.getElementById('sector-grid');
     if (!grid) return;
+
+    function getEtfSectorName(stockSector) {
+      const s = (stockSector || '').toLowerCase();
+      if (s === 'it' || s.includes('tech') || s.includes('semiconductor') || s.includes('social') || s.includes('streaming') || s.includes('e-commerce') || s.includes('consumer tech')) {
+        return 'Technology';
+      }
+      if (s.includes('bank') || s.includes('nbfc') || s.includes('financial')) {
+        return 'Financials';
+      }
+      if (s.includes('pharma') || s.includes('health')) {
+        return 'Healthcare';
+      }
+      if (s.includes('renewable') || s.includes('wind') || s.includes('solar') || s.includes('green')) {
+        return 'Renewables';
+      }
+      if (s.includes('energy')) {
+        return 'Energy';
+      }
+      if (s.includes('telecom') || s.includes('telco')) {
+        return 'Telecom';
+      }
+      if (s.includes('auto') || s.includes('engineer') || s.includes('conglomerate') || s.includes('industrial')) {
+        return 'Industrials';
+      }
+      if (s.includes('metal') || s.includes('cement') || s.includes('material') || s.includes('fmcg') || s.includes('consumer')) {
+        return 'Materials';
+      }
+      if (s.includes('utility') || s.includes('utilities')) {
+        return 'Utilities';
+      }
+      if (s.includes('real estate')) {
+        return 'Real Estate';
+      }
+      return '';
+    }
+
     grid.innerHTML = sectors.map(s => {
       const cls = s.change > 0.5 ? 'bullish' : s.change < -0.5 ? 'bearish' : 'neutral';
       const changeColor = s.change >= 0 ? 'var(--green)' : 'var(--red)';
+
+      let gainersHtml = `<span style="color:var(--text-muted); font-size:0.65rem">—</span>`;
+      let losersHtml = `<span style="color:var(--text-muted); font-size:0.65rem">—</span>`;
+
+      if (s.gainers && s.losers) {
+        if (s.gainers.length > 0) {
+          gainersHtml = s.gainers.map(q => {
+            const cleanSym = q.symbol.replace('.NS', '').replace('.BO', '');
+            const color = (q.quote?.changePct || 0) >= 0 ? 'var(--green)' : 'var(--red)';
+            const val = q.quote?.changePct || 0;
+            return `
+              <div class="sector-stock-badge" onclick="event.preventDefault(); event.stopPropagation(); App.selectStock('${q.symbol}')" title="${q.name}" style="cursor:pointer; display:flex; justify-content:space-between; font-size:0.68rem; padding:2px 4px; border-radius:3px; background:rgba(255,255,255,0.04); margin-bottom:2px; transition: background 0.2s;" onmouseover="this.style.background='rgba(255,255,255,0.08)'" onmouseout="this.style.background='rgba(255,255,255,0.04)'">
+                <span style="font-weight:700; text-decoration:underline;">${cleanSym}</span>
+                <span style="color:${color}; font-weight:600;">${val >= 0 ? '+' : ''}${val.toFixed(1)}%</span>
+              </div>
+            `;
+          }).join('');
+        }
+        if (s.losers.length > 0) {
+          losersHtml = s.losers.map(q => {
+            const cleanSym = q.symbol.replace('.NS', '').replace('.BO', '');
+            const color = (q.quote?.changePct || 0) >= 0 ? 'var(--green)' : 'var(--red)';
+            const val = q.quote?.changePct || 0;
+            return `
+              <div class="sector-stock-badge" onclick="event.preventDefault(); event.stopPropagation(); App.selectStock('${q.symbol}')" title="${q.name}" style="cursor:pointer; display:flex; justify-content:space-between; font-size:0.68rem; padding:2px 4px; border-radius:3px; background:rgba(255,255,255,0.04); margin-bottom:2px; transition: background 0.2s;" onmouseover="this.style.background='rgba(255,255,255,0.08)'" onmouseout="this.style.background='rgba(255,255,255,0.04)'">
+                <span style="font-weight:700; text-decoration:underline;">${cleanSym}</span>
+                <span style="color:${color}; font-weight:600;">${val >= 0 ? '+' : ''}${val.toFixed(1)}%</span>
+              </div>
+            `;
+          }).join('');
+        }
+      } else if (resultsMap) {
+        const sectorStocks = Array.from(resultsMap.values()).filter(r => {
+          if (r.error || !r.quote || !r.sector) return false;
+          return getEtfSectorName(r.sector) === s.name;
+        });
+
+        if (sectorStocks.length > 0) {
+          const sortedDesc = [...sectorStocks].sort((a, b) => b.quote.changePct - a.quote.changePct);
+          const sortedAsc = [...sectorStocks].sort((a, b) => a.quote.changePct - b.quote.changePct);
+
+          gainersHtml = sortedDesc.slice(0, 5).map(q => {
+            const cleanSym = q.symbol.replace('.NS', '').replace('.BO', '');
+            const color = q.quote.changePct >= 0 ? 'var(--green)' : 'var(--red)';
+            const val = q.quote.changePct || 0;
+            return `
+              <div class="sector-stock-badge" onclick="event.preventDefault(); event.stopPropagation(); App.selectStock('${q.symbol}')" title="${q.name}" style="cursor:pointer; display:flex; justify-content:space-between; font-size:0.68rem; padding:2px 4px; border-radius:3px; background:rgba(255,255,255,0.04); margin-bottom:2px; transition: background 0.2s;" onmouseover="this.style.background='rgba(255,255,255,0.08)'" onmouseout="this.style.background='rgba(255,255,255,0.04)'">
+                <span style="font-weight:700; text-decoration:underline;">${cleanSym}</span>
+                <span style="color:${color}; font-weight:600;">${val >= 0 ? '+' : ''}${val.toFixed(1)}%</span>
+              </div>
+            `;
+          }).join('');
+
+          losersHtml = sortedAsc.slice(0, 5).map(q => {
+            const cleanSym = q.symbol.replace('.NS', '').replace('.BO', '');
+            const color = q.quote.changePct >= 0 ? 'var(--green)' : 'var(--red)';
+            const val = q.quote.changePct || 0;
+            return `
+              <div class="sector-stock-badge" onclick="event.preventDefault(); event.stopPropagation(); App.selectStock('${q.symbol}')" title="${q.name}" style="cursor:pointer; display:flex; justify-content:space-between; font-size:0.68rem; padding:2px 4px; border-radius:3px; background:rgba(255,255,255,0.04); margin-bottom:2px; transition: background 0.2s;" onmouseover="this.style.background='rgba(255,255,255,0.08)'" onmouseout="this.style.background='rgba(255,255,255,0.04)'">
+                <span style="font-weight:700; text-decoration:underline;">${cleanSym}</span>
+                <span style="color:${color}; font-weight:600;">${val >= 0 ? '+' : ''}${val.toFixed(1)}%</span>
+              </div>
+            `;
+          }).join('');
+        }
+      }
+
       return `
-        <div class="sector-tile ${cls}" title="${s.name}">
-          <div class="st-name">${s.icon} ${s.name}</div>
-          <div class="st-change" style="color:${changeColor}">${fmtPct(s.change)}</div>
+        <div class="sector-tile ${cls}" title="${s.name}" style="margin-bottom:8px;">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+            <div class="st-name" style="font-weight:700; font-size:0.78rem">${s.icon} ${s.name}</div>
+            <div class="st-change" style="color:${changeColor}; font-weight:700; font-size:0.78rem">${fmtPct(s.change)}</div>
+          </div>
+          <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px; border-top:1px solid rgba(255,255,255,0.08); padding-top:8px;">
+            <div>
+              <span style="color:var(--green); font-size:0.6rem; font-weight:700; text-transform:uppercase; letter-spacing:0.05em; display:block; margin-bottom:4px;">Gainers</span>
+              <div style="display:flex; flex-direction:column; gap:2px;">${gainersHtml}</div>
+            </div>
+            <div>
+              <span style="color:var(--red); font-size:0.6rem; font-weight:700; text-transform:uppercase; letter-spacing:0.05em; display:block; margin-bottom:4px;">Losers</span>
+              <div style="display:flex; flex-direction:column; gap:2px;">${losersHtml}</div>
+            </div>
+          </div>
         </div>
       `;
     }).join('');
@@ -216,45 +331,11 @@ const UI = (() => {
     const { fund, scores, quote } = result;
     const f = fund;
 
+    const uniqueFYs = Array.from(new Set(
+      result.earnings.quarterly.map(q => getFinancialYear(q.period))
+    )).filter(fy => fy !== 'N/A');
+
     document.getElementById('tab-fundamental').innerHTML = `
-      <div class="fundamental-grid">
-        ${fundCard('P/E Ratio', fmt(f.pe, 1), f.forwardPE ? `Fwd: ${fmt(f.forwardPE,1)}` : '', peColor(f.pe))}
-        ${fundCard('Industry P/E', f.industryPe ? fmt(f.industryPe, 1) : 'N/A', 'Sector Average', '')}
-        ${fundCard('EPS', f.eps ? '₹' + fmt(f.eps, 2) : 'N/A', 'Trailing 12M', '')}
-        ${fundCard('P/B Ratio', fmt(f.pb, 2), 'Price to Book', pbColor(f.pb))}
-        ${fundCard('ROE', f.roe ? fmt(f.roe, 1) + '%' : 'N/A', 'Return on Equity', roeColor(f.roe))}
-        ${fundCard('Debt/Equity', fmt(f.debtToEquity, 2), 'Leverage ratio', deColor(f.debtToEquity))}
-        ${fundCard('Revenue Growth', f.revenueGrowth ? fmtPct(f.revenueGrowth) : 'N/A', 'Year-on-Year', growthColor(f.revenueGrowth))}
-        ${fundCard('Earnings Growth', f.earningsGrowth ? fmtPct(f.earningsGrowth) : 'N/A', 'YoY earnings', growthColor(f.earningsGrowth))}
-        ${fundCard('Profit Margin', f.profitMargin ? fmt(f.profitMargin, 1) + '%' : 'N/A', 'Net margin', roeColor(f.profitMargin))}
-        ${fundCard('Market Cap', fmtCr(f.marketCap || quote.marketCap), 'Total market value', '')}
-        ${fundCard('Beta', fmt(f.beta, 2), 'Market sensitivity', betaColor(f.beta))}
-        ${fundCard('Dividend Yield', f.dividendYield ? fmt(f.dividendYield, 2) + '%' : '—', 'Annual dividend', '')}
-        ${fundCard('Current Ratio', fmt(f.currentRatio, 2), 'Liquidity ratio', crColor(f.currentRatio))}
-      </div>
-
-      <div class="disclaimer">
-        ⚠️ &nbsp; Fundamental data sourced from Yahoo Finance. May have 15–24hr delay.
-      </div>
-
-      <div class="earnings-section" style="margin-top:20px">
-        <div class="section-title">📊 Quarterly Earnings History</div>
-        <div class="chart-wrap" style="height:240px">
-          <canvas id="chart-earnings-quarterly"></canvas>
-        </div>
-      </div>
-      <div class="earnings-section" style="margin-top:20px">
-        <div class="section-title">📈 Annual Revenue & Income (5 Years)</div>
-        <div class="chart-wrap" style="height:220px">
-          <canvas id="chart-earnings-annual"></canvas>
-        </div>
-      </div>
-
-      const uniqueFYs = Array.from(new Set(
-        result.earnings.quarterly.map(q => getFinancialYear(q.period))
-      )).filter(fy => fy !== 'N/A');
-
-      document.getElementById('tab-fundamental').innerHTML = `
       <div class="fundamental-grid">
         ${fundCard('P/E Ratio', fmt(f.pe, 1), f.forwardPE ? `Fwd: ${fmt(f.forwardPE,1)}` : '', peColor(f.pe))}
         ${fundCard('Industry P/E', f.industryPe ? fmt(f.industryPe, 1) : 'N/A', 'Sector Average', '')}
@@ -557,14 +638,6 @@ const UI = (() => {
     }
     if (symbol.endsWith('.BO')) {
       return 'BSE:' + symbol.replace('.BO', '');
-    }
-    const nasdaqStocks = ['AAPL', 'MSFT', 'NVDA', 'GOOGL', 'AMZN', 'TSLA', 'META', 'NFLX', 'AMD'];
-    if (nasdaqStocks.includes(symbol)) {
-      return 'NASDAQ:' + symbol;
-    }
-    const nyseStocks = ['JPM', 'BRK.A', 'BRK.B', 'V', 'MA'];
-    if (nyseStocks.includes(symbol)) {
-      return 'NYSE:' + symbol;
     }
     return symbol;
   }
@@ -934,8 +1007,37 @@ const UI = (() => {
   // Helper to render markdown-like formatting in chat bubbles
   function formatChatMessage(text) {
     if (!text) return '';
+
+    // Convert tickers to clickable links first, so we don't mess with HTML attributes
+    let textWithLinks = text;
+    if (window.API && window.API.STOCK_CATALOG) {
+      const symbols = [];
+      window.API.STOCK_CATALOG.forEach(stock => {
+        symbols.push(stock.symbol);
+        const base = stock.symbol.replace('.NS', '').replace('.BO', '');
+        if (base.length > 2) {
+          symbols.push(base);
+        }
+      });
+      symbols.sort((a, b) => b.length - a.length);
+      const escapedSymbols = symbols.map(s => s.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&'));
+      const regex = new RegExp(`\\b(${escapedSymbols.join('|')})\\b`, 'gi');
+
+      textWithLinks = text.replace(regex, (match) => {
+        const matchUpper = match.toUpperCase();
+        const stock = window.API.STOCK_CATALOG.find(s => 
+          s.symbol.toUpperCase() === matchUpper || 
+          s.symbol.replace('.NS', '').replace('.BO', '').toUpperCase() === matchUpper
+        );
+        if (stock) {
+          return `<span class="chat-ticker-link" onclick="event.preventDefault();event.stopPropagation();App.selectStock('${stock.symbol}')" style="cursor:pointer;text-decoration:underline;font-weight:700;color:var(--text-accent, #6366f1)" title="Click to view ${stock.name}">${match}</span>`;
+        }
+        return match;
+      });
+    }
+
     // Bold: **text** -> <strong>text</strong>
-    let html = text.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+    let html = textWithLinks.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
     // Italic: *text* -> <em>text</em>
     html = html.replace(/\*(.*?)\*/g, '<em>$1</em>');
     // Bullet points: * item or - item -> <li>item</li> wrapped in <ul>
@@ -1018,6 +1120,16 @@ const UI = (() => {
     const container = document.getElementById('tab-live-chart');
     if (!container) return;
 
+    const currentLoadedSymbol = container.getAttribute('data-loaded-symbol');
+    if (currentLoadedSymbol === tvSymbol && typeof TradingView !== 'undefined') {
+      return;
+    }
+    if (typeof TradingView !== 'undefined') {
+      container.setAttribute('data-loaded-symbol', tvSymbol);
+    } else {
+      container.removeAttribute('data-loaded-symbol');
+    }
+
     container.innerHTML = `
       <div class="live-chart-container" style="display:flex; flex-direction:column; gap:16px; animation: fadeIn 0.3s ease-out;">
         <div style="display:flex; justify-content:space-between; align-items:center; background:var(--bg-elevated); border:1px solid var(--border); padding:12px 18px; border-radius:var(--radius-md);">
@@ -1038,7 +1150,12 @@ const UI = (() => {
         </div>
 
         <div class="chart-widget-wrap" style="height:550px; border-radius:var(--radius-md); overflow:hidden; border:1px solid var(--border); background:var(--bg-card); position:relative;">
-          <div id="tradingview_widget_main" style="width:100%; height:100%;"></div>
+          <div id="tradingview_widget_main" style="width:100%; height:100%; display:flex; align-items:center; justify-content:center; background:#0d1220;">
+            <div style="display:flex; flex-direction:column; align-items:center; gap:12px;">
+              <div class="spinner"></div>
+              <span style="font-size:0.75rem; color:var(--text-muted)">Loading interactive TradingView terminal...</span>
+            </div>
+          </div>
         </div>
 
         <div style="background:var(--bg-elevated); border:1px solid var(--border); padding:12px 16px; border-radius:var(--radius-md); font-size:0.75rem; color:var(--text-secondary); display:flex; align-items:center; gap:8px; line-height:1.5;">
@@ -1067,8 +1184,11 @@ const UI = (() => {
           allow_symbol_change: true,
           container_id: "tradingview_widget_main",
           studies: [
-            "MASimple@tv-basicstudies",
-            "RSI@tv-basicstudies"
+            "MASimple@tv-basicstudies", // SMA
+            "MAExp@tv-basicstudies",    // EMA
+            "BB@tv-basicstudies",       // Bollinger Bands
+            "RSI@tv-basicstudies",      // RSI
+            "MACD@tv-basicstudies"      // MACD
           ]
         });
       } else {
@@ -1081,7 +1201,7 @@ const UI = (() => {
             </div>`;
         }
       }
-    }, 50);
+    }, 150);
   }
 
   // ── Search results

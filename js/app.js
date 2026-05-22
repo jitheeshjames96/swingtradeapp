@@ -8,13 +8,19 @@ const App = (() => {
   const state = {
     watchlist: [],          // Array of { symbol, name, sector }
     results: new Map(),     // symbol → full analysis result
+    catalogResults: new Map(), // symbol → analysis result for catalog scan
     activeSymbol: null,
     activeTab: 'overview',
     loading: new Set(),
     fearGreed: null,
     sectors: [],
     indices: [],
+    marketSummary: null,    // { gainers, losers, sectors }
+    recFilter: 'all',       // Selected recommendations filter: 'all', 'strong-buy', 'buy', 'watch', 'avoid'
+    catalogScanInProgress: false, // True while fetching all catalog stocks
+    catalogScanProgress: 0, // Number of catalog stocks analyzed so far
   };
+
 
   const DEFAULT_WATCHLIST = [
     { symbol: 'RELIANCE.NS',  name: 'Reliance Industries',      sector: 'Energy' },
@@ -99,12 +105,13 @@ const App = (() => {
     try {
       // Verify login with backend
       const backendUrl = API.getBackendUrl();
-      const res = await fetch(`${backendUrl}/api/auth/login`, {
+      const res = await API.fetchWithTimeout(`${backendUrl}/api/auth/login`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${credential}`
-        }
+        },
+        timeout: 5000
       });
       
       if (!res.ok) {
@@ -176,12 +183,13 @@ const App = (() => {
         // We have a token saved, let's verify it by hitting /api/auth/login
         try {
           const backendUrl = API.getBackendUrl();
-          const res = await fetch(`${backendUrl}/api/auth/login`, {
+          const res = await API.fetchWithTimeout(`${backendUrl}/api/auth/login`, {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
               'Authorization': `Bearer ${token}`
-            }
+            },
+            timeout: 5000
           });
           
           if (!res.ok) {
@@ -399,7 +407,6 @@ const App = (() => {
     }
   }
 
-  // ── Load market-wide data (indices, F&G, sectors)
   async function loadMarketData() {
     try {
       let indices, fearGreed, sectors;
@@ -427,14 +434,29 @@ const App = (() => {
         fearGreed = await API.fetchFearGreed();
       }
 
-      sectors = await API.fetchSectorPerformance();
+      // Fetch market summary (which contains sectors with leaders/laggards, gainers, losers)
+      let summaryData = null;
+      try {
+        summaryData = await API.fetchMarketSummary();
+      } catch (err) {
+        console.warn('Failed to fetch market summary:', err.message);
+      }
+
+      if (summaryData && summaryData.sectors && summaryData.sectors.length > 0) {
+        sectors = summaryData.sectors;
+        state.marketSummary = summaryData;
+      } else {
+        // Fallback sectors if marketSummary failed
+        sectors = await API.fetchSectorPerformance();
+        state.marketSummary = null;
+      }
 
       state.indices = indices;
       state.fearGreed = fearGreed;
       state.sectors = sectors;
       UI.renderMarketTickers(indices);
       UI.renderFearGreed(fearGreed);
-      UI.renderSectorHeatmap(sectors);
+      UI.renderSectorHeatmap(sectors, state.results);
     } catch (e) {
       console.warn('loadMarketData error:', e);
     }
@@ -451,10 +473,47 @@ const App = (() => {
     updateRecommendations();
   }
 
+  // ── Background catalog scan: fetch and score all Indian catalog stocks for global top-10 picks
+  async function loadCatalogScans(filterContext) {
+    if (state.catalogScanInProgress) return;
+    state.catalogScanInProgress = true;
+    state.catalogScanProgress = 0;
+
+    const catalog = API.STOCK_CATALOG.filter(s => s.symbol.endsWith('.NS'));
+    const BATCH_SIZE = 4;
+
+    for (let i = 0; i < catalog.length; i += BATCH_SIZE) {
+      const batch = catalog.slice(i, i + BATCH_SIZE);
+      await Promise.allSettled(batch.map(async ({ symbol, name, sector }) => {
+        if (state.catalogResults.has(symbol)) return; // already scanned
+        try {
+          const result = await Analysis.analyzeStock(symbol, name, sector);
+          if (result && !result.error && result.scores && result.quote && result.quote.price > 0) {
+            state.catalogResults.set(symbol, result);
+          }
+        } catch (e) {
+          // Silently skip failed stocks in catalog scan
+        }
+        state.catalogScanProgress++;
+      }));
+
+      // After each batch, refresh the UI if user is still on a filter view
+      if (state.recFilter !== 'all') {
+        updateRecommendations();
+      }
+    }
+
+    state.catalogScanInProgress = false;
+    if (state.recFilter !== 'all') {
+      updateRecommendations();
+    }
+  }
+
   // ── Analyse a single stock and store
   async function analyzeAndStore(symbol, name, sector) {
     if (state.loading.has(symbol)) return;
     state.loading.add(symbol);
+    updateWatchlistUI(); // Show skeleton immediately so UI doesn’t freeze on “Tap to load”
     
     // Helper: auto-retry with .NS suffix for bare Indian-style tickers
     const retryWithNS = async (sym, nm, sec) => {
@@ -580,8 +639,11 @@ const App = (() => {
 
     let result = state.results.get(symbol);
     if (!result) {
-      const wl = state.watchlist.find(w => w.symbol === symbol);
-      result = await analyzeAndStore(symbol, wl?.name, wl?.sector);
+      let wl = state.watchlist.find(w => w.symbol === symbol);
+      if (!wl && window.API && window.API.STOCK_CATALOG) {
+        wl = window.API.STOCK_CATALOG.find(w => w.symbol === symbol);
+      }
+      result = await analyzeAndStore(symbol, wl?.name || symbol, wl?.sector || 'N/A');
     }
 
     UI.setDetailLoading(false);
@@ -688,12 +750,196 @@ const App = (() => {
     const container = document.getElementById('recommendations-grid');
     if (!container) return;
 
-    // Include all results except error states
-    const validResults = Array.from(state.results.values()).filter(r => !r.error && r.scores && r.scores.composite);
+    const activeFilter = state.recFilter || 'all';
+
+    // Include all results except error states, restricted to watchlist stocks
+    const watchlistSymbols = new Set(state.watchlist.map(w => w.symbol));
+    const validResults = Array.from(state.results.values()).filter(r => !r.error && r.scores && r.scores.composite && watchlistSymbols.has(r.symbol));
     const loadingCount = state.loading.size;
     
+    // Render rankings
+    const gainersList = document.getElementById('top-gainers-list');
+    const losersList = document.getElementById('top-losers-list');
+    if (gainersList && losersList) {
+      const summaryGainers = state.marketSummary?.gainers;
+      const summaryLosers = state.marketSummary?.losers;
+
+      if (summaryGainers && summaryLosers && summaryGainers.length > 0) {
+        gainersList.innerHTML = summaryGainers.map(r => {
+          const sym = r.symbol.replace('.NS', '').replace('.BO', '');
+          const val = r.quote?.changePct ?? 0;
+          return `
+            <div class="ranking-item" onclick="App.selectStock('${r.symbol}')" style="cursor:pointer">
+              <span class="ranking-symbol">${sym}</span>
+              <span class="ranking-name" title="${r.name}">${r.name}</span>
+              <span class="ranking-pct positive">+${val.toFixed(2)}%</span>
+            </div>
+          `;
+        }).join('');
+
+        losersList.innerHTML = summaryLosers.map(r => {
+          const sym = r.symbol.replace('.NS', '').replace('.BO', '');
+          const val = r.quote?.changePct ?? 0;
+          const sign = val >= 0 ? '+' : '';
+          return `
+            <div class="ranking-item" onclick="App.selectStock('${r.symbol}')" style="cursor:pointer">
+              <span class="ranking-symbol">${sym}</span>
+              <span class="ranking-name" title="${r.name}">${r.name}</span>
+              <span class="ranking-pct negative">${sign}${val.toFixed(2)}%</span>
+            </div>
+          `;
+        }).join('');
+      } else if (validResults.length === 0) {
+        gainersList.innerHTML = `<div style="color:var(--text-muted);font-size:0.8rem;padding:6px 0">Waiting for data...</div>`;
+        losersList.innerHTML = `<div style="color:var(--text-muted);font-size:0.8rem;padding:6px 0">Waiting for data...</div>`;
+      } else {
+        // Fallback to active watchlist if summary is empty
+        const fallbackGainers = [...validResults]
+          .sort((a, b) => (b.quote?.changePct || 0) - (a.quote?.changePct || 0))
+          .slice(0, 5);
+        const fallbackLosers = [...validResults]
+          .sort((a, b) => (a.quote?.changePct || 0) - (b.quote?.changePct || 0))
+          .slice(0, 5);
+
+        gainersList.innerHTML = fallbackGainers.map(r => {
+          const sym = r.symbol.replace('.NS', '').replace('.BO', '');
+          const val = r.quote?.changePct ?? 0;
+          return `
+            <div class="ranking-item" onclick="App.selectStock('${r.symbol}')" style="cursor:pointer">
+              <span class="ranking-symbol">${sym}</span>
+              <span class="ranking-name" title="${r.name}">${r.name}</span>
+              <span class="ranking-pct positive">+${val.toFixed(2)}%</span>
+            </div>
+          `;
+        }).join('');
+
+        losersList.innerHTML = fallbackLosers.map(r => {
+          const sym = r.symbol.replace('.NS', '').replace('.BO', '');
+          const val = r.quote?.changePct ?? 0;
+          const sign = val >= 0 ? '+' : '';
+          return `
+            <div class="ranking-item" onclick="App.selectStock('${r.symbol}')" style="cursor:pointer">
+              <span class="ranking-symbol">${sym}</span>
+              <span class="ranking-name" title="${r.name}">${r.name}</span>
+              <span class="ranking-pct negative">${sign}${val.toFixed(2)}%</span>
+            </div>
+          `;
+        }).join('');
+      }
+    }
+
+    // Update sector heatmap dynamically
+    if (state.sectors) {
+      UI.renderSectorHeatmap(state.sectors, state.results);
+    }
+    
+    // Compute Counts for Filters based on composite scores
+    const countAll = validResults.length;
+    const countStrongBuy = validResults.filter(r => r.scores?.composite?.total >= 80).length;
+    const countBuy = validResults.filter(r => r.scores?.composite?.total >= 65 && r.scores?.composite?.total < 80).length;
+    const countWatch = validResults.filter(r => r.scores?.composite?.total >= 50 && r.scores?.composite?.total < 65).length;
+    const countAvoid = validResults.filter(r => r.scores?.composite?.total < 50).length;
+
+    // Update Counts in UI
+    const elAll = document.getElementById('count-all');
+    const elStrongBuy = document.getElementById('count-strong-buy');
+    const elBuy = document.getElementById('count-buy');
+    const elWatch = document.getElementById('count-watch');
+    const elAvoid = document.getElementById('count-avoid');
+
+    if (elAll) elAll.textContent = countAll;
+    if (elStrongBuy) elStrongBuy.textContent = countStrongBuy;
+    if (elBuy) elBuy.textContent = countBuy;
+    if (elWatch) elWatch.textContent = countWatch;
+    if (elAvoid) elAvoid.textContent = countAvoid;
+
+    // Update Active Filter Class in UI
+    document.querySelectorAll('.rec-filters .filter-btn').forEach(btn => {
+      btn.classList.toggle('active', btn.getAttribute('data-filter') === activeFilter);
+    });
+
+    // ── GLOBAL TOP-10 MODE (when a specific filter is selected)
+    if (activeFilter !== 'all') {
+      const catalogTotal = API.STOCK_CATALOG.filter(s => s.symbol.endsWith('.NS')).length;
+      const scanned = state.catalogScanProgress;
+      const scanDone = !state.catalogScanInProgress;
+
+      // Get catalog results matching the current filter
+      const catalogValid = Array.from(state.catalogResults.values())
+        .filter(r => !r.error && r.scores && r.scores.composite && r.quote && r.quote.price > 0);
+
+      let globalFiltered;
+      if (activeFilter === 'strong-buy') {
+        globalFiltered = catalogValid.filter(r => r.scores.composite.total >= 80);
+      } else if (activeFilter === 'buy') {
+        globalFiltered = catalogValid.filter(r => r.scores.composite.total >= 65 && r.scores.composite.total < 80);
+      } else if (activeFilter === 'watch') {
+        globalFiltered = catalogValid.filter(r => r.scores.composite.total >= 50 && r.scores.composite.total < 65);
+      } else if (activeFilter === 'avoid') {
+        globalFiltered = catalogValid.filter(r => r.scores.composite.total < 50);
+      } else {
+        globalFiltered = catalogValid;
+      }
+
+      // Sort by score descending, take top 10
+      const top10 = [...globalFiltered]
+        .sort((a, b) => b.scores.composite.total - a.scores.composite.total)
+        .slice(0, 10);
+
+      // Compute scan progress percent
+      const pct = catalogTotal > 0 ? Math.round((scanned / catalogTotal) * 100) : 0;
+
+      let filterLabelMap = {
+        'strong-buy': '🟢 Strong Buy',
+        'buy': '🟡 Buy',
+        'watch': '🟠 Hold/Watch',
+        'avoid': '🔴 Avoid/Ignore',
+      };
+      const filterLabel = filterLabelMap[activeFilter] || activeFilter;
+
+      let headerHtml = `
+        <div style="grid-column:1/-1; margin-bottom:12px; padding:12px 16px; background:rgba(255,255,255,0.04); border-radius:10px; border:1px solid rgba(255,255,255,0.08);">
+          <div style="display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap;">
+            <div>
+              <div style="font-size:0.85rem; font-weight:700; color:var(--text-primary);">🌐 Global Market Scan — ${filterLabel}</div>
+              <div style="font-size:0.72rem; color:var(--text-muted); margin-top:2px;">Scanning ${catalogTotal} Indian NSE stocks · Top 10 picks by score</div>
+            </div>
+            ${!scanDone ? `
+              <div style="display:flex;align-items:center;gap:8px;">
+                <div class="spinner" style="width:14px;height:14px;border-width:2px;"></div>
+                <span style="font-size:0.72rem;color:var(--text-muted);">Scanning ${scanned}/${catalogTotal} (${pct}%)</span>
+              </div>
+            ` : `
+              <div style="font-size:0.72rem;color:#22c55e;font-weight:600;">✅ Scan Complete — ${catalogValid.length} stocks analyzed</div>
+            `}
+          </div>
+          ${!scanDone ? `
+            <div style="height:3px; background:rgba(255,255,255,0.08); border-radius:3px; margin-top:8px; overflow:hidden;">
+              <div style="height:100%; width:${pct}%; background:linear-gradient(90deg,#10b981,#22c55e); border-radius:3px; transition:width 0.5s;"></div>
+            </div>
+          ` : ''}
+        </div>
+      `;
+
+      if (top10.length === 0) {
+        let scanningMsg = !scanDone
+          ? `<div style="font-size:0.85rem; color:var(--text-muted); margin-top:4px;">Scanning catalog... (${scanned}/${catalogTotal})</div>`
+          : `<div style="font-size:0.85rem; color:var(--text-muted); margin-top:4px;">No stocks found in this category from the full catalog scan.</div>`;
+        container.innerHTML = headerHtml + `
+          <div class="rec-empty-state" style="grid-column: 1 / -1;">
+            <div class="empty-icon">🔍</div>
+            <div class="empty-title" style="font-weight:600;">Scanning All Indian Stocks...</div>
+            ${scanningMsg}
+          </div>
+        `;
+      } else {
+        container.innerHTML = headerHtml + top10.map(r => UI.renderRecCard(r)).join('');
+      }
+      return;
+    }
+
+    // ── WATCHLIST MODE (activeFilter === 'all')
     if (validResults.length === 0 && loadingCount > 0) {
-      // Still loading, show skeleton cards matching watchlist count
       container.innerHTML = `
         <div class="empty-state" style="grid-column:1/-1">
           <div class="es-icon">📊</div>
@@ -713,8 +959,8 @@ const App = (() => {
       return;
     }
 
-    // Sort by composite score descending (show partial results while others still load)
-    const sorted = validResults.sort((a, b) => b.scores.composite.total - a.scores.composite.total);
+    // Sort by composite score descending
+    const sorted = [...validResults].sort((a, b) => b.scores.composite.total - a.scores.composite.total);
     let html = sorted.map(r => UI.renderRecCard(r)).join('');
     
     // Append loading placeholder cards for any still-loading stocks
@@ -780,12 +1026,63 @@ const App = (() => {
     messagesContainer.appendChild(typingIndicator);
     messagesContainer.scrollTop = messagesContainer.scrollHeight;
 
-    // Get active stock context if user is querying about a stock or if one is active
+    // Get active stock context. Automatically scan input msg for stock ticker or company name references
     let currentStockContext = null;
-    if (state.activeSymbol) {
-      const activeResult = state.results.get(state.activeSymbol);
-      if (activeResult) {
-        currentStockContext = activeResult;
+    let matchedSymbol = null;
+    const msgLower = msg.toLowerCase();
+
+    // 1. Scan catalog for symbol/name matches
+    if (API.STOCK_CATALOG) {
+      for (const stock of API.STOCK_CATALOG) {
+        const cleanSymbol = stock.symbol.replace('.NS', '').replace('.BO', '').toLowerCase();
+        const companyName = stock.name.toLowerCase();
+        const symPattern = new RegExp('\\b' + cleanSymbol + '\\b', 'i');
+        
+        if (symPattern.test(msgLower) || msgLower.includes(companyName)) {
+          matchedSymbol = stock.symbol;
+          break;
+        }
+      }
+    }
+
+    // 2. If a catalog symbol matched, use its result if analyzed, or fetch on-the-fly
+    if (matchedSymbol) {
+      if (state.results.has(matchedSymbol)) {
+        currentStockContext = state.results.get(matchedSymbol);
+      } else if (state.catalogResults.has(matchedSymbol)) {
+        // Use cached catalog scan result (avoids redundant fetch)
+        currentStockContext = state.catalogResults.get(matchedSymbol);
+      } else {
+        const catalogItem = API.STOCK_CATALOG.find(s => s.symbol === matchedSymbol);
+        const stockName = catalogItem?.name || matchedSymbol;
+        
+        // Update typing indicator text to show dynamic loading state
+        const textEl = typingIndicator.querySelector('.msg-text');
+        if (textEl) {
+          textEl.textContent = `Invy is fetching and analyzing ${stockName} data...`;
+        }
+
+        try {
+          // Perform dynamic analysis fetch
+          currentStockContext = await analyzeAndStore(matchedSymbol, stockName, catalogItem?.sector || 'N/A');
+        } catch (err) {
+          console.warn(`Dynamic chat analysis fetch failed for ${matchedSymbol}:`, err.message);
+          currentStockContext = {
+            symbol: matchedSymbol,
+            name: stockName,
+            sector: catalogItem?.sector || '',
+            quote: { price: 0, change: 0, changePct: 0 },
+            scores: { composite: { total: 0 } }
+          };
+        }
+      }
+    } else {
+      // 3. Fallback to active tab
+      if (state.activeSymbol) {
+        const activeResult = state.results.get(state.activeSymbol);
+        if (activeResult) {
+          currentStockContext = activeResult;
+        }
       }
     }
 
@@ -816,12 +1113,20 @@ const App = (() => {
     } catch (error) {
       typingIndicator.remove();
       UI.renderInvyMessage('assistant', `⚠️ **Error:** ${error.message}`);
-      UI.toast(error.message, 'error');
+    }
+  }
+
+  function setRecFilter(filterValue) {
+    state.recFilter = filterValue;
+    updateRecommendations();
+    // If a rating-specific filter is selected, trigger the global catalog scan
+    if (filterValue !== 'all') {
+      loadCatalogScans(filterValue);
     }
   }
 
   // Expose public API
-  return { init, addStock, removeStock, selectStock, switchTab };
+  return { init, addStock, removeStock, selectStock, switchTab, setRecFilter };
 })();
 
 window.App = App;

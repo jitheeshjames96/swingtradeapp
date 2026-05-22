@@ -61,7 +61,7 @@
           id="search-input"
           class="search-input"
           type="text"
-          placeholder="Search stocks — RELIANCE, TCS, AAPL…"
+          placeholder="Search stocks — RELIANCE, TCS, SUZLON…"
           autocomplete="off"
           aria-label="Search stocks"
           aria-autocomplete="list"
@@ -140,12 +140,7 @@
           <div class="skeleton" style="width:50px;height:12px;border-radius:4px;margin-top:4px"></div>
         </div>
         <div class="market-ticker">
-          <div class="mt-name">S&amp;P 500</div>
-          <div class="skeleton" style="width:80px;height:20px;border-radius:4px"></div>
-          <div class="skeleton" style="width:50px;height:12px;border-radius:4px;margin-top:4px"></div>
-        </div>
-        <div class="market-ticker">
-          <div class="mt-name">NASDAQ</div>
+          <div class="mt-name">BANK NIFTY</div>
           <div class="skeleton" style="width:80px;height:20px;border-radius:4px"></div>
           <div class="skeleton" style="width:50px;height:12px;border-radius:4px;margin-top:4px"></div>
         </div>
@@ -274,6 +269,35 @@
             <span style="font-size:0.72rem;color:var(--text-muted)">Sorted by composite score ↓</span>
           </div>
           <div class="panel-body">
+            <!-- Rankings Container: side-by-side Top Gainers and Top Losers -->
+            <div class="rankings-container">
+              <div class="ranking-column">
+                <div class="ranking-title loser">📉 Top Losers</div>
+                <div id="top-losers-list" class="ranking-list">
+                  <!-- Dynamic losers -->
+                  <div style="color:var(--text-muted);font-size:0.8rem;padding:6px 0">Waiting for data...</div>
+                </div>
+              </div>
+              <div class="ranking-column">
+                <div class="ranking-title gainer">📈 Top Gainers</div>
+                <div id="top-gainers-list" class="ranking-list">
+                  <!-- Dynamic gainers -->
+                  <div style="color:var(--text-muted);font-size:0.8rem;padding:6px 0">Waiting for data...</div>
+                </div>
+              </div>
+            </div>
+
+            <div class="recommendations-header" style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px; flex-wrap:wrap; gap:12px;">
+              <div class="panel-title" style="font-size:1.1rem; font-weight:700;">📊 Top Picks & Predictions</div>
+              <div class="rec-filters" style="display:flex; gap:8px; flex-wrap:wrap;">
+                <button class="filter-btn active" data-filter="all" onclick="App.setRecFilter('all')">All <span class="filter-count" id="count-all">0</span></button>
+                <button class="filter-btn" data-filter="strong-buy" onclick="App.setRecFilter('strong-buy')">🟢 Strong Buy <span class="filter-count" id="count-strong-buy">0</span></button>
+                <button class="filter-btn" data-filter="buy" onclick="App.setRecFilter('buy')">🟡 Buy <span class="filter-count" id="count-buy">0</span></button>
+                <button class="filter-btn" data-filter="watch" onclick="App.setRecFilter('watch')">🟠 Hold/Watch <span class="filter-count" id="count-watch">0</span></button>
+                <button class="filter-btn" data-filter="avoid" onclick="App.setRecFilter('avoid')">🔴 Avoid/Ignore <span class="filter-count" id="count-avoid">0</span></button>
+              </div>
+            </div>
+
             <div id="recommendations-grid" class="recommendations-grid" role="list" aria-label="Stock recommendations">
               <!-- Loading cards -->
               <div class="rec-card" style="pointer-events:none">
@@ -464,7 +488,7 @@
   </div>
   
   <div class="invy-chat-input-wrap">
-    <textarea id="invy-chat-input" class="invy-chat-input" placeholder="Type a message (e.g. 'Explain RSI', 'Is AAPL near support?')..." rows="1"></textarea>
+    <textarea id="invy-chat-input" class="invy-chat-input" placeholder="Type a message (e.g. 'Explain RSI', 'Is SUZLON near support?')..." rows="1"></textarea>
     <button id="invy-chat-send" class="btn btn-primary btn-sm invy-chat-send">Send</button>
   </div>
 </div>

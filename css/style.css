@@ -429,13 +429,13 @@ body {
 /* ── SECTOR HEATMAP ── */
 .sector-grid {
   display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 6px;
+  grid-template-columns: 1fr;
+  gap: 8px;
 }
 .sector-tile {
-  padding: 8px 10px;
+  padding: 10px 12px;
   border-radius: var(--radius-sm);
-  cursor: pointer;
+  cursor: default;
   transition: var(--transition);
   position: relative;
   overflow: hidden;
@@ -450,14 +450,164 @@ body {
 .sector-tile.bullish { background: var(--green-dim); border: 1px solid rgba(16,185,129,0.2); }
 .sector-tile.bearish { background: var(--red-dim); border: 1px solid rgba(239,68,68,0.2); }
 .sector-tile.neutral { background: var(--yellow-dim); border: 1px solid rgba(245,158,11,0.2); }
-.sector-tile:hover { transform: scale(1.02); }
+.sector-tile:hover { transform: translateY(-1px); }
 .st-name { font-size: 0.72rem; font-weight: 600; color: var(--text-secondary); }
 .st-change { font-size: 0.88rem; font-weight: 700; }
+.sector-link {
+  color: var(--text-primary);
+  text-decoration: underline;
+  transition: var(--transition);
+}
+.sector-link:hover {
+  color: var(--primary);
+  opacity: 0.85;
+}
+
+/* ── SPLIT RANKINGS ── */
+.rankings-container {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 16px;
+  margin-bottom: 8px;
+}
+.ranking-column {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.ranking-title {
+  font-size: 0.8rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  padding-bottom: 6px;
+  border-bottom: 1px solid var(--border);
+}
+.ranking-title.gainer {
+  color: var(--green);
+}
+.ranking-title.loser {
+  color: var(--red);
+}
+.ranking-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.ranking-item {
+  display: grid;
+  grid-template-columns: 80px 1fr 70px;
+  align-items: center;
+  padding: 8px 12px;
+  border-radius: var(--radius-sm);
+  background: var(--bg-body);
+  border: 1px solid var(--border);
+  font-size: 0.76rem;
+  transition: var(--transition);
+}
+.ranking-item:hover {
+  border-color: var(--text-secondary);
+  background: var(--border);
+}
+.ranking-symbol {
+  font-weight: 700;
+  color: var(--text-primary);
+}
+.ranking-name {
+  color: var(--text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  padding-right: 8px;
+}
+.ranking-pct {
+  font-weight: 700;
+  text-align: right;
+  font-size: 0.76rem;
+}
+.ranking-pct.positive {
+  color: var(--green);
+}
+.ranking-pct.negative {
+  color: var(--red);
+}
+
+@media (max-width: 768px) {
+  .rankings-container {
+    grid-template-columns: 1fr;
+  }
+}
 
 /* ── MAIN CONTENT AREA ── */
 .main-content { display: flex; flex-direction: column; gap: 20px; }
 
 /* ── TOP RECOMMENDATIONS ── */
+.rec-filters {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 4px;
+}
+.filter-btn {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid var(--border);
+  color: var(--text-secondary);
+  padding: 6px 12px;
+  border-radius: 20px;
+  font-size: 0.8rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.filter-btn:hover {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 255, 255, 0.2);
+  color: var(--text-primary);
+  transform: translateY(-1px);
+}
+.filter-btn.active {
+  background: rgba(255, 255, 255, 0.12);
+  border-color: var(--border-active);
+  color: var(--text-primary);
+  font-weight: 600;
+  box-shadow: 0 0 10px rgba(255, 255, 255, 0.05);
+}
+.filter-count {
+  background: rgba(255, 255, 255, 0.08);
+  padding: 1px 6px;
+  border-radius: 10px;
+  font-size: 0.7rem;
+  color: var(--text-muted);
+  font-family: 'JetBrains Mono', monospace;
+}
+.filter-btn.active .filter-count {
+  background: rgba(255, 255, 255, 0.2);
+  color: var(--text-primary);
+}
+.rec-empty-state {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 40px 20px;
+  text-align: center;
+  background: var(--bg-card);
+  border: 1px dashed var(--border);
+  border-radius: var(--radius-lg);
+  color: var(--text-muted);
+}
+.rec-empty-state .empty-icon {
+  font-size: 2rem;
+  margin-bottom: 8px;
+}
 .recommendations-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));

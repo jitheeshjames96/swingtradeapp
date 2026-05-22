@@ -759,30 +759,49 @@ function calcTradeSetup(currentPrice, setupInds, momInds) {
   const target3 = sr.r2 && sr.r2 > currentPrice ? parseFloat(sr.r2.toFixed(2)) : parseFloat((currentPrice + 4.0 * (currentPrice - stopLoss)).toFixed(2));
   const riskReward = parseFloat(((target2 - currentPrice) / (currentPrice - stopLoss)).toFixed(2));
 
-  return { stopLoss, target1, target2, target3, riskReward };
+  return { stopLoss, target1, target2, target3, riskReward, indicators: setupInds };
 }
 
 function generateStaticRationale(symbol, name, scores, tradeSetup, quote) {
   const composite = scores.composite;
   const sym = symbol.replace('.NS', '').replace('.BO', '');
+  const price = quote?.price || 0;
+
+  const stopLoss = tradeSetup.stopLoss;
+  const target1 = tradeSetup.target1;
+  const target2 = tradeSetup.target2;
+  const rr = tradeSetup.riskReward;
+
+  const inds = tradeSetup.indicators || {};
+  const s1 = inds.sr?.s1 ? parseFloat(inds.sr.s1.toFixed(2)) : null;
+  const r1 = inds.sr?.r1 ? parseFloat(inds.sr.r1.toFixed(2)) : null;
 
   let verdictExplain = '';
   let winReason = '';
   let lossRisk = '';
+  let entryZone = '';
 
   if (composite.total >= 80) {
-    verdictExplain = `Strong confluence of fundamental value and momentum breakout makes this a high-conviction trade. Institutional net buying combined with a clear price breakout above key SMAs indicates robust smart money accumulation.`;
-    winReason = `Sustained momentum and high volume support a quick expansion to Target 1 and Target 2. The price has verified support levels and exhibits low relative volatility band expansion.`;
-    lossRisk = `A broader market correction or volume exhaustion could trigger a pullback to the stop loss. However, placing the SL below support (₹${tradeSetup.stopLoss}) protects from market noise.`;
+    const entryMin = s1 ? Math.min(price, s1) : price * 0.98;
+    const entryMax = price * 1.01;
+    entryZone = `₹${entryMin.toFixed(2)} - ₹${entryMax.toFixed(2)} (Accumulate on minor pullbacks to support S1 at ₹${s1 || 'support'} or 20 EMA, or on a confirmed high-volume breakout above ₹${r1 || 'resistance'})`;
+    verdictExplain = `Strong confluence of fundamental value and momentum breakout makes this a high-conviction trade. Institutional net buying combined with a clear price breakout above key SMAs indicates robust smart money accumulation. The stock exhibits superior relative strength in its sector.`;
+    winReason = `Sustained momentum and high volume support a quick expansion to Target 1 (₹${target1}) and Target 2 (₹${target2}). The price has verified support levels and exhibits low relative volatility band expansion. Risk-to-reward ratio is highly favorable at 1:${rr}.`;
+    lossRisk = `A broader market correction or volume exhaustion could trigger a pullback to the stop loss. However, placing the SL below support (₹${stopLoss}) protects from market noise.`;
   } else if (composite.total >= 65) {
+    const entryMin = s1 ? s1 : price * 0.97;
+    entryZone = `₹${entryMin.toFixed(2)} - ₹${price.toFixed(2)} (Optimal entry on minor pullbacks towards support S1 at ₹${s1 || 'support'} or the 50 SMA)`;
     verdictExplain = `Stock is in a healthy uptrend with supportive fundamentals. While minor indicators are cooling off, it provides a solid swing structure. Entry within current ranges is optimal.`;
-    winReason = `The trend is backed by SMA alignment and decent volume. A continuation move has high odds (~65% probability) given current sector momentum.`;
-    lossRisk = `Failure to hold the immediate support might lead to a minor retracement to S2 before the primary trend resumes. Keep the stop loss firm.`;
+    winReason = `The trend is backed by SMA alignment and decent volume. A continuation move has high odds (~65% probability) given current sector momentum. Expected targets are Target 1 (₹${target1}) and Target 2 (₹${target2}).`;
+    lossRisk = `Failure to hold the immediate support might lead to a minor retracement to key levels before the primary trend resumes. Keep the stop loss firm at ₹${stopLoss}.`;
   } else if (composite.total >= 50) {
+    const entryMin = s1 ? s1 : price * 0.95;
+    entryZone = `₹${entryMin.toFixed(2)} - ₹${r1 ? r1 : price * 1.02} (Wait for a confirmed volume breakout above resistance at ₹${r1 || 'R1'} or a deeper pullback to key support at ₹${s1 || 'S1'})`;
     verdictExplain = `The stock is currently in a range-bound or consolidation phase. Mixed signals across momentum (RSI/MACD) and fundamentals suggest waiting for a clear breakout confirmation above immediate resistance.`;
-    winReason = `An upside breakout would validate the base structure, leading to a quick rally to Target 1.`;
-    lossRisk = `Consolidation could drag on, tying up trading capital, or break down towards S2. A tight entry zone is required to manage risk.`;
+    winReason = `An upside breakout would validate the base structure, leading to a quick rally to Target 1 (₹${target1}).`;
+    lossRisk = `Consolidation could drag on, tying up trading capital, or break down towards key levels. A tight entry zone and stop loss at ₹${stopLoss} is required to manage risk.`;
   } else {
+    entryZone = `N/A (Avoid or short-sell if appropriate; not suitable for long swing trades)`;
     verdictExplain = `High debt, weak bottom-line growth, or a severe technical markdown structure makes this stock highly risky. Smart money indicators suggest active institutional distribution (selling).`;
     winReason = `A minor oversold short-covering bounce might offer a quick exit, but the upside is heavily capped.`;
     lossRisk = `Further downside breakdown is highly probable. Structural damage to the chart suggests high risk of a trailing stop loss trigger. Avoid or exit current positions.`;
@@ -798,9 +817,12 @@ function generateStaticRationale(symbol, name, scores, tradeSetup, quote) {
       ${verdictExplain}
     </div>
     <div style="display:flex; flex-direction:column; gap:8px; font-size:0.85rem; color:var(--text-secondary)">
+      <div>🎯 <strong>Rating & Verdict:</strong> <span style="font-weight:700; color:${composite.total >= 80 ? 'var(--green)' : composite.total >= 65 ? 'var(--green-dim)' : composite.total >= 50 ? 'var(--yellow)' : 'var(--red)'}">${composite.total >= 80 ? 'STRONG BUY' : composite.total >= 65 ? 'BUY' : composite.total >= 50 ? 'WATCH / HOLD' : 'AVOID / AVOID'}</span></div>
+      <div>⚡ <strong>Technical Entry Zone:</strong> <strong style="color:var(--text-primary)">${entryZone}</strong></div>
       <div>🟢 <strong>Chances of Profit:</strong> ${winReason}</div>
       <div>🔴 <strong>Key Risks:</strong> ${lossRisk}</div>
-      <div>🎯 <strong>Score & Probability:</strong> Composite score is <strong>${composite.total}/100</strong>. Evaluated win probability is <strong style="color:var(--green)">${winChance}%</strong> based on ${passedChecks} out of ${totalChecks} professional-grade criteria matching.</div>
+      <div>📈 <strong>Stop Loss / Targets:</strong> SL: <strong style="color:var(--red)">₹${stopLoss}</strong> | T1: <strong style="color:var(--green)">₹${target1}</strong> | T2: <strong style="color:var(--green)">₹${target2}</strong></div>
+      <div>📊 <strong>Score & Probability:</strong> Composite score is <strong>${composite.total}/100</strong>. Evaluated win probability is <strong style="color:var(--green)">${winChance}%</strong> based on ${passedChecks} out of ${totalChecks} professional-grade criteria matching.</div>
     </div>
   `;
 }
@@ -827,20 +849,29 @@ async function analyzeStock(symbol, name, sector) {
       historical = (data.historical || []).map(h => ({ ...h, date: new Date(h.date) }));
       earnings = data.earnings;
       shareholding = data.shareholding || null;
-      news = await API.fetchNewsSentiment(symbol);
-      // Use cached market pulse fearGreed if available, else fetch
-      try {
-        const pulse = await API.fetchMarketPulseFromBackend();
-        fearGreed = pulse.fearGreed;
-      } catch (pe) {
-        fearGreed = { value: 50, text: 'Neutral' };
+      
+      // Use bundled news and fearGreed if available, avoiding separate HTTP requests
+      if (data.news && data.news.length > 0) {
+        news = data.news;
+      } else {
+        news = await API.fetchNewsSentiment(symbol);
+      }
+      
+      if (data.fearGreed) {
+        fearGreed = data.fearGreed;
+      } else {
+        try {
+          const pulse = await API.fetchMarketPulseFromBackend();
+          fearGreed = pulse.fearGreed;
+        } catch (pe) {
+          fearGreed = { value: 50, text: 'Neutral' };
+        }
       }
     } catch (e) {
       console.warn('Backend fetch failed for', symbol, ', falling back to client-side:', e.message);
-      // If this was a 500 error from backend (bad ticker), don't retry with slow CORS proxy
-      if (e.message && (e.message.includes('Failed to analyze stock') || e.message.includes('404') || e.message.includes('500'))) {
-        throw new Error(`Invalid or unsupported ticker: ${symbol} (${e.message})`);
-      }
+      // Always fall back to client-side CORS proxy — never fatal-throw here.
+      // A backend 500 (Yahoo rate-limit, transient error, bad ticker) should gracefully
+      // degrade to the proxyFetch path so the user still sees data.
       backendActive = false;
     }
   }

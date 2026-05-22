@@ -143,7 +143,7 @@ const STOCK_CATALOG = [
   { symbol: 'BAJAJFINSV.NS', name: 'Bajaj Finserv',             sector: 'NBFC' },
   { symbol: 'KOTAKBANK.NS',  name: 'Kotak Mahindra Bank',       sector: 'Banking' },
   { symbol: 'LT.NS',         name: 'Larsen & Toubro',           sector: 'Engineering' },
-  { symbol: 'ASIANPAINT.NS', name: 'Asian Paints',              sector: 'Paints' },
+  // Note: TATAMOTORS.NS removed — Yahoo Finance dropped it post-demerger (use Screener.in directly)
   { symbol: 'HCLTECH.NS',    name: 'HCL Technologies',          sector: 'IT' },
   { symbol: 'ULTRACEMCO.NS', name: 'UltraTech Cement',          sector: 'Cement' },
   { symbol: 'POWERGRID.NS',  name: 'Power Grid Corp',           sector: 'Utilities' },

@@ -21,22 +21,23 @@ const App = (() => {
     { symbol: 'TCS.NS',       name: 'Tata Consultancy Services', sector: 'IT' },
     { symbol: 'HDFCBANK.NS',  name: 'HDFC Bank',                sector: 'Banking' },
     { symbol: 'INFY.NS',      name: 'Infosys Ltd',              sector: 'IT' },
-    { symbol: 'TATAMOTORS.NS',name: 'Tata Motors',              sector: 'Auto' },
+    { symbol: 'BAJAJFINSV.NS',name: 'Bajaj Finserv',            sector: 'NBFC' },
     { symbol: 'ETERNAL.NS',   name: 'Eternal Limited (Zomato)', sector: 'Consumer' },
   ];
 
   // Indian NSE stock suffixes — bare tickers we auto-fix to .NS
+  // Note: TATAMOTORS.NS not included — Yahoo Finance dropped it post-demerger
   const KNOWN_INDIAN_BASES = new Set([
-    'RELIANCE','TCS','INFY','HDFCBANK','ICICIBANK','WIPRO','TATAMOTORS','TATASTEEL',
+    'RELIANCE','TCS','INFY','HDFCBANK','ICICIBANK','WIPRO',
     'ADANIENT','BAJFINANCE','SBIN','SUNPHARMA','HINDUNILVR','AXISBANK','MARUTI',
     'ETERNAL','BAJAJFINSV','KOTAKBANK','LT','ASIANPAINT','HCLTECH','ULTRACEMCO',
     'POWERGRID','NTPC','NESTLEIND','TITAN','TATAPOWER','DRREDDY','CIPLA',
     'ONGC','COALINDIA','TECHM','DIVISLAB','BPCL','GRASIM','HEROMOTOCO','JSWSTEEL',
-    'HINDALCO','BRITANNIA','EICHERMOT','APOLLOHOSP','BAJAJ-AUTO','INDUSINDBK',
-    'TRENT','SIEMENS','HAVELLS','PIDILITIND','VOLTAS','BHARTIARTL','M&M',
+    'HINDALCO','BRITANNIA','EICHERMOT','APOLLOHOSP','INDUSINDBK',
+    'TRENT','SIEMENS','HAVELLS','PIDILITIND','VOLTAS','BHARTIARTL',
   ]);
 
-  const WATCHLIST_VERSION = 3; // bump to force-reset stale localStorage
+  const WATCHLIST_VERSION = 4; // v4: removed TATAMOTORS.NS (Yahoo Finance dropped it post-demerger)
 
   // ── LocalStorage helpers
   function saveWatchlist() {

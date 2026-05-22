@@ -147,32 +147,54 @@ app.get('/api/analyze', authMiddleware, async (req, res) => {
   }
 
   const cleanSymbol = symbol.trim().toUpperCase();
-  
+
+  // Known broken/unavailable tickers — reject immediately with helpful message
+  const BROKEN_TICKERS = new Set([
+    'TATAMOTORS.NS', 'TATAMOTORS.BO', // Yahoo Finance dropped post-demerger
+  ]);
+  const TICKER_ALIASES = {
+    'ZOMATO.NS': 'ETERNAL.NS', // Zomato rebranded to Eternal Limited
+  };
+
+  if (BROKEN_TICKERS.has(cleanSymbol)) {
+    return res.status(404).json({
+      error: `${cleanSymbol} is not available on Yahoo Finance due to a corporate restructuring/demerger. Please use an alternative ticker or check NSE India for the latest symbol.`,
+      details: 'Ticker unavailable on Yahoo Finance'
+    });
+  }
+
+  // Apply alias redirect
+  const resolvedSymbol = TICKER_ALIASES[cleanSymbol] || cleanSymbol;
+  if (resolvedSymbol !== cleanSymbol) {
+    console.log(`Ticker alias: ${cleanSymbol} → ${resolvedSymbol}`);
+  }
+
   // Log request to database
   const email = req.user?.email || 'unknown';
-  await logToDatabase(email, 'analyze', cleanSymbol, 'Stock analysis requested');
+  await logToDatabase(email, 'analyze', resolvedSymbol, `Stock analysis requested (original: ${cleanSymbol})`);
 
-  const cacheKey = `analyze_${cleanSymbol}`;
+  const cacheKey = `analyze_${resolvedSymbol}`;
 
   // Serve from cache if available
   const cachedData = appCache.get(cacheKey);
   if (cachedData) {
-    console.log(`Serving cached analysis for ${cleanSymbol}`);
+    console.log(`Serving cached analysis for ${resolvedSymbol}`);
     return res.json(cachedData);
   }
 
   try {
     // 1. Fetch Quote
-    const quote = await scraper.fetchQuote(cleanSymbol);
+    const quote = await scraper.fetchQuote(resolvedSymbol);
+
 
     // 2. Fetch Fundamentals & Earnings (Screener.in for Indian, Yahoo for US)
     let fundamentals = {};
     let earnings = { quarterly: [], annual: [] };
     let shareholding = null;
 
-    const isIndian = cleanSymbol.endsWith('.NS') || cleanSymbol.endsWith('.BO');
+    const isIndian = resolvedSymbol.endsWith('.NS') || resolvedSymbol.endsWith('.BO');
     if (isIndian) {
-      const screener = await scraper.fetchScreenerData(cleanSymbol);
+      const screener = await scraper.fetchScreenerData(resolvedSymbol);
       if (screener) {
         fundamentals = { ...screener.fundamentals };
         earnings = { ...screener.earnings };
@@ -185,12 +207,12 @@ app.get('/api/analyze', authMiddleware, async (req, res) => {
           fundamentals.pb = null;
         }
       } else {
-        const yahoo = await scraper.fetchYahooFundamentals(cleanSymbol);
+        const yahoo = await scraper.fetchYahooFundamentals(resolvedSymbol);
         fundamentals = yahoo;
         shareholding = yahoo.shareholding || null;
       }
     } else {
-      const yahoo = await scraper.fetchYahooFundamentals(cleanSymbol);
+      const yahoo = await scraper.fetchYahooFundamentals(resolvedSymbol);
       fundamentals = yahoo;
       shareholding = yahoo.shareholding || null;
     }
@@ -198,7 +220,7 @@ app.get('/api/analyze', authMiddleware, async (req, res) => {
     // 3. Fetch Historical Data (from Yahoo Finance - standard)
     let historical = [];
     try {
-      const histUrl = `https://query2.finance.yahoo.com/v8/finance/chart/${cleanSymbol}?interval=1d&range=1y`;
+      const histUrl = `https://query2.finance.yahoo.com/v8/finance/chart/${resolvedSymbol}?interval=1d&range=1y`;
       const response = await axios.get(histUrl, {
         headers: { 'User-Agent': 'Mozilla/5.0' }
       });
@@ -214,11 +236,12 @@ app.get('/api/analyze', authMiddleware, async (req, res) => {
         volume: quotes.volume?.[i] || 0,
       })).filter(d => d.close > 0);
     } catch (e) {
-      console.warn(`Historical data fetch failed for ${cleanSymbol}, returning empty array: ${e.message}`);
+      console.warn(`Historical data fetch failed for ${resolvedSymbol}, returning empty array: ${e.message}`);
     }
 
     const payload = {
-      symbol: cleanSymbol,
+      symbol: resolvedSymbol,
+      originalSymbol: cleanSymbol !== resolvedSymbol ? cleanSymbol : undefined,
       quote,
       fundamentals,
       earnings,
@@ -233,7 +256,7 @@ app.get('/api/analyze', authMiddleware, async (req, res) => {
     res.json(payload);
 
   } catch (error) {
-    console.error(`Analysis failed for ${cleanSymbol}:`, error.message);
+    console.error(`Analysis failed for ${resolvedSymbol}:`, error.message);
     res.status(500).json({ error: 'Failed to analyze stock', details: error.message });
   }
 });

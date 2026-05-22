@@ -1,0 +1,493 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SwingTrader Intelligence Dashboard | AI-Powered Stock Analysis</title>
+  <meta name="description" content="Advanced swing trading dashboard with PE analysis, technical indicators, market sentiment, institutional activity tracking, and AI-driven stock scoring for NSE/BSE and US markets." />
+  <meta name="keywords" content="swing trading, stock analysis, NSE, BSE, technical analysis, PE ratio, MACD, RSI, institutional trading, Fear Greed Index" />
+  <meta name="theme-color" content="#080c14" />
+
+  <!-- Preconnect for Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+
+  <!-- Chart.js CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <!-- TradingView Widget Script -->
+  <script type="text/javascript" src="https://s3.tradingview.com/tv.js"></script>
+
+  <!-- Google Identity Services (SSO) -->
+  <script src="https://accounts.google.com/gsi/client" async defer></script>
+
+  <!-- Dashboard CSS -->
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+
+<!-- ── AMBIENT BACKGROUND ── -->
+<div class="ambient-bg" aria-hidden="true">
+  <div class="ambient-orb orb-1"></div>
+  <div class="ambient-orb orb-2"></div>
+  <div class="ambient-orb orb-3"></div>
+</div>
+
+<!-- ── TOAST CONTAINER ── -->
+<div id="toast-container" class="toast-container" role="status" aria-live="polite"></div>
+
+<!-- ── MAIN APP ── -->
+<div id="app">
+
+  <!-- ════════════════════════════════════════
+       TOP BAR
+  ════════════════════════════════════════ -->
+  <header class="topbar" role="banner">
+    <div class="topbar-inner">
+
+      <!-- Logo -->
+      <div class="logo">
+        <div class="logo-icon" aria-hidden="true">📈</div>
+        <span class="logo-text">SwingTrader</span>
+        <span style="color:var(--text-muted);font-weight:400;font-size:0.75rem">Intelligence</span>
+      </div>
+
+      <!-- Search Bar -->
+      <div class="topbar-search" role="search">
+        <span class="search-icon" aria-hidden="true">🔍</span>
+        <input
+          id="search-input"
+          class="search-input"
+          type="text"
+          placeholder="Search stocks — RELIANCE, TCS, AAPL…"
+          autocomplete="off"
+          aria-label="Search stocks"
+          aria-autocomplete="list"
+          aria-controls="search-dropdown"
+        />
+        <div id="search-dropdown" class="search-dropdown" role="listbox" aria-label="Search results"></div>
+      </div>
+
+      <!-- Right controls -->
+      <div class="topbar-right">
+        <div id="connection-status" class="connection-badge connected" title="Backend Connection State">
+          <div class="market-dot" style="width:8px; height:8px; background-color:#22c55e; border-radius:50%; display:inline-block; margin-right:4px;"></div>
+          <span>Checking...</span>
+        </div>
+        <div style="font-size:11px; color:var(--text-muted); display:flex; align-items:center; gap:4px;" title="Last data refresh time">
+          🕐 <span id="last-updated-time">--:--</span>
+        </div>
+        <button id="btn-refresh" class="btn btn-ghost btn-sm" title="Refresh market data" aria-label="Refresh market data">
+          <span class="refresh-icon" style="display:inline-block">↻</span>
+          Refresh
+        </button>
+        <button id="btn-settings" class="btn btn-ghost btn-sm" title="AI Settings (Gemini API Key)" aria-label="AI Settings">
+          ⚙️ AI Settings
+        </button>
+        <button id="btn-logout" class="btn btn-ghost btn-sm" style="display:none;" title="Sign Out of Google SSO" aria-label="Sign Out">
+          🚪 Sign Out
+        </button>
+        <button id="btn-add-manual" class="btn btn-primary btn-sm" title="Add searched stock to watchlist" aria-label="Add stock">
+          + Add
+        </button>
+      </div>
+
+
+      <!-- Settings Panel Dropdown -->
+      <div id="settings-dropdown" style="display:none; position:absolute; right:24px; top:65px; background:var(--bg-card); border:1px solid var(--border); padding:16px; border-radius:var(--radius-md); box-shadow:var(--shadow-lg); z-index:999; width:320px;">
+        <h4 style="margin-bottom:12px; font-size:0.95rem; color:var(--text-primary); border-bottom:1px solid var(--border); padding-bottom:8px;">⚙️ Settings & API Configuration</h4>
+        
+        <!-- Gemini Key Section -->
+        <label for="api-key-input" style="font-size:0.75rem; color:var(--text-secondary); display:block; margin-bottom:4px; font-weight:600;">Gemini AI Key (100% Free)</label>
+        <input id="api-key-input" type="password" placeholder="AIzaSy..." style="width:100%; background:var(--bg-input); border:1px solid var(--border); color:var(--text-primary); padding:6px 10px; border-radius:4px; font-size:0.8rem; margin-bottom:4px; outline:none;" />
+        <div style="margin-bottom:12px; text-align:right;">
+          <a href="https://aistudio.google.com/" target="_blank" style="font-size:0.7rem; color:var(--text-accent); text-decoration:none;">Get Free Key ↗</a>
+        </div>
+        
+        <!-- Backend URL Section -->
+        <label for="backend-url-input" style="font-size:0.75rem; color:var(--text-secondary); display:block; margin-bottom:4px; font-weight:600;">Production Backend URL</label>
+        <input id="backend-url-input" type="text" placeholder="http://localhost:3000" style="width:100%; background:var(--bg-input); border:1px solid var(--border); color:var(--text-primary); padding:6px 10px; border-radius:4px; font-size:0.8rem; margin-bottom:16px; outline:none;" />
+        
+        <div style="display:flex; justify-content:flex-end; align-items:center; gap:8px;">
+          <button id="btn-settings-cancel" class="btn btn-ghost btn-sm" style="padding:4px 8px;">Cancel</button>
+          <button id="btn-settings-save" class="btn btn-primary btn-sm" style="padding:4px 10px;">Save</button>
+        </div>
+      </div>
+
+    </div>
+  </header>
+
+  <!-- ════════════════════════════════════════
+       MARKET PULSE BANNER
+  ════════════════════════════════════════ -->
+  <section class="market-pulse" aria-label="Market overview">
+    <div class="market-pulse-inner">
+      <div class="pulse-label">Markets</div>
+
+      <div id="market-tickers" class="market-ticker-wrap" role="list" aria-label="Market indices">
+        <!-- Filled by JS -->
+        <div class="market-ticker">
+          <div class="mt-name">NIFTY 50</div>
+          <div class="skeleton" style="width:80px;height:20px;border-radius:4px"></div>
+          <div class="skeleton" style="width:50px;height:12px;border-radius:4px;margin-top:4px"></div>
+        </div>
+        <div class="market-ticker">
+          <div class="mt-name">SENSEX</div>
+          <div class="skeleton" style="width:80px;height:20px;border-radius:4px"></div>
+          <div class="skeleton" style="width:50px;height:12px;border-radius:4px;margin-top:4px"></div>
+        </div>
+        <div class="market-ticker">
+          <div class="mt-name">S&amp;P 500</div>
+          <div class="skeleton" style="width:80px;height:20px;border-radius:4px"></div>
+          <div class="skeleton" style="width:50px;height:12px;border-radius:4px;margin-top:4px"></div>
+        </div>
+        <div class="market-ticker">
+          <div class="mt-name">NASDAQ</div>
+          <div class="skeleton" style="width:80px;height:20px;border-radius:4px"></div>
+          <div class="skeleton" style="width:50px;height:12px;border-radius:4px;margin-top:4px"></div>
+        </div>
+      </div>
+
+      <!-- Fear & Greed -->
+      <div class="fear-greed-widget" aria-label="Fear and Greed Index">
+        <div>
+          <div class="fg-label">Fear &amp; Greed</div>
+          <div id="fg-text" class="fg-text" style="color:var(--yellow)">Loading…</div>
+        </div>
+        <div id="fg-value" class="fg-value" style="color:var(--yellow)">—</div>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- ════════════════════════════════════════
+       HERO
+  ════════════════════════════════════════ -->
+  <section class="hero-section" aria-labelledby="hero-title">
+    <div class="hero-inner">
+      <div>
+        <h1 id="hero-title" class="hero-title">Swing Trading Intelligence</h1>
+        <p class="hero-sub">Multi-factor analysis · PE &amp; Earnings · RSI / MACD / BB · Institutional Volume · Sentiment Scoring</p>
+      </div>
+      <div class="hero-actions">
+        <div class="disclaimer" style="font-size:0.72rem;padding:8px 14px">
+          ⚠️ For educational use only. Not financial advice.
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ════════════════════════════════════════
+       MAIN LAYOUT
+  ════════════════════════════════════════ -->
+  <main class="main-layout" role="main">
+
+    <!-- ── LEFT SIDEBAR ── -->
+    <aside class="sidebar" role="complementary" aria-label="Watchlist and sectors">
+
+      <!-- Watchlist Panel -->
+      <div class="panel">
+        <div class="panel-header">
+          <div class="panel-title">
+            <span>⭐</span> Watchlist
+          </div>
+          <span id="watchlist-count" style="font-size:0.72rem;color:var(--text-muted);font-family:'JetBrains Mono',monospace"></span>
+        </div>
+        <div class="panel-body" style="padding:10px">
+          <div id="watchlist-items" role="list" aria-label="Watchlist stocks">
+            <!-- Filled by JS -->
+          </div>
+        </div>
+      </div>
+
+      <!-- Sector Heatmap Panel -->
+      <div class="panel">
+        <div class="panel-header">
+          <div class="panel-title"><span>🌡</span> Sector Heatmap</div>
+        </div>
+        <div class="panel-body">
+          <div id="sector-grid" class="sector-grid" role="list" aria-label="Sector performance">
+            <!-- Filled by JS -->
+            <div class="skeleton" style="height:50px;border-radius:6px"></div>
+            <div class="skeleton" style="height:50px;border-radius:6px"></div>
+            <div class="skeleton" style="height:50px;border-radius:6px"></div>
+            <div class="skeleton" style="height:50px;border-radius:6px"></div>
+            <div class="skeleton" style="height:50px;border-radius:6px"></div>
+            <div class="skeleton" style="height:50px;border-radius:6px"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Scoring Guide Panel -->
+      <div class="panel">
+        <div class="panel-header">
+          <div class="panel-title"><span>🏆</span> Score Guide</div>
+        </div>
+        <div class="panel-body" style="font-size:0.8rem">
+          <div style="display:flex;flex-direction:column;gap:6px">
+            <div style="display:flex;align-items:center;gap:8px">
+              <span class="rating-badge badge-strong-buy">🟢 Strong Buy</span>
+              <span style="color:var(--text-muted)">80–100 pts</span>
+            </div>
+            <div style="display:flex;align-items:center;gap:8px">
+              <span class="rating-badge badge-buy">🟡 Buy</span>
+              <span style="color:var(--text-muted)">65–79 pts</span>
+            </div>
+            <div style="display:flex;align-items:center;gap:8px">
+              <span class="rating-badge badge-watch">🟠 Watch</span>
+              <span style="color:var(--text-muted)">50–64 pts</span>
+            </div>
+            <div style="display:flex;align-items:center;gap:8px">
+              <span class="rating-badge badge-avoid">🔴 Avoid</span>
+              <span style="color:var(--text-muted)">35–49 pts</span>
+            </div>
+            <div style="display:flex;align-items:center;gap:8px">
+              <span class="rating-badge badge-strong-avoid">⛔ Strong Avoid</span>
+              <span style="color:var(--text-muted)">0–34 pts</span>
+            </div>
+          </div>
+          <div style="margin-top:14px;padding-top:12px;border-top:1px solid var(--border)">
+            <div style="font-size:0.68rem;color:var(--text-muted);line-height:1.6">
+              <strong style="color:var(--text-secondary)">Scoring Weights:</strong><br>
+              📈 Fundamental: 25 pts<br>
+              📊 Technical: 30 pts<br>
+              💬 Sentiment: 20 pts<br>
+              🏦 Institutional: 25 pts
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </aside>
+
+    <!-- ── MAIN CONTENT ── -->
+    <div class="main-content">
+
+      <!-- Recommendations Panel -->
+      <section aria-labelledby="rec-title">
+        <div class="panel">
+          <div class="panel-header">
+            <div class="panel-title" id="rec-title"><span>🎯</span> Top Picks &amp; Rankings</div>
+            <span style="font-size:0.72rem;color:var(--text-muted)">Sorted by composite score ↓</span>
+          </div>
+          <div class="panel-body">
+            <div id="recommendations-grid" class="recommendations-grid" role="list" aria-label="Stock recommendations">
+              <!-- Loading cards -->
+              <div class="rec-card" style="pointer-events:none">
+                <div class="skeleton skel-line w-60" style="height:16px;margin-bottom:8px"></div>
+                <div class="skeleton skel-line w-40" style="height:24px;margin-bottom:12px"></div>
+                <div class="skeleton" style="height:6px;border-radius:6px;margin-bottom:12px"></div>
+                <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px">
+                  <div class="skeleton" style="height:30px;border-radius:6px"></div>
+                  <div class="skeleton" style="height:30px;border-radius:6px"></div>
+                  <div class="skeleton" style="height:30px;border-radius:6px"></div>
+                </div>
+              </div>
+              <div class="rec-card" style="pointer-events:none">
+                <div class="skeleton skel-line w-60" style="height:16px;margin-bottom:8px"></div>
+                <div class="skeleton skel-line w-40" style="height:24px;margin-bottom:12px"></div>
+                <div class="skeleton" style="height:6px;border-radius:6px;margin-bottom:12px"></div>
+                <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px">
+                  <div class="skeleton" style="height:30px;border-radius:6px"></div>
+                  <div class="skeleton" style="height:30px;border-radius:6px"></div>
+                  <div class="skeleton" style="height:30px;border-radius:6px"></div>
+                </div>
+              </div>
+              <div class="rec-card" style="pointer-events:none">
+                <div class="skeleton skel-line w-60" style="height:16px;margin-bottom:8px"></div>
+                <div class="skeleton skel-line w-40" style="height:24px;margin-bottom:12px"></div>
+                <div class="skeleton" style="height:6px;border-radius:6px;margin-bottom:12px"></div>
+                <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px">
+                  <div class="skeleton" style="height:30px;border-radius:6px"></div>
+                  <div class="skeleton" style="height:30px;border-radius:6px"></div>
+                  <div class="skeleton" style="height:30px;border-radius:6px"></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ── STOCK DETAIL PANEL ── -->
+      <section id="detail-panel" class="detail-panel" aria-label="Stock detail analysis">
+
+        <!-- Loading overlay -->
+        <div id="detail-loading" style="display:none;align-items:center;justify-content:center;padding:48px;gap:12px">
+          <div class="spinner"></div>
+          <span style="color:var(--text-secondary);font-size:0.88rem">Analysing stock data…</span>
+        </div>
+
+        <!-- Detail Header -->
+        <div class="detail-header">
+          <div class="dh-top">
+            <div class="dh-left">
+              <div id="dh-symbol" class="dh-symbol">—</div>
+              <div id="dh-name" class="dh-name">Select a stock to analyse</div>
+              <div id="dh-sector" class="dh-sector-tag">—</div>
+            </div>
+            <div class="dh-right">
+              <div id="dh-price" class="dh-price">—</div>
+              <div class="dh-change-row">
+                <div id="dh-change" class="dh-change">—</div>
+                <div id="dh-change-abs" class="dh-change-abs"></div>
+                <div id="dh-rating" class="rating-badge">—</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Score Summary Row -->
+          <div class="dh-score-row">
+            <div class="dh-score-item">
+              <div class="score-label">Composite Score</div>
+              <div id="dh-total-score" class="score-val" style="font-size:2rem">—</div>
+              <div class="score-sub">/ 100 pts</div>
+            </div>
+            <div class="dh-score-item">
+              <div class="score-label">📈 Fundamentals</div>
+              <div id="dh-fund-score" class="score-val">—</div>
+              <div class="score-sub">/ 25</div>
+            </div>
+            <div class="dh-score-item">
+              <div class="score-label">📊 Technical Setup</div>
+              <div id="dh-tech-score" class="score-val">—</div>
+              <div class="score-sub">/ 25</div>
+            </div>
+            <div class="dh-score-item">
+              <div class="score-label">⚡ Momentum</div>
+              <div id="dh-sent-score" class="score-val">—</div>
+              <div class="score-sub">/ 25</div>
+            </div>
+            <div class="dh-score-item">
+              <div class="score-label">🧠 Sentiment &amp; Flows</div>
+              <div id="dh-inst-score" class="score-val">—</div>
+              <div class="score-sub">/ 25</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Tabs Navigation -->
+        <nav class="tabs-nav" role="tablist" aria-label="Analysis tabs">
+          <button class="tab-btn active" data-tab="overview"       role="tab" aria-selected="true"  id="tab-btn-overview"      >📡 Overview</button>
+          <button class="tab-btn"        data-tab="live-chart"     role="tab" aria-selected="false" id="tab-btn-live-chart"    >📈 Live Chart</button>
+          <button class="tab-btn"        data-tab="fundamental"    role="tab" aria-selected="false" id="tab-btn-fundamental"   >📊 Fundamental</button>
+          <button class="tab-btn"        data-tab="technical"      role="tab" aria-selected="false" id="tab-btn-technical"     >⚙️ Technical</button>
+          <button class="tab-btn"        data-tab="sentiment"      role="tab" aria-selected="false" id="tab-btn-sentiment"     >💬 Sentiment</button>
+          <button class="tab-btn"        data-tab="institutional"  role="tab" aria-selected="false" id="tab-btn-institutional" >🏦 Institutional</button>
+        </nav>
+
+        <!-- Tab Contents -->
+        <div id="tab-overview"       class="tab-content active" role="tabpanel" aria-labelledby="tab-btn-overview">
+          <div class="empty-state">
+            <div class="es-icon">📡</div>
+            <div class="es-title">Select a stock to view analysis</div>
+            <div class="es-desc">Click any stock in the watchlist or recommendations above</div>
+          </div>
+        </div>
+
+        <div id="tab-live-chart"     class="tab-content" role="tabpanel" aria-labelledby="tab-btn-live-chart">
+          <!-- Filled by JS (TradingView widget) -->
+        </div>
+
+        <div id="tab-fundamental"    class="tab-content" role="tabpanel" aria-labelledby="tab-btn-fundamental">
+          <!-- Filled by JS -->
+        </div>
+        <div id="tab-technical"      class="tab-content" role="tabpanel" aria-labelledby="tab-btn-technical">
+          <!-- Filled by JS -->
+        </div>
+        <div id="tab-sentiment"      class="tab-content" role="tabpanel" aria-labelledby="tab-btn-sentiment">
+          <!-- Filled by JS -->
+        </div>
+        <div id="tab-institutional"  class="tab-content" role="tabpanel" aria-labelledby="tab-btn-institutional">
+          <!-- Filled by JS -->
+        </div>
+
+      </section>
+      <!-- /detail-panel -->
+
+    </div>
+    <!-- /main-content -->
+
+  </main>
+
+  <!-- ════════════════════════════════════════
+       FOOTER
+  ════════════════════════════════════════ -->
+  <footer class="footer" role="contentinfo">
+    <div class="container">
+      <p>
+        <strong style="color:var(--text-secondary)">SwingTrader Intelligence</strong>
+        &nbsp;·&nbsp; Data: Yahoo Finance &amp; alternative.me
+        &nbsp;·&nbsp; ⚠️ For educational purposes only — not financial advice
+        &nbsp;·&nbsp; Built with ❤️ using vanilla JS &amp; Chart.js
+      </p>
+    </div>
+  </footer>
+
+</div>
+<!-- /app -->
+
+<!-- Invy AI Chat Panel & Toggle -->
+<div id="invy-chat-toggle" class="invy-chat-toggle" role="button" aria-label="Open Invy AI Chat" title="Ask Invy AI Stock Assistant">
+  <span class="toggle-icon">💬</span>
+  <span class="toggle-text">Invy AI</span>
+</div>
+
+<div id="invy-chat-drawer" class="invy-chat-drawer" aria-hidden="true">
+  <div class="invy-chat-header">
+    <div class="invy-chat-title">
+      <span class="invy-logo">🤖</span>
+      <div>
+        <strong style="color:var(--text-primary);font-size:0.9rem">Invy AI Chat</strong>
+        <span style="font-size:0.68rem;color:var(--text-secondary);display:block">25-Yr Trader Companion</span>
+      </div>
+    </div>
+    <button id="invy-chat-close" class="invy-chat-close" aria-label="Close Chat">✕</button>
+  </div>
+  
+  <div id="invy-chat-messages" class="invy-chat-messages">
+    <!-- Initial welcome message -->
+    <div class="invy-message assistant">
+      <div class="msg-sender">Invy AI</div>
+      <div class="msg-text">
+        Hello! I am **Invy**, your AI stock market strategist representing 25 years of investment experience. 
+        <br><br>
+        You can ask me about stock market concepts, sector trends, swing strategy, or directly query about the currently selected stock.
+        <br><br>
+        <div style="background:var(--bg-elevated);border:1px solid var(--border);padding:8px 10px;border-radius:4px;font-size:0.72rem;color:var(--yellow)">
+          ⚙️ <strong>Configuration Notice:</strong> Make sure you paste your free <strong>Gemini API Key</strong> in the header settings modal so we can interact!
+        </div>
+      </div>
+    </div>
+  </div>
+  
+  <div class="invy-chat-input-wrap">
+    <textarea id="invy-chat-input" class="invy-chat-input" placeholder="Type a message (e.g. 'Explain RSI', 'Is AAPL near support?')..." rows="1"></textarea>
+    <button id="invy-chat-send" class="btn btn-primary btn-sm invy-chat-send">Send</button>
+  </div>
+</div>
+
+<!-- Google SSO Login Screen Overlay -->
+<div id="login-overlay" class="login-overlay" style="display: none;">
+  <div class="login-card">
+    <div class="login-logo">
+      <span class="logo-icon">📈</span>
+      <span class="logo-text">Antigravity<span style="color:var(--text-accent)">Swing</span></span>
+    </div>
+    <h2>Access Restricted</h2>
+    <p>Please sign in with your authorized Google Account to unlock the Swing Trading intelligence dashboard.</p>
+    <div id="google-signin-btn"></div>
+    <div id="login-error-msg" class="login-error-msg" style="display: none;"></div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════
+     SCRIPTS — order matters
+════════════════════════════════════════ -->
+<script src="js/api.js"></script>
+<script src="js/analysis.js"></script>
+<script src="js/charts.js"></script>
+<script src="js/ui.js"></script>
+<script src="js/app.js"></script>
+
+</body>
+</html>

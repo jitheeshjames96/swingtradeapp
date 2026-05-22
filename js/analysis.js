@@ -712,10 +712,11 @@ async function analyzeStock(symbol, name, sector) {
       API.fetchFearGreed(),
     ]);
     shareholding = fund ? fund.shareholding : null;
-    // Validate quote
-    if (!quote || quote.price === 0) {
-      throw new Error(`No price data available for ${symbol}. Check if the ticker symbol is correct.`);
-    }
+  }
+
+  // Validate quote
+  if (!quote || !quote.price || quote.price === 0) {
+    throw new Error(`No price data available for ${symbol}. Check if the ticker symbol is correct.`);
   }
 
   const fundResult  = scoreFundamentals(fund);
@@ -806,7 +807,7 @@ window.Analysis = {
   analyzeStock,
   calcRSI, calcMACD, calcSMA, calcEMA, calcBollingerBands,
   calcATR, calcSupportResistance, detectVolumeSpikes, detectTrend,
-  scoreFundamentals, scoreTechnicals, scoreSentiment, scoreInstitutional,
+  scoreFundamentals, scoreTechnicalSetup, scoreMomentum, scoreSentimentFlows,
   compositeScore, calcTradeSetup,
   scoreColor, scoreFillClass, scoreBadgeClass,
 };

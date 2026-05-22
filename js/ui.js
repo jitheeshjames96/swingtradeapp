@@ -115,7 +115,7 @@ const UI = (() => {
   // ── Recommendation Card
   function renderRecCard(result) {
     const { symbol, name, quote, scores } = result;
-    const { composite, fundamental, technical, sentiment, institutional } = scores;
+    const { composite, fundamental, technicalSetup, momentum, sentimentFlow } = scores;
     const fillClass = Analysis.scoreFillClass(composite.total);
     const badgeClass = Analysis.scoreBadgeClass(composite.ratingClass);
 
@@ -141,18 +141,22 @@ const UI = (() => {
             <div class="score-fill ${fillClass}" style="width:${composite.total}%"></div>
           </div>
         </div>
-        <div class="rc-mini-stats">
+        <div class="rc-mini-stats" style="grid-template-columns: repeat(4, 1fr);">
           <div class="rc-mini-stat">
             <div class="rcms-label">Fund.</div>
             <div class="rcms-val" style="color:${Analysis.scoreColor(fundamental.score,25)}">${fundamental.score}/25</div>
           </div>
           <div class="rc-mini-stat">
-            <div class="rcms-label">Tech.</div>
-            <div class="rcms-val" style="color:${Analysis.scoreColor(technical.score,30)}">${technical.score}/30</div>
+            <div class="rcms-label">Setup</div>
+            <div class="rcms-val" style="color:${Analysis.scoreColor(technicalSetup.score,25)}">${technicalSetup.score}/25</div>
           </div>
           <div class="rc-mini-stat">
-            <div class="rcms-label">Inst.</div>
-            <div class="rcms-val" style="color:${Analysis.scoreColor(institutional.score,25)}">${institutional.score}/25</div>
+            <div class="rcms-label">Mom.</div>
+            <div class="rcms-val" style="color:${Analysis.scoreColor(momentum.score,25)}">${momentum.score}/25</div>
+          </div>
+          <div class="rc-mini-stat">
+            <div class="rcms-label">Flows</div>
+            <div class="rcms-val" style="color:${Analysis.scoreColor(sentimentFlow.score,25)}">${sentimentFlow.score}/25</div>
           </div>
         </div>
       </div>
@@ -587,7 +591,7 @@ const UI = (() => {
   // ── Institutional Tab
   function renderInstitutional(result) {
     const { scores, quote } = result;
-    const { indicators } = scores.technical;
+    const { indicators } = scores.technicalSetup;
     const vd = indicators.volData || {};
 
     const hasRealShareholding = result.shareholding && (

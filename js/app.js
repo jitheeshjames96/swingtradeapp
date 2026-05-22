@@ -25,27 +25,61 @@ const App = (() => {
     { symbol: 'ETERNAL.NS',   name: 'Eternal Limited (Zomato)', sector: 'Consumer' },
   ];
 
+  // Indian NSE stock suffixes — bare tickers we auto-fix to .NS
+  const KNOWN_INDIAN_BASES = new Set([
+    'RELIANCE','TCS','INFY','HDFCBANK','ICICIBANK','WIPRO','TATAMOTORS','TATASTEEL',
+    'ADANIENT','BAJFINANCE','SBIN','SUNPHARMA','HINDUNILVR','AXISBANK','MARUTI',
+    'ETERNAL','BAJAJFINSV','KOTAKBANK','LT','ASIANPAINT','HCLTECH','ULTRACEMCO',
+    'POWERGRID','NTPC','NESTLEIND','TITAN','TATAPOWER','DRREDDY','CIPLA',
+    'ONGC','COALINDIA','TECHM','DIVISLAB','BPCL','GRASIM','HEROMOTOCO','JSWSTEEL',
+    'HINDALCO','BRITANNIA','EICHERMOT','APOLLOHOSP','BAJAJ-AUTO','INDUSINDBK',
+    'TRENT','SIEMENS','HAVELLS','PIDILITIND','VOLTAS','BHARTIARTL','M&M',
+  ]);
+
+  const WATCHLIST_VERSION = 3; // bump to force-reset stale localStorage
+
   // ── LocalStorage helpers
   function saveWatchlist() {
-    try { localStorage.setItem('stid_watchlist', JSON.stringify(state.watchlist)); } catch(e) {}
+    try {
+      localStorage.setItem('stid_watchlist', JSON.stringify(state.watchlist));
+      localStorage.setItem('stid_watchlist_version', String(WATCHLIST_VERSION));
+    } catch(e) {}
   }
   function loadWatchlist() {
     try {
+      const version = parseInt(localStorage.getItem('stid_watchlist_version') || '0');
       const saved = localStorage.getItem('stid_watchlist');
-      if (saved) {
+      
+      if (saved && version >= WATCHLIST_VERSION) {
         const parsed = JSON.parse(saved);
-        // Auto-fix bad tickers: bare Indian stock names without .NS/.BO suffix
+        // Auto-fix bare Indian tickers: RELIANCE → RELIANCE.NS, etc.
         return parsed.map(item => {
-          let sym = item.symbol;
-          // If ETERNAL (no suffix) → ETERNAL.NS
-          if (sym === 'ETERNAL') sym = 'ETERNAL.NS';
-          // If symbol looks like Indian stock (uppercase, no dots, no caret) → append .NS
-          else if (/^[A-Z0-9]+$/.test(sym) && sym.length <= 15 && !sym.startsWith('^')) {
-            // Only if it's a known Indian-style ticker without suffix
-            // We'll leave it as-is but will auto-retry with .NS in analyzeAndStore
+          let sym = (item.symbol || '').trim().toUpperCase();
+          // If bare uppercase with no dot/caret, check if it's a known Indian ticker
+          if (!sym.includes('.') && !sym.startsWith('^')) {
+            if (KNOWN_INDIAN_BASES.has(sym)) {
+              sym = sym + '.NS';
+            }
           }
           return { ...item, symbol: sym };
         });
+      } else if (saved && version < WATCHLIST_VERSION) {
+        // Stale version: migrate old entries to .NS where needed
+        console.log('Migrating watchlist from version', version, 'to', WATCHLIST_VERSION);
+        const parsed = JSON.parse(saved);
+        const migrated = parsed.map(item => {
+          let sym = (item.symbol || '').trim().toUpperCase();
+          if (!sym.includes('.') && !sym.startsWith('^')) {
+            sym = sym + '.NS'; // Aggressively append .NS to any bare Indian-style ticker
+          }
+          return { ...item, symbol: sym };
+        });
+        // Save migrated version
+        try {
+          localStorage.setItem('stid_watchlist', JSON.stringify(migrated));
+          localStorage.setItem('stid_watchlist_version', String(WATCHLIST_VERSION));
+        } catch(e) {}
+        return migrated;
       }
     } catch(e) {}
     return DEFAULT_WATCHLIST;
@@ -269,6 +303,19 @@ const App = (() => {
       });
     }
 
+    // Reset Watchlist button: clears localStorage and reloads with clean defaults
+    const btnResetWatchlist = document.getElementById('btn-reset-watchlist');
+    if (btnResetWatchlist) {
+      btnResetWatchlist.addEventListener('click', () => {
+        if (!confirm('This will reset your watchlist to the default stocks. Continue?')) return;
+        localStorage.removeItem('stid_watchlist');
+        localStorage.removeItem('stid_watchlist_version');
+        settingsDropdown.style.display = 'none';
+        UI.toast('Watchlist reset! Reloading...', 'success');
+        setTimeout(() => window.location.reload(), 800);
+      });
+    }
+
     const btnSettingsSave = document.getElementById('btn-settings-save');
     if (btnSettingsSave && settingsDropdown) {
       btnSettingsSave.addEventListener('click', () => {
@@ -407,36 +454,61 @@ const App = (() => {
   async function analyzeAndStore(symbol, name, sector) {
     if (state.loading.has(symbol)) return;
     state.loading.add(symbol);
+    
+    // Helper: auto-retry with .NS suffix for bare Indian-style tickers
+    const retryWithNS = async (sym, nm, sec) => {
+      if (sym.includes('.') || sym.startsWith('^')) return null; // already has suffix or is index
+      const nsSym = sym + '.NS';
+      console.log(`Auto-retrying ${sym} → ${nsSym}`);
+      try {
+        const nsResult = await Analysis.analyzeStock(nsSym, nm, sec);
+        if (nsResult && !nsResult.error && nsResult.quote && nsResult.quote.price > 0) {
+          // Silently update watchlist entry to correct symbol
+          const idx = state.watchlist.findIndex(w => w.symbol === sym);
+          if (idx !== -1) {
+            state.watchlist[idx].symbol = nsSym;
+            if (!state.watchlist[idx].name || state.watchlist[idx].name === sym) {
+              state.watchlist[idx].name = nsResult.quote.longName || nsSym;
+            }
+            saveWatchlist();
+          }
+          state.results.delete(sym);
+          state.results.set(nsSym, nsResult);
+          return nsResult;
+        }
+      } catch (retryErr) {
+        console.warn(`Retry ${nsSym} failed:`, retryErr.message);
+      }
+      return null;
+    };
+
     try {
       let result = await Analysis.analyzeStock(symbol, name, sector);
-      // If price is 0 and symbol doesn't have a suffix, try with .NS
+      // Also check for zero price on success (ZOMATO.NS-style redirects)
       if (result && result.quote && result.quote.price === 0 && !symbol.includes('.') && !symbol.startsWith('^')) {
-        console.warn(`${symbol} returned zero price, retrying with .NS suffix...`);
-        const nsSym = symbol + '.NS';
-        try {
-          const nsResult = await Analysis.analyzeStock(nsSym, name, sector);
-          if (nsResult && nsResult.quote && nsResult.quote.price > 0) {
-            // Update watchlist entry to correct symbol
-            const idx = state.watchlist.findIndex(w => w.symbol === symbol);
-            if (idx !== -1) {
-              state.watchlist[idx].symbol = nsSym;
-              saveWatchlist();
-            }
-            state.loading.delete(symbol);
-            state.results.set(nsSym, nsResult);
-            updateWatchlistUI();
-            updateRecommendations();
-            return nsResult;
-          }
-        } catch (retryErr) {
-          console.warn(`Retry with .NS also failed for ${symbol}:`, retryErr.message);
+        const retried = await retryWithNS(symbol, name, sector);
+        if (retried) {
+          state.loading.delete(symbol);
+          updateWatchlistUI();
+          updateRecommendations();
+          return retried;
         }
       }
       state.results.set(symbol, result);
     } catch (e) {
       console.warn(`Analysis failed for ${symbol}:`, e.message);
-      // Store an error sentinel so the UI doesn't show infinite skeleton
-      state.results.set(symbol, { 
+      // For bare Indian tickers (no suffix) — try .NS BEFORE giving up
+      if (!symbol.includes('.') && !symbol.startsWith('^')) {
+        const retried = await retryWithNS(symbol, name, sector);
+        if (retried) {
+          state.loading.delete(symbol);
+          updateWatchlistUI();
+          updateRecommendations();
+          return retried;
+        }
+      }
+      // All attempts failed — store error sentinel so UI doesn't show infinite skeleton
+      state.results.set(symbol, {
         symbol, name: name || symbol, sector: sector || 'N/A',
         error: true, errorMessage: e.message,
         quote: { symbol, price: 0, change: 0, changePct: 0 },

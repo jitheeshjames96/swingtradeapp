@@ -216,24 +216,6 @@
         </div>
       </div>
 
-      <!-- Sector Heatmap Panel -->
-      <div class="panel">
-        <div class="panel-header">
-          <div class="panel-title"><span>🌡</span> Sector Heatmap</div>
-        </div>
-        <div class="panel-body">
-          <div id="sector-grid" class="sector-grid" role="list" aria-label="Sector performance">
-            <!-- Filled by JS -->
-            <div class="skeleton" style="height:50px;border-radius:6px"></div>
-            <div class="skeleton" style="height:50px;border-radius:6px"></div>
-            <div class="skeleton" style="height:50px;border-radius:6px"></div>
-            <div class="skeleton" style="height:50px;border-radius:6px"></div>
-            <div class="skeleton" style="height:50px;border-radius:6px"></div>
-            <div class="skeleton" style="height:50px;border-radius:6px"></div>
-          </div>
-        </div>
-      </div>
-
       <!-- Scoring Guide Panel -->
       <div class="panel">
         <div class="panel-header">
@@ -305,49 +287,60 @@
               </div>
             </div>
 
-            <div class="recommendations-header" style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px; flex-wrap:wrap; gap:12px;">
-              <div class="panel-title" style="font-size:1.1rem; font-weight:700;">📊 Top Picks & Predictions</div>
-              <div class="rec-filters" style="display:flex; gap:8px; flex-wrap:wrap;">
-                <button class="filter-btn active" data-filter="all" onclick="App.setRecFilter('all')">All <span class="filter-count" id="count-all">0</span></button>
-                <button class="filter-btn" data-filter="strong-buy" onclick="App.setRecFilter('strong-buy')">🟢 Strong Buy <span class="filter-count" id="count-strong-buy">0</span></button>
-                <button class="filter-btn" data-filter="buy" onclick="App.setRecFilter('buy')">🟡 Buy <span class="filter-count" id="count-buy">0</span></button>
-                <button class="filter-btn" data-filter="watch" onclick="App.setRecFilter('watch')">🟠 Hold/Watch <span class="filter-count" id="count-watch">0</span></button>
-                <button class="filter-btn" data-filter="avoid" onclick="App.setRecFilter('avoid')">🔴 Avoid/Ignore <span class="filter-count" id="count-avoid">0</span></button>
+            <div class="rec-toggle-tabs" style="display:flex; gap:16px; margin-bottom:16px; border-bottom:1px solid var(--border); padding-bottom:8px;">
+              <button id="btn-show-picks" class="rec-tab-btn active" style="background:none; border:none; color:var(--text-primary); font-weight:700; font-size:1rem; padding:4px 8px; cursor:pointer; border-bottom:2px solid var(--text-accent); transition: all 0.2s;">🎯 Smart Picks</button>
+              <button id="btn-show-performance" class="rec-tab-btn" style="background:none; border:none; color:var(--text-muted); font-weight:600; font-size:1rem; padding:4px 8px; cursor:pointer; transition: all 0.2s;">📈 Performance Report</button>
+            </div>
+
+            <div id="picks-section-container">
+              <div class="recommendations-header" style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px; flex-wrap:wrap; gap:12px;">
+                <div class="panel-title" style="font-size:1.1rem; font-weight:700;">📊 Top Picks & Predictions</div>
+                <div class="rec-filters" style="display:flex; gap:8px; flex-wrap:wrap;">
+                  <button class="filter-btn active" data-filter="all" onclick="App.setRecFilter('all')">All <span class="filter-count" id="count-all">0</span></button>
+                  <button class="filter-btn" data-filter="strong-buy" onclick="App.setRecFilter('strong-buy')">🟢 Strong Buy <span class="filter-count" id="count-strong-buy">0</span></button>
+                  <button class="filter-btn" data-filter="buy" onclick="App.setRecFilter('buy')">🟡 Buy <span class="filter-count" id="count-buy">0</span></button>
+                  <button class="filter-btn" data-filter="watch" onclick="App.setRecFilter('watch')">🟠 Hold/Watch <span class="filter-count" id="count-watch">0</span></button>
+                  <button class="filter-btn" data-filter="avoid" onclick="App.setRecFilter('avoid')">🔴 Avoid/Ignore <span class="filter-count" id="count-avoid">0</span></button>
+                </div>
+              </div>
+
+              <div id="recommendations-grid" class="recommendations-grid" role="list" aria-label="Stock recommendations">
+                <!-- Loading cards -->
+                <div class="rec-card" style="pointer-events:none">
+                  <div class="skeleton skel-line w-60" style="height:16px;margin-bottom:8px"></div>
+                  <div class="skeleton skel-line w-40" style="height:24px;margin-bottom:12px"></div>
+                  <div class="skeleton" style="height:6px;border-radius:6px;margin-bottom:12px"></div>
+                  <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px">
+                    <div class="skeleton" style="height:30px;border-radius:6px"></div>
+                    <div class="skeleton" style="height:30px;border-radius:6px"></div>
+                    <div class="skeleton" style="height:30px;border-radius:6px"></div>
+                  </div>
+                </div>
+                <div class="rec-card" style="pointer-events:none">
+                  <div class="skeleton skel-line w-60" style="height:16px;margin-bottom:8px"></div>
+                  <div class="skeleton skel-line w-40" style="height:24px;margin-bottom:12px"></div>
+                  <div class="skeleton" style="height:6px;border-radius:6px;margin-bottom:12px"></div>
+                  <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px">
+                    <div class="skeleton" style="height:30px;border-radius:6px"></div>
+                    <div class="skeleton" style="height:30px;border-radius:6px"></div>
+                    <div class="skeleton" style="height:30px;border-radius:6px"></div>
+                  </div>
+                </div>
+                <div class="rec-card" style="pointer-events:none">
+                  <div class="skeleton skel-line w-60" style="height:16px;margin-bottom:8px"></div>
+                  <div class="skeleton skel-line w-40" style="height:24px;margin-bottom:12px"></div>
+                  <div class="skeleton" style="height:6px;border-radius:6px;margin-bottom:12px"></div>
+                  <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px">
+                    <div class="skeleton" style="height:30px;border-radius:6px"></div>
+                    <div class="skeleton" style="height:30px;border-radius:6px"></div>
+                    <div class="skeleton" style="height:30px;border-radius:6px"></div>
+                  </div>
+                </div>
               </div>
             </div>
 
-            <div id="recommendations-grid" class="recommendations-grid" role="list" aria-label="Stock recommendations">
-              <!-- Loading cards -->
-              <div class="rec-card" style="pointer-events:none">
-                <div class="skeleton skel-line w-60" style="height:16px;margin-bottom:8px"></div>
-                <div class="skeleton skel-line w-40" style="height:24px;margin-bottom:12px"></div>
-                <div class="skeleton" style="height:6px;border-radius:6px;margin-bottom:12px"></div>
-                <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px">
-                  <div class="skeleton" style="height:30px;border-radius:6px"></div>
-                  <div class="skeleton" style="height:30px;border-radius:6px"></div>
-                  <div class="skeleton" style="height:30px;border-radius:6px"></div>
-                </div>
-              </div>
-              <div class="rec-card" style="pointer-events:none">
-                <div class="skeleton skel-line w-60" style="height:16px;margin-bottom:8px"></div>
-                <div class="skeleton skel-line w-40" style="height:24px;margin-bottom:12px"></div>
-                <div class="skeleton" style="height:6px;border-radius:6px;margin-bottom:12px"></div>
-                <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px">
-                  <div class="skeleton" style="height:30px;border-radius:6px"></div>
-                  <div class="skeleton" style="height:30px;border-radius:6px"></div>
-                  <div class="skeleton" style="height:30px;border-radius:6px"></div>
-                </div>
-              </div>
-              <div class="rec-card" style="pointer-events:none">
-                <div class="skeleton skel-line w-60" style="height:16px;margin-bottom:8px"></div>
-                <div class="skeleton skel-line w-40" style="height:24px;margin-bottom:12px"></div>
-                <div class="skeleton" style="height:6px;border-radius:6px;margin-bottom:12px"></div>
-                <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px">
-                  <div class="skeleton" style="height:30px;border-radius:6px"></div>
-                  <div class="skeleton" style="height:30px;border-radius:6px"></div>
-                  <div class="skeleton" style="height:30px;border-radius:6px"></div>
-                </div>
-              </div>
+            <div id="performance-section-container" style="display:none;">
+              <!-- Filled dynamically by UI.renderPerformanceDashboard() -->
             </div>
           </div>
         </div>
@@ -452,6 +445,27 @@
     </div>
     <!-- /main-content -->
 
+    <!-- ── RIGHT SIDEBAR ── -->
+    <aside class="right-sidebar" role="complementary" aria-label="Sector performance heatmap">
+      <!-- Sector Heatmap Panel -->
+      <div class="panel">
+        <div class="panel-header">
+          <div class="panel-title"><span>🌡</span> Sector Heatmap</div>
+        </div>
+        <div class="panel-body">
+          <div id="sector-grid" class="sector-grid" role="list" aria-label="Sector performance">
+            <!-- Filled by JS -->
+            <div class="skeleton" style="height:50px;border-radius:6px"></div>
+            <div class="skeleton" style="height:50px;border-radius:6px"></div>
+            <div class="skeleton" style="height:50px;border-radius:6px"></div>
+            <div class="skeleton" style="height:50px;border-radius:6px"></div>
+            <div class="skeleton" style="height:50px;border-radius:6px"></div>
+            <div class="skeleton" style="height:50px;border-radius:6px"></div>
+          </div>
+        </div>
+      </div>
+    </aside>
+
   </main>
 
   <!-- ════════════════════════════════════════
@@ -513,7 +527,8 @@
 
 <!-- Google SSO Login Screen Overlay -->
 <div id="login-overlay" class="login-overlay" style="display: none;">
-  <div class="login-card">
+  <div class="login-card" style="position: relative;">
+    <button id="login-close" class="login-close" aria-label="Close Login" style="position: absolute; right: 16px; top: 16px; background: none; border: none; font-size: 1.25rem; color: var(--text-muted); cursor: pointer; transition: color 0.2s;" onmouseover="this.style.color='var(--text-primary)'" onmouseout="this.style.color='var(--text-muted)'">✕</button>
     <div class="login-logo">
       <span class="logo-icon">📈</span>
       <span class="logo-text">Antigravity<span style="color:var(--text-accent)">Swing</span></span>

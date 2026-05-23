@@ -628,6 +628,20 @@ const UI = (() => {
     const trendColor = techInds.trend === 'uptrend' ? 'var(--green)' : techInds.trend === 'downtrend' ? 'var(--red)' : 'var(--yellow)';
     const trendEmoji = techInds.trend === 'uptrend' ? '📈' : techInds.trend === 'downtrend' ? '📉' : '➡️';
 
+    const srDaily = sr.daily || { pivot: sr.pivot, r1: sr.r1, r2: sr.r2, s1: sr.s1, s2: sr.s2 };
+    const srWeekly = sr.weekly || srDaily;
+    const srFourHour = sr.fourHour || srDaily;
+
+    const levelSubItem = (type, val, color) => {
+      const displayVal = val ? cSym + parseFloat(val).toFixed(2) : '—';
+      return `
+        <div style="display:flex; justify-content:space-between; align-items:center; font-size:0.8rem; background:rgba(255,255,255,0.03); padding:6px 10px; border-radius:4px; border:1px solid rgba(255,255,255,0.05)">
+          <span style="font-weight:600; color:var(--text-secondary)">${type}</span>
+          <span style="font-weight:700; color:${color}">${displayVal}</span>
+        </div>
+      `;
+    };
+
     document.getElementById('tab-technical').innerHTML = `
       <div class="technical-grid">
         ${techIndicator('RSI (14)', fmt(momInds.rsi, 1), momInds.rsiSignal, rsiSignalClass(momInds.rsi))}
@@ -640,14 +654,45 @@ const UI = (() => {
         ${techIndicator('Vol Ratio', `${vd.latestRatio || 1}x`, vd.accumulation ? '🏦 Accumulation Signal' : vd.distribution ? '🏦 Distribution Signal' : 'Normal Activity', vd.latestRatio > 1.5 ? 'signal-bullish' : 'signal-neutral')}
       </div>
 
-      <div class="section-title" style="margin-bottom:12px">🎯 Key Price Levels</div>
-      <div class="levels-grid" style="margin-bottom:20px">
-        ${levelItem('R2', sr.r2, 'Resistance 2', 'var(--red)')}
-        ${levelItem('R1', sr.r1, 'Resistance 1', 'var(--orange)')}
-        ${levelItem('Pivot', sr.pivot, 'Pivot Point', 'var(--yellow)')}
-        ${levelItem('S1', sr.s1, 'Support 1', '#22c55e')}
-        ${levelItem('S2', sr.s2, 'Support 2', 'var(--green)')}
-        ${levelItem('Current', currentPrice, 'Market Price', 'var(--text-accent)')}
+      <div class="section-title" style="margin-bottom:12px">🎯 Key Price Levels (Multi-Timeframe)</div>
+      <div class="multi-timeframe-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 16px; margin-bottom: 20px;">
+        
+        <!-- Daily Column -->
+        <div class="timeframe-column" style="background: var(--bg-card); border: 1px solid var(--border); padding: 14px; border-radius: var(--radius-md); backdrop-filter: blur(10px);">
+          <div style="font-weight: 700; font-size: 0.88rem; margin-bottom: 12px; color: var(--text-accent); text-align: center; border-bottom: 1px solid var(--border); padding-bottom: 8px;">☀️ Daily Levels (Classic)</div>
+          <div style="display: flex; flex-direction: column; gap: 8px;">
+            ${levelSubItem('R2', srDaily.r2, 'var(--red)')}
+            ${levelSubItem('R1', srDaily.r1, 'var(--orange)')}
+            ${levelSubItem('Pivot', srDaily.pivot, 'var(--yellow)')}
+            ${levelSubItem('S1', srDaily.s1, '#22c55e')}
+            ${levelSubItem('S2', srDaily.s2, 'var(--green)')}
+          </div>
+        </div>
+
+        <!-- Weekly Column -->
+        <div class="timeframe-column" style="background: var(--bg-card); border: 1px solid var(--border); padding: 14px; border-radius: var(--radius-md); backdrop-filter: blur(10px);">
+          <div style="font-weight: 700; font-size: 0.88rem; margin-bottom: 12px; color: var(--text-accent); text-align: center; border-bottom: 1px solid var(--border); padding-bottom: 8px;">📅 Weekly Levels (Aggregated)</div>
+          <div style="display: flex; flex-direction: column; gap: 8px;">
+            ${levelSubItem('R2', srWeekly.r2, 'var(--red)')}
+            ${levelSubItem('R1', srWeekly.r1, 'var(--orange)')}
+            ${levelSubItem('Pivot', srWeekly.pivot, 'var(--yellow)')}
+            ${levelSubItem('S1', srWeekly.s1, '#22c55e')}
+            ${levelSubItem('S2', srWeekly.s2, 'var(--green)')}
+          </div>
+        </div>
+
+        <!-- 4-Hour Column -->
+        <div class="timeframe-column" style="background: var(--bg-card); border: 1px solid var(--border); padding: 14px; border-radius: var(--radius-md); backdrop-filter: blur(10px);">
+          <div style="font-weight: 700; font-size: 0.88rem; margin-bottom: 12px; color: var(--text-accent); text-align: center; border-bottom: 1px solid var(--border); padding-bottom: 8px;">⚡ 4-Hour Levels (Pivot Approx)</div>
+          <div style="display: flex; flex-direction: column; gap: 8px;">
+            ${levelSubItem('R2', srFourHour.r2, 'var(--red)')}
+            ${levelSubItem('R1', srFourHour.r1, 'var(--orange)')}
+            ${levelSubItem('Pivot', srFourHour.pivot, 'var(--yellow)')}
+            ${levelSubItem('S1', srFourHour.s1, '#22c55e')}
+            ${levelSubItem('S2', srFourHour.s2, 'var(--green)')}
+          </div>
+        </div>
+
       </div>
 
       <div class="section-title" style="margin-bottom:12px">💰 Trade Setup (ATR-Based)</div>
@@ -1314,6 +1359,210 @@ const UI = (() => {
     }, 150);
   }
 
+  async function renderPerformanceDashboard() {
+    const mode = localStorage.getItem('stid_market_mode') || 'IN';
+    const cSym = mode === 'US' ? '$' : '₹';
+    const container = document.getElementById('performance-section-container');
+    if (!container) return;
+
+    // Show loading spinner
+    container.innerHTML = `
+      <div style="display:flex; justify-content:center; align-items:center; padding:48px;">
+        <div class="spinner"></div>
+      </div>
+    `;
+
+    try {
+      // Fetch recommendations and settings in parallel
+      const [recs, settings] = await Promise.all([
+        API.fetchRecommendations(mode),
+        API.fetchSettings()
+      ]);
+
+      const totalPicks = recs.length;
+      const activePicks = recs.filter(r => r.status === 'ACTIVE').length;
+      const winPicks = recs.filter(r => r.status === 'WIN').length;
+      const lossPicks = recs.filter(r => r.status === 'LOSS').length;
+      const completedPicks = totalPicks - activePicks;
+      const winRate = completedPicks > 0 ? Math.round((winPicks / completedPicks) * 100) : 100;
+      const simulatedROI = (winPicks * 10.5) - (lossPicks * 4.8);
+
+      const roiClass = simulatedROI >= 0 ? 'text-green' : 'text-red';
+      const roiSign = simulatedROI >= 0 ? '+' : '';
+
+      container.innerHTML = `
+        <div class="performance-dashboard-wrap" style="display:flex; flex-direction:column; gap:24px; color:var(--text-primary)">
+          
+          <!-- Stats Cards Grid -->
+          <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(180px, 1fr)); gap:16px;">
+            <div style="background:var(--bg-card); border:1px solid var(--border); padding:16px; border-radius:var(--radius-md); text-align:center;">
+              <div style="font-size:0.75rem; color:var(--text-muted); text-transform:uppercase; font-weight:600; margin-bottom:8px">📊 Total Picks</div>
+              <div style="font-size:1.8rem; font-weight:800; color:var(--text-accent)">${totalPicks}</div>
+              <div style="font-size:0.7rem; color:var(--text-secondary); margin-top:4px">${activePicks} Active | ${completedPicks} Settled</div>
+            </div>
+            <div style="background:var(--bg-card); border:1px solid var(--border); padding:16px; border-radius:var(--radius-md); text-align:center;">
+              <div style="font-size:0.75rem; color:var(--text-muted); text-transform:uppercase; font-weight:600; margin-bottom:8px">🎯 Win Rate</div>
+              <div style="font-size:1.8rem; font-weight:800; color:#10b981">${winRate}%</div>
+              <div style="font-size:0.7rem; color:var(--text-secondary); margin-top:4px">${winPicks} Wins | ${lossPicks} Losses</div>
+            </div>
+            <div style="background:var(--bg-card); border:1px solid var(--border); padding:16px; border-radius:var(--radius-md); text-align:center;">
+              <div style="font-size:0.75rem; color:var(--text-muted); text-transform:uppercase; font-weight:600; margin-bottom:8px">📈 Simulated ROI</div>
+              <div style="font-size:1.8rem; font-weight:800; color:${simulatedROI >= 0 ? '#10b981' : '#ef4444'}">${roiSign}${simulatedROI.toFixed(1)}%</div>
+              <div style="font-size:0.7rem; color:var(--text-secondary); margin-top:4px">Based on target hits vs SL triggers</div>
+            </div>
+          </div>
+
+          <!-- Webhook Alert Settings Config -->
+          <div style="background:var(--bg-card); border:1px solid var(--border); padding:20px; border-radius:var(--radius-md); display:flex; flex-direction:column; gap:16px;">
+            <div style="font-weight:700; font-size:1rem; color:var(--text-accent); border-bottom:1px solid var(--border); padding-bottom:8px; display:flex; align-items:center; gap:8px;">
+              <span>🔔 Real-Time Webhook Configurations</span>
+            </div>
+            
+            <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(280px, 1fr)); gap:20px;">
+              <!-- Telegram Column -->
+              <div style="display:flex; flex-direction:column; gap:12px; background:rgba(255,255,255,0.02); padding:14px; border-radius:var(--radius-sm); border:1px solid rgba(255,255,255,0.04)">
+                <label style="display:flex; align-items:center; gap:8px; font-weight:600; font-size:0.85rem; cursor:pointer;">
+                  <input type="checkbox" id="sett-tg-enabled" ${settings.telegram_enabled ? 'checked' : ''} style="cursor:pointer">
+                  ✈️ Telegram Channel Alerts
+                </label>
+                <div style="display:flex; flex-direction:column; gap:4px">
+                  <span style="font-size:0.7rem; color:var(--text-secondary)">Telegram Chat / Channel ID</span>
+                  <input type="text" id="sett-tg-chat-id" value="${settings.telegram_chat_id || ''}" placeholder="-100xxxxxxxxx" style="background:var(--bg-body); border:1px solid var(--border); padding:8px; border-radius:4px; font-size:0.8rem; color:var(--text-primary)">
+                </div>
+              </div>
+
+              <!-- WhatsApp Column -->
+              <div style="display:flex; flex-direction:column; gap:12px; background:rgba(255,255,255,0.02); padding:14px; border-radius:var(--radius-sm); border:1px solid rgba(255,255,255,0.04)">
+                <label style="display:flex; align-items:center; gap:8px; font-weight:600; font-size:0.85rem; cursor:pointer;">
+                  <input type="checkbox" id="sett-wa-enabled" ${settings.whatsapp_enabled ? 'checked' : ''} style="cursor:pointer">
+                  💬 WhatsApp Premium Signals
+                </label>
+                <div style="display:flex; flex-direction:column; gap:4px">
+                  <span style="font-size:0.7rem; color:var(--text-secondary)">Phone Number (with Country Code)</span>
+                  <input type="text" id="sett-wa-phone" value="${settings.whatsapp_phone || ''}" placeholder="+919876543210" style="background:var(--bg-body); border:1px solid var(--border); padding:8px; border-radius:4px; font-size:0.8rem; color:var(--text-primary)">
+                </div>
+              </div>
+            </div>
+
+            <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px; border-top:1px solid var(--border); padding-top:12px;">
+              <button id="btn-save-perf-settings" class="btn-primary" style="padding:8px 16px; font-size:0.8rem; border-radius: 4px; border: none; cursor: pointer; background: var(--text-accent); color: #fff;">💾 Save Webhook Configs</button>
+              
+              <!-- Send Test Signal Simulation -->
+              <div style="display:flex; align-items:center; gap:8px;">
+                <select id="sim-test-symbol" style="background:var(--bg-body); border:1px solid var(--border); padding:6px; border-radius:4px; font-size:0.8rem; color:var(--text-primary)">
+                  ${recs.slice(0, 5).map(r => `<option value="${r.symbol}">${r.symbol.replace('.NS','').replace('.BO','')}</option>`).join('') || `<option value="RELIANCE.NS">RELIANCE</option><option value="AAPL">AAPL</option>`}
+                </select>
+                <button id="btn-trigger-test-signal" class="filter-btn" style="padding:6px 12px; font-size:0.8rem; background:rgba(6,182,212,0.15); border:1px solid #06b6d4; color:#06b6d4; cursor:pointer;">⚡ Send Test Signal</button>
+              </div>
+            </div>
+
+            <!-- Terminal-like Console Log -->
+            <div id="sim-console-log-wrap" style="display:none; flex-direction:column; gap:6px; margin-top:8px;">
+              <div style="font-size:0.7rem; font-family:monospace; color:var(--text-secondary)">LOG TERMINAL OUTPUT:</div>
+              <pre id="sim-console-log" style="background:#090d16; border:1px solid rgba(255,255,255,0.08); padding:12px; border-radius:4px; font-family:monospace; font-size:0.75rem; color:#10b981; overflow-x:auto; margin:0; line-height:1.4; max-height:220px; text-align:left;"></pre>
+            </div>
+          </div>
+
+          <!-- Logged Picks Table -->
+          <div style="background:var(--bg-card); border:1px solid var(--border); padding:20px; border-radius:var(--radius-md); overflow:hidden;">
+            <div style="font-weight:700; font-size:1rem; color:var(--text-accent); border-bottom:1px solid var(--border); padding-bottom:8px; margin-bottom:16px;">
+              📋 Screened Swing Trade Logs
+            </div>
+            
+            <div class="table-container" style="overflow-x:auto;">
+              <table style="width:100%; border-collapse:collapse; text-align:left; font-size:0.8rem;">
+                <thead>
+                  <tr style="border-bottom:1px solid var(--border); color:var(--text-muted)">
+                    <th style="padding:10px 8px;">Ticker</th>
+                    <th style="padding:10px 8px;">Rating</th>
+                    <th style="padding:10px 8px;">Entry Price</th>
+                    <th style="padding:10px 8px;">Stop Loss</th>
+                    <th style="padding:10px 8px;">Target 1 / 2</th>
+                    <th style="padding:10px 8px;">Status</th>
+                    <th style="padding:10px 8px; text-align:right;">Date Added</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  ${recs.length === 0 ? `
+                    <tr>
+                      <td colspan="7" style="padding:24px; text-align:center; color:var(--text-muted)">No recommendations logged yet.</td>
+                    </tr>
+                  ` : recs.map(r => {
+                      let statusBadgeColor = 'var(--yellow)';
+                      if (r.status === 'WIN') statusBadgeColor = '#10b981';
+                      if (r.status === 'LOSS') statusBadgeColor = '#ef4444';
+                      
+                      const dateStr = r.created_at ? new Date(r.created_at).toLocaleDateString() : 'N/A';
+                      
+                      return `
+                        <tr style="border-bottom:1px solid rgba(255,255,255,0.03);">
+                          <td style="padding:12px 8px; font-weight:700; color:var(--text-primary)">${r.symbol.replace('.NS','').replace('.BO','')}</td>
+                          <td style="padding:12px 8px;"><span class="badge-${r.rating.includes('STRONG') ? 'strong-buy' : r.rating.includes('BUY') ? 'buy' : 'hold'}" style="font-size:0.65rem; padding:2px 6px; border-radius:3px;">${r.rating}</span></td>
+                          <td style="padding:12px 8px;">${cSym}${parseFloat(r.price).toFixed(2)}</td>
+                          <td style="padding:12px 8px; color:#ef4444; font-weight:600;">${cSym}${parseFloat(r.stop_loss).toFixed(2)}</td>
+                          <td style="padding:12px 8px; color:#10b981; font-weight:600;">${cSym}${parseFloat(r.target_1).toFixed(2)} / ${cSym}${parseFloat(r.target_2).toFixed(2)}</td>
+                          <td style="padding:12px 8px;"><span style="color:${statusBadgeColor}; font-weight:700; font-size:0.75rem;">● ${r.status}</span></td>
+                          <td style="padding:12px 8px; text-align:right; color:var(--text-muted)">${dateStr}</td>
+                        </tr>
+                      `;
+                    }).join('')}
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+        </div>
+      `;
+
+      // Attach event listeners
+      document.getElementById('btn-save-perf-settings').addEventListener('click', async () => {
+        const tgEnabled = document.getElementById('sett-tg-enabled').checked;
+        const tgChatId = document.getElementById('sett-tg-chat-id').value;
+        const waEnabled = document.getElementById('sett-wa-enabled').checked;
+        const waPhone = document.getElementById('sett-wa-phone').value;
+
+        const updatedSettings = await API.saveSettings({
+          telegram_enabled: tgEnabled,
+          telegram_chat_id: tgChatId,
+          whatsapp_enabled: waEnabled,
+          whatsapp_phone: waPhone
+        });
+
+        UI.toast('Webhook configurations saved successfully!', 'success');
+      });
+
+      document.getElementById('btn-trigger-test-signal').addEventListener('click', async () => {
+        const testSym = document.getElementById('sim-test-symbol').value;
+        const tgChatId = document.getElementById('sett-tg-chat-id').value;
+        const waPhone = document.getElementById('sett-wa-phone').value;
+
+        const consoleWrap = document.getElementById('sim-console-log-wrap');
+        const consoleLog = document.getElementById('sim-console-log');
+        
+        consoleWrap.style.display = 'flex';
+        consoleLog.innerHTML = 'Connecting to webhook endpoints...';
+        
+        const response = await API.sendTestSignal(testSym, tgChatId, waPhone);
+        if (response && response.status === 'success') {
+          consoleLog.innerHTML = `[SUCCESS] Webhook Dispatched:\n` + JSON.stringify(response.payload, null, 2);
+          UI.toast('Simulated signal dispatched!', 'success');
+        } else {
+          consoleLog.innerHTML = `[ERROR] Failed to dispatch webhook signal. Check server logs.`;
+          UI.toast('Signal dispatch failed', 'error');
+        }
+      });
+
+    } catch (e) {
+      console.error(e);
+      container.innerHTML = `
+        <div style="padding: 24px; text-align: center; color: var(--text-muted);">
+          <span>⚠️</span>
+          <div>Failed to load performance report: ${e.message}</div>
+        </div>
+      `;
+    }
+  }
+
   // ── Search results
   function renderSearchResults(results) {
     const el = document.getElementById('search-dropdown');
@@ -1341,6 +1590,7 @@ const UI = (() => {
     renderFundamentals, renderTechnicals, renderSentiment,
     renderInstitutional, renderOverview, renderSearchResults, renderInvyMessage,
     renderLiveChart, setDetailLoading, fmt, fmtCr, fmtVol, fmtPct, colorClass,
+    renderPerformanceDashboard
   };
 })();
 

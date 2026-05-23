@@ -37,8 +37,10 @@ Use this method to run or develop the application directly on your local system.
    ```ini
    PORT=3000
    NODE_ENV=development
-   # Keep DATABASE_URL blank or comment it out to use in-memory cache fallbacks
-   # DATABASE_URL=
+   # Keep DATABASE_URL blank or comment it out to use in-memory simulated fallbacks.
+   # If configured, the backend automatically initializes "recommendations" (screened picks logs)
+   # and "user_settings" (webhook configurations) tables.
+   # DATABASE_URL=postgresql://user:pass@host:port/db
    ```
 4. **Start the Backend Node Server**:
    ```bash

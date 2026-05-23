@@ -93,38 +93,96 @@ function calcVolumeAvg(volumes, period = 20) {
   });
 }
 
+// Helper to group daily bars into weekly bars
+function getWeeklyBars(dailyBars) {
+  const weekly = [];
+  let currentWeek = null;
+  for (const bar of dailyBars) {
+    const date = new Date(bar.date);
+    const tempDate = new Date(date);
+    const day = tempDate.getDay();
+    const diff = tempDate.getDate() - day + (day === 0 ? -6 : 1);
+    const weekStart = new Date(tempDate.setDate(diff)).toDateString();
+    
+    if (!currentWeek || currentWeek.weekStart !== weekStart) {
+      if (currentWeek) {
+        weekly.push(currentWeek);
+      }
+      currentWeek = {
+        weekStart,
+        open: bar.open,
+        high: bar.high,
+        low: bar.low,
+        close: bar.close,
+        volume: bar.volume
+      };
+    } else {
+      currentWeek.high = Math.max(currentWeek.high, bar.high);
+      currentWeek.low = Math.min(currentWeek.low, bar.low);
+      currentWeek.close = bar.close;
+      currentWeek.volume += bar.volume;
+    }
+  }
+  if (currentWeek) weekly.push(currentWeek);
+  return weekly;
+}
+
 // ── Support & Resistance Levels
 function calcSupportResistance(data) {
-  if (!data || data.length < 30) return { supports: [], resistances: [], pivot: 0, r1: 0, r2: 0, s1: 0, s2: 0 };
+  if (!data || data.length < 30) {
+    const dummy = { pivot: 0, r1: 0, r2: 0, s1: 0, s2: 0, supports: [], resistances: [] };
+    return { daily: dummy, weekly: dummy, fourHour: dummy, pivot: 0, r1: 0, r2: 0, s1: 0, s2: 0, supports: [], resistances: [] };
+  }
+
+  const getPivots = (high, low, close) => {
+    const pivot = (high + low + close) / 3;
+    const r1 = 2 * pivot - low;
+    const r2 = pivot + (high - low);
+    const s1 = 2 * pivot - high;
+    const s2 = pivot - (high - low);
+    return { pivot, r1, r2, s1, s2 };
+  };
+
+  // Daily support/resistance based on previous completed daily candle
+  const prevDay = data[data.length - 2] || data[data.length - 1];
+  const daily = getPivots(prevDay.high, prevDay.low, prevDay.close);
+
+  // Weekly support/resistance based on previous completed weekly candle
+  const weeklyBars = getWeeklyBars(data);
+  const prevWeek = weeklyBars[weeklyBars.length - 2] || weeklyBars[weeklyBars.length - 1] || prevDay;
+  const weekly = getPivots(prevWeek.high, prevWeek.low, prevWeek.close);
+
+  // 4-Hour / Intraday approximation: use last 3 daily bars
+  const recent3 = data.slice(-3);
+  const recentHigh = Math.max(...recent3.map(d => d.high));
+  const recentLow = Math.min(...recent3.map(d => d.low));
+  const recentClose = data[data.length - 1].close;
+  const fourHour = getPivots(recentHigh, recentLow, recentClose);
 
   const recent = data.slice(-30);
-  const last5 = data.slice(-5);
-  const prevDay = data[data.length - 2] || data[data.length - 1];
-
-  const high = prevDay.high;
-  const low = prevDay.low;
-  const close = prevDay.close;
-
-  // Classic Pivot Points
-  const pivot = (high + low + close) / 3;
-  const r1 = 2 * pivot - low;
-  const r2 = pivot + (high - low);
-  const s1 = 2 * pivot - high;
-  const s2 = pivot - (high - low);
-
-  // Recent highs as resistance
   const resistances = recent
     .filter((d, i, arr) => i > 0 && i < arr.length - 1 && d.high > arr[i - 1].high && d.high > arr[i + 1].high)
     .map(d => d.high)
     .slice(-3);
 
-  // Recent lows as support
   const supports = recent
     .filter((d, i, arr) => i > 0 && i < arr.length - 1 && d.low < arr[i - 1].low && d.low < arr[i + 1].low)
     .map(d => d.low)
     .slice(-3);
 
-  return { pivot, r1, r2, s1, s2, supports, resistances };
+  // Return standard fields at root for backward compatibility
+  return { 
+    daily, 
+    weekly, 
+    fourHour, 
+    pivot: daily.pivot, 
+    r1: daily.r1, 
+    r2: daily.r2, 
+    s1: daily.s1, 
+    s2: daily.s2, 
+    supports, 
+    resistances 
+  };
 }
 
 // ── Volume Spike Detection (Institutional Activity Proxy)
@@ -774,7 +832,40 @@ function calcTradeSetup(currentPrice, setupInds, momInds) {
   return { stopLoss, target1, target2, target3, riskReward, indicators: setupInds };
 }
 
-function generateStaticRationale(symbol, name, scores, tradeSetup, quote) {
+function determineMarketPhase(price, fiftyTwoWeekHigh, s1, compositeScore) {
+  const drawdown = (fiftyTwoWeekHigh - price) / fiftyTwoWeekHigh;
+  if (drawdown <= 0.025) {
+    return {
+      phase: "All-Time High",
+      justification: "The stock is trading within 2.5% of its 52-week high, displaying strong momentum but with potential consolidation risk near peaks."
+    };
+  }
+  const isNearSupport = s1 && (price <= s1 * 1.05 && price >= s1 * 0.95);
+  if (compositeScore >= 65 && (isNearSupport || (drawdown > 0.025 && drawdown < 0.10))) {
+    return {
+      phase: "Buy Zone",
+      justification: "The stock is trading near solid support levels with a high composite rating, representing an optimal low-risk entry zone."
+    };
+  }
+  if (drawdown >= 0.10 && drawdown <= 0.20) {
+    return {
+      phase: "Correction Phase",
+      justification: "The stock has experienced a healthy 10-20% correction from its peak, presenting selective accumulation opportunities near major supports."
+    };
+  }
+  if (drawdown > 0.20) {
+    return {
+      phase: "Bearish Correction Phase",
+      justification: "The stock is in a deeper correction phase (down >20% from peak), trading below standard levels. Risk mitigation is highly advised."
+    };
+  }
+  return {
+    phase: "Consolidation Zone",
+    justification: "The stock is consolidating between its peak and core support. Wait for breakout or pullback to buy zone."
+  };
+}
+
+function generateStaticRationale(symbol, name, scores, tradeSetup, quote, historical) {
   const composite = scores.composite;
   const sym = symbol.replace('.NS', '').replace('.BO', '');
   const price = quote?.price || 0;
@@ -790,6 +881,10 @@ function generateStaticRationale(symbol, name, scores, tradeSetup, quote) {
   const inds = tradeSetup.indicators || {};
   const s1 = inds.sr?.s1 ? parseFloat(inds.sr.s1.toFixed(2)) : null;
   const r1 = inds.sr?.r1 ? parseFloat(inds.sr.r1.toFixed(2)) : null;
+
+  const histBars = historical || [];
+  const fiftyTwoWeekHigh = histBars.length > 0 ? Math.max(...histBars.map(h => h.high)) : price;
+  const phaseInfo = determineMarketPhase(price, fiftyTwoWeekHigh, s1, composite.total);
 
   let verdictExplain = '';
   let winReason = '';
@@ -833,6 +928,7 @@ function generateStaticRationale(symbol, name, scores, tradeSetup, quote) {
     </div>
     <div style="display:flex; flex-direction:column; gap:8px; font-size:0.85rem; color:var(--text-secondary)">
       <div>🎯 <strong>Rating & Verdict:</strong> <span style="font-weight:700; color:${composite.total >= 80 ? 'var(--green)' : composite.total >= 65 ? 'var(--green-dim)' : composite.total >= 50 ? 'var(--yellow)' : 'var(--red)'}">${composite.total >= 80 ? 'STRONG BUY' : composite.total >= 65 ? 'BUY' : composite.total >= 50 ? 'WATCH / HOLD' : 'AVOID / AVOID'}</span></div>
+      <div>🔄 <strong>Market Phase:</strong> <span style="font-weight:700; color:var(--text-primary)">${phaseInfo.phase}</span> - <em>${phaseInfo.justification}</em></div>
       <div>⚡ <strong>Technical Entry Zone:</strong> <strong style="color:var(--text-primary)">${entryZone}</strong></div>
       <div>🟢 <strong>Chances of Profit:</strong> ${winReason}</div>
       <div>🔴 <strong>Key Risks:</strong> ${lossRisk}</div>
@@ -932,6 +1028,11 @@ async function analyzeStock(symbol, name, sector) {
 
   const tradeSetup = calcTradeSetup(quote.price, setupResult.indicators, momResult.indicators);
 
+  const histBars = historical || [];
+  const fiftyTwoWeekHigh = histBars.length > 0 ? Math.max(...histBars.map(h => h.high)) : quote.price;
+  const s1 = tradeSetup.indicators?.sr?.s1 || tradeSetup.indicators?.s1 || null;
+  const phaseInfo = determineMarketPhase(quote.price, fiftyTwoWeekHigh, s1, composite.total);
+
   const dataSummary = {
     price: quote.price,
     pe: fund?.pe,
@@ -943,7 +1044,9 @@ async function analyzeStock(symbol, name, sector) {
     volRatio: setupResult.indicators?.volData?.latestRatio,
     institutionalSignal: setupResult.indicators?.volData?.institutionalSignal,
     compositeScore: composite.total,
-    compositeRating: composite.rating
+    compositeRating: composite.rating,
+    marketPhase: phaseInfo.phase,
+    drawdownFrom52WeekHighPct: parseFloat(((fiftyTwoWeekHigh - quote.price) / fiftyTwoWeekHigh * 100).toFixed(2))
   };
 
   let geminiCommentary = null;
@@ -957,7 +1060,7 @@ async function analyzeStock(symbol, name, sector) {
   }
 
   if (!geminiCommentary) {
-    geminiCommentary = generateStaticRationale(symbol, name || symbol, scores, tradeSetup, quote);
+    geminiCommentary = generateStaticRationale(symbol, name || symbol, scores, tradeSetup, quote, historical);
   }
 
   return {

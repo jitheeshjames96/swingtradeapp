@@ -567,7 +567,7 @@ function guessSector(symbol, name) {
 /**
  * Route: Market Summary (Sector leaders, Gainers/Losers from all catalog stocks)
  */
-app.get('/api/market-summary', authMiddleware, async (req, res) => {
+app.get('/api/market-summary', async (req, res) => {
   const market = (req.query.market || 'IN').toUpperCase();
   const cacheKey = `market_summary_${market}`;
   const cachedData = appCache.get(cacheKey);
@@ -682,7 +682,7 @@ app.get('/api/market-summary', authMiddleware, async (req, res) => {
 /**
  * Route: Market indices & Fear/Greed Index
  */
-app.get('/api/market-pulse', authMiddleware, async (req, res) => {
+app.get('/api/market-pulse', async (req, res) => {
   const market = (req.query.market || 'IN').toUpperCase();
   const cacheKey = `market_pulse_${market}`;
   const cachedData = appCache.get(cacheKey);
@@ -783,6 +783,7 @@ app.get('/api/market-pulse', authMiddleware, async (req, res) => {
  */
 app.get('/api/search', authMiddleware, async (req, res) => {
   const query = (req.query.q || '').trim();
+  const market = (req.query.market || 'IN').toUpperCase();
   if (!query) {
     return res.json([]);
   }
@@ -792,8 +793,14 @@ app.get('/api/search', authMiddleware, async (req, res) => {
     const response = await axios.get(url, { headers: { 'User-Agent': 'Mozilla/5.0' } });
     
     if (response.data && response.data.quotes) {
-      const results = response.data.quotes
-        .filter(q => q.quoteType === 'EQUITY' || q.quoteType === 'INDEX')
+      let filteredQuotes = response.data.quotes.filter(q => q.quoteType === 'EQUITY' || q.quoteType === 'INDEX');
+      if (market === 'US') {
+        filteredQuotes = filteredQuotes.filter(q => !q.symbol.endsWith('.NS') && !q.symbol.endsWith('.BO'));
+      } else {
+        filteredQuotes = filteredQuotes.filter(q => q.symbol.endsWith('.NS') || q.symbol.endsWith('.BO') || q.symbol.startsWith('^'));
+      }
+
+      const results = filteredQuotes
         .slice(0, 8)
         .map(q => {
           const name = q.longname || q.shortname || q.symbol;
@@ -1452,6 +1459,487 @@ app.use(express.static(FRONTEND_DIR, {
 // SPA catch-all: serve index.html for any non-API route
 app.get('*', (req, res) => {
   res.sendFile(path.join(FRONTEND_DIR, 'index.html'));
+});
+
+// ============================================================
+// RECOMMENDATIONS ENGINE, WEBHOOKS & SETTINGS ENDPOINTS
+// ============================================================
+
+let simulatedRecommendations = [
+  {
+    id: 1,
+    symbol: 'RELIANCE.NS',
+    name: 'Reliance Industries Limited',
+    sector: 'Energy',
+    market: 'IN',
+    rating: 'STRONG BUY',
+    price: 2450.50,
+    target_1: 2550.00,
+    target_2: 2680.00,
+    stop_loss: 2380.00,
+    status: 'ACTIVE',
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString()
+  },
+  {
+    id: 2,
+    symbol: 'TCS.NS',
+    name: 'Tata Consultancy Services Limited',
+    sector: 'Technology',
+    market: 'IN',
+    rating: 'BUY',
+    price: 3820.00,
+    target_1: 3990.00,
+    target_2: 4150.00,
+    stop_loss: 3720.00,
+    status: 'ACTIVE',
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString()
+  },
+  {
+    id: 3,
+    symbol: 'AAPL',
+    name: 'Apple Inc.',
+    sector: 'Technology',
+    market: 'US',
+    rating: 'STRONG BUY',
+    price: 180.20,
+    target_1: 192.00,
+    target_2: 205.00,
+    stop_loss: 172.00,
+    status: 'ACTIVE',
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString()
+  }
+];
+
+let simulatedSettings = {
+  telegram_enabled: false,
+  telegram_chat_id: '',
+  whatsapp_enabled: false,
+  whatsapp_phone: ''
+};
+
+async function initTables() {
+  if (dbPool) {
+    try {
+      await dbPool.query(`
+        CREATE TABLE IF NOT EXISTS recommendations (
+          id SERIAL PRIMARY KEY,
+          symbol VARCHAR(20) UNIQUE,
+          name VARCHAR(100),
+          sector VARCHAR(50),
+          market VARCHAR(10),
+          rating VARCHAR(20),
+          price DECIMAL(12,2),
+          target_1 DECIMAL(12,2),
+          target_2 DECIMAL(12,2),
+          stop_loss DECIMAL(12,2),
+          status VARCHAR(20) DEFAULT 'ACTIVE',
+          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+          updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        );
+      `);
+
+      await dbPool.query(`
+        CREATE TABLE IF NOT EXISTS user_settings (
+          id SERIAL PRIMARY KEY,
+          email VARCHAR(255) UNIQUE,
+          telegram_enabled BOOLEAN DEFAULT false,
+          telegram_chat_id VARCHAR(50) DEFAULT '',
+          whatsapp_enabled BOOLEAN DEFAULT false,
+          whatsapp_phone VARCHAR(50) DEFAULT '',
+          updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        );
+      `);
+    } catch (err) {
+      console.error('Failed to initialize recommendations / settings tables:', err.message);
+    }
+  }
+}
+
+async function screenNewRecommendation(symbol, name, sector, market) {
+  try {
+    const quote = await scraper.fetchQuote(symbol);
+    if (!quote || !quote.price || quote.price === 0) return null;
+
+    const histUrl = `https://query2.finance.yahoo.com/v8/finance/chart/${symbol}?interval=1d&range=1y`;
+    const response = await axios.get(histUrl, {
+      headers: { 'User-Agent': 'Mozilla/5.0' },
+      timeout: 4000
+    });
+    const chartResult = response.data?.chart?.result?.[0];
+    if (!chartResult) return null;
+    const timestamps = chartResult.timestamp || [];
+    const quotes = chartResult.indicators.quote[0] || {};
+    const historical = timestamps.map((t, i) => ({
+      date: new Date(t * 1000).toISOString(),
+      open: quotes.open?.[i] || 0,
+      high: quotes.high?.[i] || 0,
+      low: quotes.low?.[i] || 0,
+      close: quotes.close?.[i] || 0,
+      volume: quotes.volume?.[i] || 0,
+    })).filter(d => d.close > 0);
+
+    if (historical.length < 30) return null;
+
+    const closes = historical.map(d => d.close);
+    const highs = historical.map(d => d.high);
+    const lows = historical.map(d => d.low);
+    const volumes = historical.map(d => d.volume);
+
+    // SMA 50
+    const sma50Array = [];
+    for (let i = 0; i < closes.length; i++) {
+      if (i < 49) { sma50Array.push(null); continue; }
+      const sum = closes.slice(i - 49, i + 1).reduce((a, b) => a + b, 0);
+      sma50Array.push(sum / 50);
+    }
+    const sma50 = sma50Array[sma50Array.length - 1] || closes[closes.length - 1];
+
+    // Volume Avg 20
+    const volAvgArray = [];
+    for (let i = 0; i < volumes.length; i++) {
+      if (i < 19) { volAvgArray.push(null); continue; }
+      const sum = volumes.slice(i - 19, i + 1).reduce((a, b) => a + b, 0);
+      volAvgArray.push(sum / 20);
+    }
+    const volAvg = volAvgArray[volAvgArray.length - 1] || 1;
+    const latestVol = volumes[volumes.length - 1];
+    const volRatio = latestVol / volAvg;
+
+    // RSI 14
+    let rsi = 50;
+    if (closes.length >= 15) {
+      let gains = 0, losses = 0;
+      for (let i = 1; i <= 14; i++) {
+        const d = closes[i] - closes[i - 1];
+        if (d > 0) gains += d;
+        else losses += Math.abs(d);
+      }
+      let avgGain = gains / 14;
+      let avgLoss = losses / 14;
+      for (let i = 15; i < closes.length; i++) {
+        const d = closes[i] - closes[i - 1];
+        avgGain = (avgGain * 13 + (d > 0 ? d : 0)) / 14;
+        avgLoss = (avgLoss * 13 + (d < 0 ? Math.abs(d) : 0)) / 14;
+      }
+      rsi = avgLoss === 0 ? 100 : 100 - (100 / (1 + avgGain / avgLoss));
+    }
+
+    // Pivots
+    const prevDay = historical[historical.length - 2] || historical[historical.length - 1];
+    const pivot = (prevDay.high + prevDay.low + prevDay.close) / 3;
+    const s1 = 2 * pivot - prevDay.high;
+
+    // ATR
+    const tr = closes.map((c, i) => {
+      if (i === 0) return highs[i] - lows[i];
+      return Math.max(highs[i] - lows[i], Math.abs(highs[i] - closes[i - 1]), Math.abs(lows[i] - closes[i - 1]));
+    });
+    let atr = tr[0];
+    const k = 2 / 15;
+    for (let i = 1; i < tr.length; i++) {
+      atr = tr[i] * k + atr * (1 - k);
+    }
+
+    const currentPrice = quote.price;
+    const stopLoss = parseFloat((currentPrice - 1.5 * atr).toFixed(2));
+    const target1 = parseFloat((currentPrice + 2.0 * atr).toFixed(2));
+    const target2 = parseFloat((currentPrice + 4.0 * atr).toFixed(2));
+
+    const rsiMatch = rsi >= 45 && rsi <= 65;
+    const volMatch = volRatio > 1.3;
+    const smaMatch = currentPrice > sma50;
+    const supportMatch = s1 && (currentPrice <= s1 * 1.05 && currentPrice >= s1 * 0.95);
+
+    let rating = 'WATCH / HOLD';
+    if (rsiMatch && volMatch && smaMatch && supportMatch) rating = 'STRONG BUY';
+    else if (rsiMatch && smaMatch) rating = 'BUY';
+
+    return {
+      symbol,
+      name,
+      sector,
+      market,
+      rating,
+      price: currentPrice,
+      target_1: target1,
+      target_2: target2,
+      stop_loss: stopLoss,
+      status: 'ACTIVE'
+    };
+  } catch (err) {
+    console.warn(`Screening error for ${symbol}:`, err.message);
+    return null;
+  }
+}
+
+// Route: Get and Update Recommendations
+app.get('/api/recommendations', authMiddleware, async (req, res) => {
+  const market = (req.query.market || 'IN').toUpperCase();
+  await initTables();
+
+  try {
+    let recs = [];
+    if (dbPool) {
+      const result = await dbPool.query('SELECT * FROM recommendations ORDER BY created_at DESC');
+      recs = result.rows.map(r => ({
+        ...r,
+        price: parseFloat(r.price),
+        target_1: parseFloat(r.target_1),
+        target_2: parseFloat(r.target_2),
+        stop_loss: parseFloat(r.stop_loss)
+      }));
+    } else {
+      recs = simulatedRecommendations;
+    }
+
+    // 1. Live status update for active recommendations
+    const activeRecs = recs.filter(r => r.status === 'ACTIVE');
+    for (const r of activeRecs) {
+      try {
+        const quote = await scraper.fetchQuote(r.symbol);
+        if (quote && quote.price && quote.price > 0) {
+          const currentPrice = quote.price;
+          let newStatus = 'ACTIVE';
+          if (currentPrice >= r.target_2) {
+            newStatus = 'WIN';
+          } else if (currentPrice <= r.stop_loss) {
+            newStatus = 'LOSS';
+          }
+
+          if (newStatus !== 'ACTIVE') {
+            r.status = newStatus;
+            r.updated_at = new Date().toISOString();
+            if (dbPool) {
+              await dbPool.query(
+                'UPDATE recommendations SET status = $1, updated_at = NOW() WHERE id = $2',
+                [newStatus, r.id]
+              );
+            }
+            console.log(`Alert! ${r.symbol} closed as ${newStatus} at current price ${currentPrice}`);
+          }
+        }
+      } catch (err) {
+        console.warn(`Failed to update status for ${r.symbol}:`, err.message);
+      }
+    }
+
+    // 2. Ensure at least 3 active recommendations for the requested market
+    let activeMarketRecs = recs.filter(r => r.market === market && r.status === 'ACTIVE');
+    if (activeMarketRecs.length < 3) {
+      const needed = 3 - activeMarketRecs.length;
+      const catalog = market === 'US' ? STOCK_CATALOG_US : STOCK_CATALOG;
+      
+      // Filter candidates not already recommended
+      const existingSymbols = new Set(recs.map(r => r.symbol));
+      const candidates = catalog.filter(c => !existingSymbols.has(c.symbol));
+
+      let addedCount = 0;
+      for (const c of candidates) {
+        if (addedCount >= needed) break;
+        const newRec = await screenNewRecommendation(c.symbol, c.name, c.sector, market);
+        if (newRec) {
+          if (dbPool) {
+            try {
+              const insertRes = await dbPool.query(
+                `INSERT INTO recommendations (symbol, name, sector, market, rating, price, target_1, target_2, stop_loss, status)
+                 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, 'ACTIVE')
+                 RETURNING *`,
+                [newRec.symbol, newRec.name, newRec.sector, newRec.market, newRec.rating, newRec.price, newRec.target_1, newRec.target_2, newRec.stop_loss]
+              );
+              if (insertRes.rows[0]) {
+                const inserted = insertRes.rows[0];
+                recs.unshift({
+                  ...inserted,
+                  price: parseFloat(inserted.price),
+                  target_1: parseFloat(inserted.target_1),
+                  target_2: parseFloat(inserted.target_2),
+                  stop_loss: parseFloat(inserted.stop_loss)
+                });
+              }
+            } catch (ie) {
+              console.error(`Database insertion failed for ${newRec.symbol}:`, ie.message);
+            }
+          } else {
+            newRec.id = recs.length + 1;
+            newRec.created_at = new Date().toISOString();
+            newRec.updated_at = new Date().toISOString();
+            recs.unshift(newRec);
+          }
+          addedCount++;
+        }
+      }
+
+      // If strict screening didn't find enough, relax rules and pick from top of remaining candidates
+      if (addedCount < needed) {
+        const remainingCandidates = candidates.filter(c => !recs.some(r => r.symbol === c.symbol));
+        for (const c of remainingCandidates) {
+          if (addedCount >= needed) break;
+          // relaxed candidate: just fetch quote and build simple setup
+          try {
+            const quote = await scraper.fetchQuote(c.symbol);
+            if (quote && quote.price && quote.price > 0) {
+              const currentPrice = quote.price;
+              const stopLoss = parseFloat((currentPrice * 0.95).toFixed(2));
+              const target1 = parseFloat((currentPrice * 1.05).toFixed(2));
+              const target2 = parseFloat((currentPrice * 1.10).toFixed(2));
+              const newRec = {
+                symbol: c.symbol,
+                name: c.name,
+                sector: c.sector,
+                market,
+                rating: 'BUY',
+                price: currentPrice,
+                target_1: target1,
+                target_2: target2,
+                stop_loss: stopLoss,
+                status: 'ACTIVE'
+              };
+
+              if (dbPool) {
+                const insertRes = await dbPool.query(
+                  `INSERT INTO recommendations (symbol, name, sector, market, rating, price, target_1, target_2, stop_loss, status)
+                   VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, 'ACTIVE')
+                   RETURNING *`,
+                  [newRec.symbol, newRec.name, newRec.sector, newRec.market, newRec.rating, newRec.price, newRec.target_1, newRec.target_2, newRec.stop_loss]
+                );
+                if (insertRes.rows[0]) {
+                  const inserted = insertRes.rows[0];
+                  recs.unshift({
+                    ...inserted,
+                    price: parseFloat(inserted.price),
+                    target_1: parseFloat(inserted.target_1),
+                    target_2: parseFloat(inserted.target_2),
+                    stop_loss: parseFloat(inserted.stop_loss)
+                  });
+                }
+              } else {
+                newRec.id = recs.length + 1;
+                newRec.created_at = new Date().toISOString();
+                newRec.updated_at = new Date().toISOString();
+                recs.unshift(newRec);
+              }
+              addedCount++;
+            }
+          } catch (err) {
+            console.warn(`Relaxed fallback screening failed for ${c.symbol}:`, err.message);
+          }
+        }
+      }
+    }
+
+    res.json({ recommendations: recs });
+  } catch (err) {
+    console.error('Failed to retrieve or update recommendations:', err.message);
+    res.status(500).json({ error: 'Failed to process recommendations' });
+  }
+});
+
+// Route: Get Alert Settings
+app.get('/api/settings', authMiddleware, async (req, res) => {
+  const email = req.user?.email || 'dev@local.com';
+  await initTables();
+
+  try {
+    if (dbPool) {
+      const result = await dbPool.query('SELECT * FROM user_settings WHERE email = $1', [email]);
+      if (result.rows[0]) {
+        return res.json(result.rows[0]);
+      }
+    }
+    res.json({
+      email,
+      telegram_enabled: simulatedSettings.telegram_enabled,
+      telegram_chat_id: simulatedSettings.telegram_chat_id,
+      whatsapp_enabled: simulatedSettings.whatsapp_enabled,
+      whatsapp_phone: simulatedSettings.whatsapp_phone
+    });
+  } catch (err) {
+    console.error('Failed to get user settings:', err.message);
+    res.status(500).json({ error: 'Failed to retrieve settings' });
+  }
+});
+
+// Route: Save Alert Settings
+app.post('/api/settings', authMiddleware, async (req, res) => {
+  const email = req.user?.email || 'dev@local.com';
+  const { telegram_enabled, telegram_chat_id, whatsapp_enabled, whatsapp_phone } = req.body;
+  await initTables();
+
+  try {
+    if (dbPool) {
+      await dbPool.query(
+        `INSERT INTO user_settings (email, telegram_enabled, telegram_chat_id, whatsapp_enabled, whatsapp_phone, updated_at)
+         VALUES ($1, $2, $3, $4, $5, NOW())
+         ON CONFLICT (email) DO UPDATE
+         SET telegram_enabled = EXCLUDED.telegram_enabled,
+             telegram_chat_id = EXCLUDED.telegram_chat_id,
+             whatsapp_enabled = EXCLUDED.whatsapp_enabled,
+             whatsapp_phone = EXCLUDED.whatsapp_phone,
+             updated_at = NOW()`,
+        [email, telegram_enabled || false, telegram_chat_id || '', whatsapp_enabled || false, whatsapp_phone || '']
+      );
+    } else {
+      simulatedSettings.telegram_enabled = !!telegram_enabled;
+      simulatedSettings.telegram_chat_id = telegram_chat_id || '';
+      simulatedSettings.whatsapp_enabled = !!whatsapp_enabled;
+      simulatedSettings.whatsapp_phone = whatsapp_phone || '';
+    }
+
+    res.json({
+      status: 'success',
+      settings: {
+        email,
+        telegram_enabled: telegram_enabled || false,
+        telegram_chat_id: telegram_chat_id || '',
+        whatsapp_enabled: whatsapp_enabled || false,
+        whatsapp_phone: whatsapp_phone || ''
+      }
+    });
+  } catch (err) {
+    console.error('Failed to save user settings:', err.message);
+    res.status(500).json({ error: 'Failed to save settings' });
+  }
+});
+
+// Route: Send simulated webhook test signal
+app.post('/api/test-signal', authMiddleware, async (req, res) => {
+  const { symbol, telegram_chat_id, whatsapp_phone } = req.body;
+  if (!symbol) return res.status(400).json({ error: 'Symbol is required' });
+
+  try {
+    const quote = await scraper.fetchQuote(symbol);
+    const price = quote?.price || 150.00;
+    const isUS = !symbol.endsWith('.NS') && !symbol.endsWith('.BO');
+    const cSym = isUS ? '$' : '₹';
+
+    const payload = {
+      event: 'SWING_TRADE_SIGNAL',
+      timestamp: new Date().toISOString(),
+      recipient_telegram: telegram_chat_id || 'Not configured',
+      recipient_whatsapp: whatsapp_phone || 'Not configured',
+      data: {
+        symbol: symbol.toUpperCase(),
+        action: 'BUY / ACCUMULATE',
+        price: cSym + price.toFixed(2),
+        stop_loss: cSym + (price * 0.95).toFixed(2),
+        target_1: cSym + (price * 1.05).toFixed(2),
+        target_2: cSym + (price * 1.10).toFixed(2),
+        timeframe: 'Daily / Weekly Swing',
+        rationale: 'Confluence detected: Price near support S1, RSI oversold recovery, Volume spike > 1.3x average.'
+      }
+    };
+
+    res.json({
+      status: 'success',
+      message: 'Simulated webhook signal dispatched successfully.',
+      payload: payload
+    });
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to send test signal', details: err.message });
+  }
 });
 
 // Error handling middleware

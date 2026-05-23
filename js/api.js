@@ -451,6 +451,7 @@ const SECTOR_MAP_IN = [
   { name: 'Utilities',  symbol: 'POWERGRID.NS',    icon: '💡' },
   { name: 'Telecom',    symbol: 'BHARTIARTL.NS',   icon: '📡' },
   { name: 'Renewables', symbol: 'SUZLON.NS',       icon: '🌱' },
+  { name: 'Consumer',   symbol: '^CNXFMCG',        icon: '🛒' },
 ];
 
 const SECTOR_MAP_US = [
@@ -464,6 +465,7 @@ const SECTOR_MAP_US = [
   { name: 'Utilities',  symbol: 'XLU',    icon: '💡' },
   { name: 'Telecom',    symbol: 'XLC',    icon: '📡' },
   { name: 'Renewables', symbol: 'ICLN',   icon: '🌱' },
+  { name: 'Consumer',   symbol: 'XLY',    icon: '🛒' },
 ];
 
 const MARKET_INDICES_IN = [
@@ -781,13 +783,24 @@ async function fetchNewsSentiment(symbol) {
     console.warn('Backend news fetch failed, falling back to proxy:', e.message);
   }
 
-  const url = `${YAHOO_BASE}/v1/finance/search?q=${symbol}&newsCount=8`;
+  const url = `${YAHOO_BASE}/v1/finance/search?q=${symbol}&newsCount=20`;
   try {
     const data = await proxyFetch(url);
     const news = [];
 
     if (data && data.news) {
-      data.news.slice(0, 6).forEach(n => {
+      const cleanedSym = symbol.split('.')[0].toUpperCase();
+      const filteredNews = data.news.filter(n => {
+        const relatedTickers = Array.isArray(n.relatedTickers) ? n.relatedTickers.map(t => t.toUpperCase()) : [];
+        const titleUpper = (n.title || '').toUpperCase();
+        return (
+          relatedTickers.includes(cleanedSym) ||
+          relatedTickers.includes(symbol.toUpperCase()) ||
+          titleUpper.includes(cleanedSym)
+        );
+      });
+
+      filteredNews.slice(0, 6).forEach(n => {
         const sentiment = analyzeSentimentKeywords(n.title || '');
         let formattedTime = 'Recent';
         if (n.providerPublishTime) {
@@ -834,12 +847,13 @@ function analyzeSentimentKeywords(text) {
 async function searchStocks(query) {
   if (!query || query.length < 1) return [];
   const q = query.trim();
+  const mode = localStorage.getItem('stid_market_mode') || 'IN';
   
   // Try querying backend search if available
   const isBackend = await checkBackend();
   if (isBackend) {
     try {
-      const res = await fetchWithTimeout(`${BACKEND_URL}/api/search?q=${encodeURIComponent(q)}`, {
+      const res = await fetchWithTimeout(`${BACKEND_URL}/api/search?q=${encodeURIComponent(q)}&market=${mode}`, {
         headers: getAuthHeaders(),
         timeout: 4000
       });
@@ -1386,6 +1400,139 @@ User Query: ${message}`;
   }
 }
 
+const simulatedRecommendations = [
+  {
+    id: 1,
+    symbol: 'RELIANCE.NS',
+    name: 'Reliance Industries Limited',
+    sector: 'Energy',
+    market: 'IN',
+    rating: 'STRONG BUY',
+    price: 2450.50,
+    target_1: 2550.00,
+    target_2: 2680.00,
+    stop_loss: 2380.00,
+    status: 'ACTIVE',
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString()
+  },
+  {
+    id: 2,
+    symbol: 'TCS.NS',
+    name: 'Tata Consultancy Services Limited',
+    sector: 'Technology',
+    market: 'IN',
+    rating: 'BUY',
+    price: 3820.00,
+    target_1: 3990.00,
+    target_2: 4150.00,
+    stop_loss: 3720.00,
+    status: 'ACTIVE',
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString()
+  },
+  {
+    id: 3,
+    symbol: 'AAPL',
+    name: 'Apple Inc.',
+    sector: 'Technology',
+    market: 'US',
+    rating: 'STRONG BUY',
+    price: 180.20,
+    target_1: 192.00,
+    target_2: 205.00,
+    stop_loss: 172.00,
+    status: 'ACTIVE',
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString()
+  }
+];
+
+async function fetchRecommendations(market = 'IN') {
+  try {
+    const activeBackend = await checkBackend();
+    if (activeBackend) {
+      const res = await fetchWithTimeout(`${BACKEND_URL}/api/recommendations?market=${market}`, {
+        headers: getAuthHeaders()
+      });
+      if (res.ok) {
+        const data = await res.json();
+        return data.recommendations || [];
+      }
+    }
+  } catch (e) {
+    console.warn('Failed to fetch recommendations from backend:', e);
+  }
+  return simulatedRecommendations.filter(r => r.market === market);
+}
+
+async function fetchSettings() {
+  try {
+    const activeBackend = await checkBackend();
+    if (activeBackend) {
+      const res = await fetchWithTimeout(`${BACKEND_URL}/api/settings`, {
+        headers: getAuthHeaders()
+      });
+      if (res.ok) {
+        return await res.json();
+      }
+    }
+  } catch (e) {
+    console.warn('Failed to fetch alert settings:', e);
+  }
+  return {
+    telegram_enabled: false,
+    telegram_chat_id: '',
+    whatsapp_enabled: false,
+    whatsapp_phone: ''
+  };
+}
+
+async function saveSettings(settings) {
+  try {
+    const activeBackend = await checkBackend();
+    if (activeBackend) {
+      const res = await fetchWithTimeout(`${BACKEND_URL}/api/settings`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...getAuthHeaders()
+        },
+        body: JSON.stringify(settings)
+      });
+      if (res.ok) {
+        const data = await res.json();
+        return data.settings;
+      }
+    }
+  } catch (e) {
+    console.warn('Failed to save alert settings:', e);
+  }
+  return settings;
+}
+
+async function sendTestSignal(symbol, telegram_chat_id, whatsapp_phone) {
+  try {
+    const activeBackend = await checkBackend();
+    if (activeBackend) {
+      const res = await fetchWithTimeout(`${BACKEND_URL}/api/test-signal`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...getAuthHeaders()
+        },
+        body: JSON.stringify({ symbol, telegram_chat_id, whatsapp_phone })
+      });
+      if (res.ok) {
+        return await res.json();
+      }
+    }
+  } catch (e) {
+    console.warn('Failed to send test signal:', e);
+  }
+  return null;
+}
+
 // Export
 window.API = {
   fetchQuote, fetchFundamentals, fetchHistorical, fetchEarnings,
@@ -1393,5 +1540,6 @@ window.API = {
   fetchNewsSentiment, fetchGeminiAnalysis, searchStocks, STOCK_CATALOG, SECTOR_MAP,
   checkBackend, fetchFullAnalysisFromBackend, fetchAndCacheAnalysis, fetchMarketPulseFromBackend, fetchMarketSummary, setBackendUrl,
   sendInvyChatMessage, fetchAuthConfig, fetchWithTimeout, setMarketMode,
+  fetchRecommendations, fetchSettings, saveSettings, sendTestSignal,
   getBackendUrl: () => BACKEND_URL
 };

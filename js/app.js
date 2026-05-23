@@ -18,6 +18,9 @@ const App = (() => {  // ── State
     recFilter: 'all',       // Selected recommendations filter: 'all', 'strong-buy', 'buy', 'watch', 'avoid'
     catalogScanInProgress: false, // True while fetching all catalog stocks
     catalogScanProgress: 0, // Number of catalog stocks analyzed so far
+    isAuthenticated: false,
+    pendingSelectSymbol: null,
+    pendingAction: null,
   };
 
 
@@ -145,17 +148,42 @@ const App = (() => {  // ── State
       const overlay = document.getElementById('login-overlay');
       if (overlay) overlay.style.display = 'none';
       
+      state.isAuthenticated = true; // Set authenticated!
+      
       // Show logout button
       const btnLogout = document.getElementById('btn-logout');
       if (btnLogout) btnLogout.style.display = 'inline-block';
       
       UI.toast('Signed in successfully!', 'success');
       
-      // Start loading sequence
-      await finishInit();
+      // Reload watchlist with full authenticated analysis
+      await loadAllWatchlistStocks();
+      
+      // Resume pending action if present
+      if (state.pendingSelectSymbol) {
+        const sym = state.pendingSelectSymbol;
+        state.pendingSelectSymbol = null;
+        await selectStock(sym);
+      } else if (state.pendingAction === 'showPerformance') {
+        state.pendingAction = null;
+        const btnPicks = document.getElementById('btn-show-picks');
+        const btnPerf = document.getElementById('btn-show-performance');
+        const picksSect = document.getElementById('picks-section-container');
+        const perfSect = document.getElementById('performance-section-container');
+        if (btnPicks && btnPerf && picksSect && perfSect) {
+          btnPicks.classList.remove('active');
+          btnPerf.classList.add('active');
+          picksSect.style.display = 'none';
+          perfSect.style.display = 'block';
+        }
+        UI.renderPerformanceDashboard();
+      } else if (state.watchlist.length > 0) {
+        selectStock(state.watchlist[0].symbol);
+      }
       
     } catch (err) {
       localStorage.removeItem('google_sso_token');
+      state.isAuthenticated = false;
       if (errorMsgEl) {
         errorMsgEl.innerText = `Sign-in failed: ${err.message}`;
         errorMsgEl.style.display = 'block';
@@ -168,7 +196,7 @@ const App = (() => {  // ── State
     showWatchlistSkeleton();
     await loadMarketData();
     await loadAllWatchlistStocks();
-    if (state.watchlist.length > 0) {
+    if (state.isAuthenticated && state.watchlist.length > 0) {
       selectStock(state.watchlist[0].symbol);
     }
   }
@@ -247,6 +275,7 @@ const App = (() => {  // ── State
           }
           
           // Token is valid!
+          state.isAuthenticated = true;
           const btnLogout = document.getElementById('btn-logout');
           if (btnLogout) btnLogout.style.display = 'inline-block';
           
@@ -254,14 +283,17 @@ const App = (() => {  // ── State
         } catch (e) {
           console.warn('Session verification failed, requesting re-login:', e.message);
           localStorage.removeItem('google_sso_token');
-          document.getElementById('login-overlay').style.display = 'flex';
+          state.isAuthenticated = false;
+          await finishInit();
         }
       } else {
-        // No token, show login screen
-        document.getElementById('login-overlay').style.display = 'flex';
+        // No token, start in preview/guest mode
+        state.isAuthenticated = false;
+        await finishInit();
       }
     } else {
       // SSO not configured, standard boot
+      state.isAuthenticated = true;
       await finishInit();
     }
   }
@@ -283,6 +315,13 @@ const App = (() => {  // ── State
     // Search input
     const searchInput = document.getElementById('search-input');
     if (searchInput) {
+      searchInput.addEventListener('focus', () => {
+        if (!state.isAuthenticated) {
+          searchInput.blur();
+          document.getElementById('login-overlay').style.display = 'flex';
+        }
+      });
+
       let debounceTimer;
       searchInput.addEventListener('input', e => {
         clearTimeout(debounceTimer);
@@ -440,8 +479,13 @@ const App = (() => {  // ── State
     
     if (invyChatToggle && invyChatDrawer) {
       invyChatToggle.addEventListener('click', () => {
+        if (!state.isAuthenticated) {
+          document.getElementById('login-overlay').style.display = 'flex';
+          return;
+        }
         invyChatDrawer.classList.add('show');
         invyChatDrawer.setAttribute('aria-hidden', 'false');
+        document.body.classList.add('chat-open');
         document.getElementById('invy-chat-input')?.focus();
       });
     }
@@ -450,6 +494,45 @@ const App = (() => {  // ── State
       invyChatClose.addEventListener('click', () => {
         invyChatDrawer.classList.remove('show');
         invyChatDrawer.setAttribute('aria-hidden', 'true');
+        document.body.classList.remove('chat-open');
+      });
+    }
+
+    // Google SSO Login Close Button
+    const loginClose = document.getElementById('login-close');
+    if (loginClose) {
+      loginClose.addEventListener('click', () => {
+        document.getElementById('login-overlay').style.display = 'none';
+        state.pendingSelectSymbol = null;
+        state.pendingAction = null;
+      });
+    }
+
+    // Toggle Picks and Performance Report
+    const btnShowPicks = document.getElementById('btn-show-picks');
+    const btnShowPerformance = document.getElementById('btn-show-performance');
+    const picksSection = document.getElementById('picks-section-container');
+    const performanceSection = document.getElementById('performance-section-container');
+
+    if (btnShowPicks && btnShowPerformance && picksSection && performanceSection) {
+      btnShowPicks.addEventListener('click', () => {
+        btnShowPicks.classList.add('active');
+        btnShowPerformance.classList.remove('active');
+        picksSection.style.display = 'block';
+        performanceSection.style.display = 'none';
+      });
+
+      btnShowPerformance.addEventListener('click', () => {
+        if (!state.isAuthenticated) {
+          state.pendingAction = 'showPerformance';
+          document.getElementById('login-overlay').style.display = 'flex';
+          return;
+        }
+        btnShowPicks.classList.remove('active');
+        btnShowPerformance.classList.add('active');
+        picksSection.style.display = 'none';
+        performanceSection.style.display = 'block';
+        UI.renderPerformanceDashboard();
       });
     }
 
@@ -589,6 +672,33 @@ const App = (() => {  // ── State
     state.loading.add(symbol);
     updateWatchlistUI(); // Show skeleton immediately so UI doesn’t freeze on “Tap to load”
     
+    if (!state.isAuthenticated) {
+      try {
+        const quote = await API.fetchQuote(symbol);
+        state.results.set(symbol, {
+          symbol,
+          name: name || symbol,
+          sector: sector || 'N/A',
+          quote: quote || { price: 0, change: 0, changePct: 0 },
+          scores: { composite: { total: 0, rating: 'Lock' } },
+          tradeSetup: {}
+        });
+      } catch (err) {
+        state.results.set(symbol, {
+          symbol, name: name || symbol, sector: sector || 'N/A',
+          error: true, errorMessage: err.message,
+          quote: { symbol, price: 0, change: 0, changePct: 0 },
+          scores: { composite: { total: 0, rating: 'Error' } },
+          tradeSetup: {}
+        });
+      } finally {
+        state.loading.delete(symbol);
+      }
+      updateWatchlistUI();
+      updateRecommendations();
+      return state.results.get(symbol);
+    }
+    
     // Helper: auto-retry with .NS suffix for bare Indian-style tickers
     const retryWithNS = async (sym, nm, sec) => {
       if (sym.includes('.') || sym.startsWith('^')) return null; // already has suffix or is index
@@ -659,6 +769,10 @@ const App = (() => {  // ── State
 
   // ── Add stock to watchlist
   async function addStock(symbol, name, sector) {
+    if (!state.isAuthenticated) {
+      document.getElementById('login-overlay').style.display = 'flex';
+      return;
+    }
     symbol = symbol.toUpperCase().trim();
     if (state.marketMode === 'IN' && !symbol.includes('.') && !symbol.startsWith('^')) {
       symbol = symbol + '.NS';
@@ -697,6 +811,11 @@ const App = (() => {  // ── State
 
   // ── Select stock to show in detail panel
   async function selectStock(symbol) {
+    if (!state.isAuthenticated) {
+      state.pendingSelectSymbol = symbol;
+      document.getElementById('login-overlay').style.display = 'flex';
+      return;
+    }
     state.activeSymbol = symbol;
     updateWatchlistUI();
 
@@ -1074,6 +1193,10 @@ const App = (() => {  // ── State
   let chatHistory = [];
 
   async function handleInvySend() {
+    if (!state.isAuthenticated) {
+      document.getElementById('login-overlay').style.display = 'flex';
+      return;
+    }
     const inputEl = document.getElementById('invy-chat-input');
     if (!inputEl) return;
     

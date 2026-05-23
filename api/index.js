@@ -1117,7 +1117,6 @@ function generateDetailedFallbackReport(currentStockContext, userMessage) {
 - Ask for 'entry checklist' or 'stop loss' to review risk settings.
 - Select a stock or input a stock symbol to inspect its real-time scoring and setup logs.`;
 }
-}
 
 // Route: Invy AI Chat Backend Proxy
 app.post('/api/chat', authMiddleware, async (req, res) => {

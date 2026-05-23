@@ -523,26 +523,47 @@ function cacheGet(key) {
 }
 function cacheSet(key, data) { _cache.set(key, { ts: Date.now(), data }); }
 
+let proxyQueuePromise = Promise.resolve();
+
 // ── Core fetch wrapper with CORS proxy
-// Timeout is 8000ms: browser limits 6 concurrent connections to one host
-// (api.allorigins.win), so queued requests need time to drain. 3.5s was
-// too short and caused AbortError before the request even started.
+// Spaced out sequentially via proxyQueuePromise to prevent CORS proxy 429 rate limiting.
+// Rotates/falls back from allorigins to corsproxy.io on failure.
 async function proxyFetch(url, timeoutMs = 8000) {
   const cacheKey = url;
   const cached = cacheGet(cacheKey);
   if (cached) return cached;
 
-  try {
-    const res = await fetchWithTimeout(`${CORS_PROXY}${encodeURIComponent(url)}`, { timeout: timeoutMs });
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    const wrapper = await res.json();
-    const data = JSON.parse(wrapper.contents);
-    cacheSet(cacheKey, data);
-    return data;
-  } catch (e) {
-    console.warn('proxyFetch failed for', url, e.message);
-    return null;
-  }
+  const fetchTask = async () => {
+    // Wait 250ms after the previous request started to space them out
+    await new Promise(resolve => setTimeout(resolve, 250));
+    
+    // Try allorigins first
+    try {
+      const res = await fetchWithTimeout(`${CORS_PROXY}${encodeURIComponent(url)}`, { timeout: timeoutMs });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const wrapper = await res.json();
+      const data = JSON.parse(wrapper.contents);
+      cacheSet(cacheKey, data);
+      return data;
+    } catch (e) {
+      console.warn('allorigins proxy failed, trying fallback corsproxy.io:', e.message);
+      // Fallback to corsproxy.io (direct proxy)
+      try {
+        const res = await fetchWithTimeout(`https://corsproxy.io/?${encodeURIComponent(url)}`, { timeout: timeoutMs });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json();
+        cacheSet(cacheKey, data);
+        return data;
+      } catch (fallbackErr) {
+        console.error('All proxies failed for', url, fallbackErr.message);
+        return null;
+      }
+    }
+  };
+
+  const resultPromise = proxyQueuePromise.then(fetchTask);
+  proxyQueuePromise = resultPromise.then(() => {}).catch(() => {});
+  return resultPromise;
 }
 
 // ── Direct fetch (for APIs that allow CORS)
@@ -563,8 +584,7 @@ async function directFetch(url, timeoutMs = 3000) {
 
 // ── FEAR & GREED INDEX
 async function fetchFearGreed() {
-  const data = await directFetch('https://fear-and-greed-index.p.rapidapi.com/v1/fgi');
-  // Fallback: alternative.me
+  // Use alternative.me directly which is free and doesn't require keys
   const alt = await directFetch('https://api.alternative.me/fng/?limit=1');
   if (alt && alt.data && alt.data[0]) {
     return {

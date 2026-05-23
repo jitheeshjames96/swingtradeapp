@@ -216,7 +216,7 @@ app.get('/api/analyze', authMiddleware, async (req, res) => {
           
     const historicalPromise = (async () => {
       try {
-        const histUrl = `https://query2.finance.yahoo.com/v8/finance/chart/${resolvedSymbol}?interval=1d&range=1y`;
+        const histUrl = `https://query2.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(resolvedSymbol)}?interval=1d&range=1y`;
         const response = await axios.get(histUrl, {
           headers: { 'User-Agent': 'Mozilla/5.0' },
           timeout: 4000
@@ -794,7 +794,7 @@ app.get('/api/market-pulse', async (req, res) => {
     const indicesSymbols = indicesList.map(idx => idx.symbol);
     const indicesPromises = indicesSymbols.map(async (sym) => {
       try {
-        const url = `https://query1.finance.yahoo.com/v8/finance/chart/${sym}?interval=1d&range=1d`;
+        const url = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(sym)}?interval=1d&range=1d`;
         const res = await axios.get(url, { headers: { 'User-Agent': 'Mozilla/5.0' } });
         const meta = res.data.chart.result[0].meta;
         const price = meta.regularMarketPrice || 0;
@@ -1800,7 +1800,7 @@ async function screenNewRecommendation(symbol, name, sector, market) {
     const quote = await scraper.fetchQuote(symbol);
     if (!quote || !quote.price || quote.price === 0) return null;
 
-    const histUrl = `https://query2.finance.yahoo.com/v8/finance/chart/${symbol}?interval=1d&range=1y`;
+    const histUrl = `https://query2.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(symbol)}?interval=1d&range=1y`;
     const response = await axios.get(histUrl, {
       headers: { 'User-Agent': 'Mozilla/5.0' },
       timeout: 4000

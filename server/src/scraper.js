@@ -66,7 +66,7 @@ async function fetchQuote(symbol) {
     const auth = await getYahooAuth().catch(() => null);
     if (auth) {
       const { cookie, crumb } = auth;
-      const url = `https://query1.finance.yahoo.com/v7/finance/quote?symbols=${symbol}&crumb=${crumb}`;
+      const url = `https://query1.finance.yahoo.com/v7/finance/quote?symbols=${encodeURIComponent(symbol)}&crumb=${encodeURIComponent(crumb)}`;
       const response = await axios.get(url, {
         headers: {
           'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
@@ -136,7 +136,7 @@ async function fetchQuote(symbol) {
 
   // 3. Public Yahoo Chart endpoint /v8/finance/chart fallback (completely unauthenticated, highly reliable)
   try {
-    const url = `https://query1.finance.yahoo.com/v8/finance/chart/${symbol}?interval=1d&range=1d`;
+    const url = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(symbol)}?interval=1d&range=1d`;
     const response = await axios.get(url, { 
       headers: YAHOO_HEADERS,
       timeout: 4000
@@ -471,7 +471,7 @@ async function fetchYahooQuoteFundamentals(symbol) {
   try {
     const auth = await getYahooAuth();
     const { cookie, crumb } = auth;
-    const url = `https://query1.finance.yahoo.com/v7/finance/quote?symbols=${symbol}&crumb=${crumb}`;
+    const url = `https://query1.finance.yahoo.com/v7/finance/quote?symbols=${encodeURIComponent(symbol)}&crumb=${encodeURIComponent(crumb)}`;
     const response = await axios.get(url, {
       headers: {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
@@ -518,7 +518,7 @@ async function fetchYahooFundamentals(symbol) {
   
   try {
     const { cookie, crumb } = await getYahooAuth();
-    const url = `https://query1.finance.yahoo.com/v10/finance/quoteSummary/${symbol}?modules=${modules}&crumb=${crumb}`;
+    const url = `https://query1.finance.yahoo.com/v10/finance/quoteSummary/${encodeURIComponent(symbol)}?modules=${modules}&crumb=${encodeURIComponent(crumb)}`;
     
     const response = await axios.get(url, { 
       headers: {

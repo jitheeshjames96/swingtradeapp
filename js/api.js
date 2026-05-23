@@ -467,9 +467,17 @@ const SECTOR_MAP_US = [
 ];
 
 const MARKET_INDICES_IN = [
-  { name: 'NIFTY 50',   symbol: '^NSEI' },
-  { name: 'SENSEX',     symbol: '^BSESN' },
-  { name: 'BANK NIFTY', symbol: '^NSEBANK' },
+  { name: 'NIFTY 50',     symbol: '^NSEI' },
+  { name: 'SENSEX',       symbol: '^BSESN' },
+  { name: 'BANK NIFTY',   symbol: '^NSEBANK' },
+  { name: 'NIFTY IT',     symbol: '^CNXIT' },
+  { name: 'NIFTY PHARMA', symbol: '^CNXPHARMA' },
+  { name: 'NIFTY FMCG',   symbol: '^CNXFMCG' },
+  { name: 'NIFTY AUTO',   symbol: '^CNXAUTO' },
+  { name: 'NIFTY METAL',  symbol: '^CNXMETAL' },
+  { name: 'NIFTY ENERGY', symbol: '^CNXENERGY' },
+  { name: 'NIFTY INFRA',  symbol: '^CNXINFRA' },
+  { name: 'NIFTY REALTY', symbol: '^CNXREALTY' },
 ];
 
 const MARKET_INDICES_US = [
@@ -1203,7 +1211,9 @@ function generateDetailedFallbackReport(currentStockContext, userMessage) {
     const macdVal = scores.momentum?.checklist?.[1]?.value || 'N/A';
     const flowVal = scores.sentimentFlow?.checklist?.[0]?.value || 'N/A';
     const fgVal = scores.sentimentFlow?.checklist?.[1]?.value || 'N/A';
-    const formatPrice = (p) => typeof p === 'number' ? '₹' + p.toLocaleString('en-IN', { minimumFractionDigits: 2 }) : 'N/A';
+    const isUS = !symbol.endsWith('.NS') && !symbol.endsWith('.BO');
+    const cSym = isUS ? '$' : '₹';
+    const formatPrice = (p) => typeof p === 'number' ? cSym + p.toLocaleString(isUS ? 'en-US' : 'en-IN', { minimumFractionDigits: 2 }) : 'N/A';
 
     const s1 = tradeSetup.indicators?.sr?.s1 || null;
     const r1 = tradeSetup.indicators?.sr?.r1 || null;
@@ -1215,14 +1225,14 @@ function generateDetailedFallbackReport(currentStockContext, userMessage) {
     if (composite.total >= 80) {
       const entryMin = s1 ? Math.min(price, s1) : price * 0.98;
       const entryMax = price * 1.01;
-      entryZone = `₹${entryMin.toFixed(2)} - ₹${entryMax.toFixed(2)} (Accumulate on minor pullbacks to support S1 at ₹${s1 || 'support'} or 20 EMA, or on breakout above R1 at ₹${r1 || 'resistance'})`;
+      entryZone = `${cSym}${entryMin.toFixed(2)} - ${cSym}${entryMax.toFixed(2)} (Accumulate on minor pullbacks to support S1 at ${cSym}${s1 || 'support'} or 20 EMA, or on breakout above R1 at ${cSym}${r1 || 'resistance'})`;
       ratingJustification = `Strong buy rating is justified by a robust combination of exceptional fundamentals, clear technical breakout above key moving averages, and high institutional volume accumulation.`;
     } else if (composite.total >= 65) {
       const entryMin = s1 ? s1 : price * 0.97;
-      entryZone = `₹${entryMin.toFixed(2)} - ₹${price.toFixed(2)} (Optimal entry on minor pullbacks towards support S1 at ₹${s1 || 'support'} or the 50 SMA)`;
+      entryZone = `${cSym}${entryMin.toFixed(2)} - ${cSym}${price.toFixed(2)} (Optimal entry on minor pullbacks towards support S1 at ${cSym}${s1 || 'support'} or the 50 SMA)`;
       ratingJustification = `Buy rating is supported by a healthy primary uptrend and solid core financials, though wait for key levels or minor cooling of indicators for optimal risk-to-reward.`;
     } else if (composite.total >= 50) {
-      entryZone = `Wait for breakout above ₹${r1 ? r1.toFixed(2) : 'R1'} or pullback to ₹${s1 ? s1.toFixed(2) : 'S1'}`;
+      entryZone = `Wait for breakout above ${cSym}${r1 ? r1.toFixed(2) : 'R1'} or pullback to ${cSym}${s1 ? s1.toFixed(2) : 'S1'}`;
       ratingJustification = `Watch rating is due to range-bound price action and consolidation. Momentum indicators (RSI/MACD) are flat. Conserve capital until a clear direction is established.`;
     } else {
       entryZone = `N/A (Not suitable for long swing trades)`;
@@ -1312,23 +1322,26 @@ Rules:
 3. If there is no stock context or the query is general, output under [AGENT STATUS: COMPLETED] and [ANALYSIS LOG] explaining the general concepts in a robotic, structured, bulleted format.`;
 
   const contents = [...history];
-
   let messageWithContext = message;
-  if (currentStockContext) {
+
+  if (currentStockContext?.symbol) {
+    const symbol = currentStockContext.symbol;
     const quote = currentStockContext.quote || {};
     const scores = currentStockContext.scores || {};
+    const composite = scores.composite || { total: 0 };
     const tradeSetup = currentStockContext.tradeSetup || {};
-    const composite = scores.composite || { total: 0, rating: 'N/A' };
-    
     const checklist = scores.checklist || [];
     const passedChecks = checklist.filter(c => c.passed).length;
     const totalChecks = checklist.length || 12;
     const winChance = Math.round(35 + (passedChecks / totalChecks) * 50);
 
+    const isUS = !symbol.endsWith('.NS') && !symbol.endsWith('.BO');
+    const cSym = isUS ? '$' : '₹';
+
     messageWithContext = `[Context for currently selected stock: ${currentStockContext.name} (${currentStockContext.symbol})
-- Price: ₹${(quote.price || 0).toFixed(2)} (Change: ${(quote.changePct || 0).toFixed(2)}%)
+- Price: ${cSym}${(quote.price || 0).toFixed(2)} (Change: ${(quote.changePct || 0).toFixed(2)}%)
 - Scores (out of 25 each): Fundamentals: ${scores.fundamental?.score || 0}, Technicals: ${scores.technicalSetup?.score || 0}, Momentum: ${scores.momentum?.score || 0}, Sentiment & Flows: ${scores.sentimentFlow?.score || 0} (Total: ${composite.total}/100)
-- Trade Setup: Entry: ₹${(quote.price || 0).toFixed(2)}, Stop Loss: ₹${tradeSetup.stopLoss || 0}, Target 1: ₹${tradeSetup.target1 || 0}, Target 2: ₹${tradeSetup.target2 || 0}, Target 3: ₹${tradeSetup.target3 || 0}
+- Trade Setup: Entry: ${cSym}${(quote.price || 0).toFixed(2)}, Stop Loss: ${cSym}${tradeSetup.stopLoss || 0}, Target 1: ${cSym}${tradeSetup.target1 || 0}, Target 2: ${cSym}${tradeSetup.target2 || 0}, Target 3: ${cSym}${tradeSetup.target3 || 0}
 - Win Probability: ${winChance}%, Risk/Reward: ${tradeSetup.riskReward || 0}:1]
 
 User Query: ${message}`;

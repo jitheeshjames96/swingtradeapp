@@ -235,12 +235,23 @@ app.get('/api/analyze', authMiddleware, async (req, res) => {
 
     const newsPromise = (async () => {
       try {
-        const url = `https://query1.finance.yahoo.com/v1/finance/search?q=${encodeURIComponent(resolvedSymbol)}&newsCount=8`;
+        const url = `https://query1.finance.yahoo.com/v1/finance/search?q=${encodeURIComponent(resolvedSymbol)}&newsCount=20`;
         const response = await axios.get(url, { headers: { 'User-Agent': 'Mozilla/5.0' }, timeout: 4000 });
         const data = response.data;
         const news = [];
         if (data && data.news) {
-          data.news.slice(0, 6).forEach(n => {
+          const cleanedSym = resolvedSymbol.split('.')[0].toUpperCase();
+          const filteredNews = data.news.filter(n => {
+            const relatedTickers = Array.isArray(n.relatedTickers) ? n.relatedTickers.map(t => t.toUpperCase()) : [];
+            const titleUpper = (n.title || '').toUpperCase();
+            return (
+              relatedTickers.includes(cleanedSym) ||
+              relatedTickers.includes(resolvedSymbol) ||
+              titleUpper.includes(cleanedSym)
+            );
+          });
+
+          filteredNews.slice(0, 6).forEach(n => {
             const t = (n.title || '').toLowerCase();
             const bullish = ['surge', 'rally', 'gain', 'beat', 'strong', 'growth', 'profit', 'record', 'upgrade', 'buy', 'bull', 'rise', 'up', 'positive', 'boost', 'outperform', 'expand', 'win', 'exceed', 'high'];
             const bearish = ['fall', 'drop', 'loss', 'miss', 'weak', 'decline', 'down', 'sell', 'bear', 'cut', 'downgrade', 'concern', 'risk', 'crash', 'plunge', 'slump', 'fail', 'negative', 'below', 'low'];
@@ -266,6 +277,7 @@ app.get('/api/analyze', authMiddleware, async (req, res) => {
               headline: n.title,
               source: n.publisher,
               time: formattedTime,
+              date: n.providerPublishTime,
               sentiment,
               url: n.link,
             });
@@ -689,9 +701,17 @@ app.get('/api/market-pulse', authMiddleware, async (req, res) => {
       { name: 'NASDAQ',    symbol: '^IXIC' },
       { name: 'DOW JONES', symbol: '^DJI' }
     ] : [
-      { name: 'NIFTY 50',   symbol: '^NSEI' },
-      { name: 'SENSEX',     symbol: '^BSESN' },
-      { name: 'BANK NIFTY', symbol: '^NSEBANK' }
+      { name: 'NIFTY 50',     symbol: '^NSEI' },
+      { name: 'SENSEX',       symbol: '^BSESN' },
+      { name: 'BANK NIFTY',   symbol: '^NSEBANK' },
+      { name: 'NIFTY IT',     symbol: '^CNXIT' },
+      { name: 'NIFTY PHARMA', symbol: '^CNXPHARMA' },
+      { name: 'NIFTY FMCG',   symbol: '^CNXFMCG' },
+      { name: 'NIFTY AUTO',   symbol: '^CNXAUTO' },
+      { name: 'NIFTY METAL',  symbol: '^CNXMETAL' },
+      { name: 'NIFTY ENERGY', symbol: '^CNXENERGY' },
+      { name: 'NIFTY INFRA',  symbol: '^CNXINFRA' },
+      { name: 'NIFTY REALTY', symbol: '^CNXREALTY' }
     ];
 
     const indicesSymbols = indicesList.map(idx => idx.symbol);
@@ -708,6 +728,14 @@ app.get('/api/market-pulse', authMiddleware, async (req, res) => {
           '^NSEI': 'NIFTY 50', 
           '^BSESN': 'SENSEX', 
           '^NSEBANK': 'BANK NIFTY',
+          '^CNXIT': 'NIFTY IT',
+          '^CNXPHARMA': 'NIFTY PHARMA',
+          '^CNXFMCG': 'NIFTY FMCG',
+          '^CNXAUTO': 'NIFTY AUTO',
+          '^CNXMETAL': 'NIFTY METAL',
+          '^CNXENERGY': 'NIFTY ENERGY',
+          '^CNXINFRA': 'NIFTY INFRA',
+          '^CNXREALTY': 'NIFTY REALTY',
           '^GSPC': 'S&P 500',
           '^IXIC': 'NASDAQ',
           '^DJI': 'DOW JONES'
@@ -801,13 +829,25 @@ app.get('/api/news', authMiddleware, async (req, res) => {
   }
 
   try {
-    const url = `https://query1.finance.yahoo.com/v1/finance/search?q=${encodeURIComponent(symbol)}&newsCount=8`;
+    const url = `https://query1.finance.yahoo.com/v1/finance/search?q=${encodeURIComponent(symbol)}&newsCount=20`;
     const response = await axios.get(url, { headers: { 'User-Agent': 'Mozilla/5.0' } });
     const data = response.data;
     const news = [];
 
     if (data && data.news) {
-      data.news.slice(0, 6).forEach(n => {
+      const cleanedSym = symbol.split('.')[0].toUpperCase();
+      const upperSym = symbol.toUpperCase();
+      const filteredNews = data.news.filter(n => {
+        const relatedTickers = Array.isArray(n.relatedTickers) ? n.relatedTickers.map(t => t.toUpperCase()) : [];
+        const titleUpper = (n.title || '').toUpperCase();
+        return (
+          relatedTickers.includes(cleanedSym) ||
+          relatedTickers.includes(upperSym) ||
+          titleUpper.includes(cleanedSym)
+        );
+      });
+
+      filteredNews.slice(0, 6).forEach(n => {
         // Sentiment detection based on title keywords
         const t = (n.title || '').toLowerCase();
         const bullish = ['surge', 'rally', 'gain', 'beat', 'strong', 'growth', 'profit', 'record', 'upgrade', 'buy', 'bull', 'rise', 'up', 'positive', 'boost', 'outperform', 'expand', 'win', 'exceed', 'high'];
@@ -835,6 +875,7 @@ app.get('/api/news', authMiddleware, async (req, res) => {
           headline: n.title,
           source: n.publisher,
           time: formattedTime,
+          date: n.providerPublishTime,
           sentiment,
           url: n.link,
         });
@@ -854,6 +895,173 @@ app.get('/api/news', authMiddleware, async (req, res) => {
 function generateDetailedFallbackReport(currentStockContext, userMessage) {
   const msg = (userMessage || '').toLowerCase();
   
+  // 1. General Queries (Greeting, Indicators, Concept Explanations, Indices)
+  // These should be answered directly even if a stock is active
+  // ── Greeting / intro
+  if (!msg || msg.match(/^(hi|hello|hey|greet|start|help|what can you do)/)) {
+    return `[AGENT STATUS: COMPLETED]
+[DECISION LOG]
+- Terminal status: Online and ready.
+- Capabilities: Stock analysis, swing trade setup generation, indicator explanation, strategy design.
+
+[ANALYSIS LOG]
+- To analyze a stock, select it from the watchlist or ask about it.
+- To learn concepts, ask about indicators (RSI, MACD, Moving Averages, Bollinger Bands).
+- Input stock ticker or search query to proceed.`;
+  }
+
+  // ── Indian Market Indices (Nifty, Sensex, BSE, NSE)
+  if (msg.includes('nifty') || msg.includes('sensex') || msg.includes('banknifty') || msg.includes('bank nifty') || msg.includes('index') || msg.includes('market today') || msg.includes('bse') || msg.includes('nse')) {
+    return `[AGENT STATUS: COMPLETED]
+[DECISION LOG]
+- Subject: Indian Market Indices (BSE/NSE)
+- Data: Live via market pulse banner (top of dashboard)
+
+[ANALYSIS LOG]
+- NIFTY 50: Benchmark index of 50 large-cap NSE stocks.
+- SENSEX: BSE benchmark of 30 blue-chip companies.
+- BANK NIFTY: Tracks 12 large Indian banking stocks.
+- Sector Indices: NIFTY IT, NIFTY Pharma, NIFTY Auto, NIFTY FMCG, etc. track sector performance.
+- Rule: When NIFTY > 200 SMA → market is in primary uptrend. Favor long swing trades.
+- Rule: When BANK NIFTY > NIFTY → sector rotation into financials.`;
+  }
+
+  const activeSymbol = currentStockContext?.symbol;
+  const activeName = currentStockContext?.name;
+  const isQueryAboutActiveStock = activeSymbol && (msg.includes(activeSymbol.toLowerCase()) || (activeName && msg.includes(activeName.toLowerCase())) || msg.includes('this stock') || msg.includes('it') || msg.includes('its') || msg.includes('current stock') || msg.includes('selected stock'));
+
+  // ── RSI questions
+  if (msg.includes('rsi') && !isQueryAboutActiveStock) {
+    return `[AGENT STATUS: COMPLETED]
+[DECISION LOG]
+- Indicator: Relative Strength Index (RSI)
+- Primary Use: Momentum & Overbought/Oversold tracking
+
+[ANALYSIS LOG]
+- Scale: 0 to 100.
+- RSI < 30: Oversold zone (potential long reversal).
+- RSI 45-65: Bullish momentum acceleration zone.
+- RSI > 70: Overbought zone (high pullback risk).
+- Recommendation: Confirm RSI reversals with MACD crossovers before entering.`;
+  }
+  
+  // ── MACD questions
+  if (msg.includes('macd') && !isQueryAboutActiveStock) {
+    return `[AGENT STATUS: COMPLETED]
+[DECISION LOG]
+- Indicator: Moving Average Convergence Divergence (MACD)
+- Primary Use: Trend direction & Momentum crossovers
+
+[ANALYSIS LOG]
+- Components: MACD line, Signal line, Histogram.
+- Bullish Trigger: MACD crosses above Signal line (preferably below zero).
+- Bearish Trigger: MACD crosses below Signal line.
+- Histogram expansion: Momentum strength is increasing.
+- Histogram contraction: Momentum is fading.`;
+  }
+  
+  // ── Moving average questions
+  if ((msg.includes('moving average') || msg.includes('sma') || msg.includes('ema') || msg.includes('200 day') || msg.includes('50 day')) && !isQueryAboutActiveStock) {
+    return `[AGENT STATUS: COMPLETED]
+[DECISION LOG]
+- Indicator: SMA (Simple Moving Average) / EMA (Exponential Moving Average)
+- Primary Use: Trend filter and dynamic support/resistance
+
+[ANALYSIS LOG]
+- 20 EMA: Short-term momentum guide. Great for pullback entries in a strong trend.
+- 50 SMA: Medium-term trend benchmark. Price above is structurally bullish.
+- 200 SMA: Long-term trend boundary. Golden Cross = 50 SMA crossing above 200 SMA.
+- Rule: Only execute long swing trades when price lies above both 50 SMA and 200 SMA.`;
+  }
+  
+  // ── Bollinger Bands questions  
+  if ((msg.includes('bollinger') || msg.includes('bb') || (msg.includes('band') && !msg.includes('band aid'))) && !isQueryAboutActiveStock) {
+    return `[AGENT STATUS: COMPLETED]
+[DECISION LOG]
+- Indicator: Bollinger Bands (BB)
+- Primary Use: Volatility expansion & mean reversion
+
+[ANALYSIS LOG]
+- Middle Band: 20-period simple moving average.
+- Outer Bands: Middle band +/- 2 standard deviations.
+- Volatility Squeeze: Bands contract tightly before a major explosive breakout.
+- Mean Reversion: Price tends to bounce off lower band and find resistance at upper band.`;
+  }
+  
+  // ── Entry questions
+  if ((msg.includes('entry') || msg.includes('when to buy') || msg.includes('buy signal')) && !isQueryAboutActiveStock) {
+    return `[AGENT STATUS: COMPLETED]
+[DECISION LOG]
+- Target Setup: Swing Long Entry
+- Requirement: 3+ confluent triggers
+
+[ANALYSIS LOG]
+- Check 1: Price is positioned above 50 and 200 SMAs.
+- Check 2: RSI is situated between 40-60 (momentum sweet spot).
+- Check 3: MACD exhibits bullish crossover or green expanding histogram.
+- Check 4: Volume is expanding on breakout/reversal candles.
+- Risk Rule: Restrict max risk per trade to 1-2% of overall trading capital.`;
+  }
+  
+  // ── Stop loss questions
+  if ((msg.includes('stop loss') || msg.includes('stoploss') || (msg.includes('sl') && msg.length < 20) || msg.includes('risk management')) && !isQueryAboutActiveStock) {
+    return `[AGENT STATUS: COMPLETED]
+[DECISION LOG]
+- Focus: Defensive Risk Management & Position Sizing
+- Core Target: Prevent ruin and preserve capital
+
+[ANALYSIS LOG]
+- ATR Stop: Place stop loss at 1.5x ATR below entry price.
+- Structural Stop: Place stop loss below the nearest swing low or support level.
+- Percentage Rule: Stop loss should not exceed 5-7% of position value.
+- Golden Rule: Define stop loss *prior* to execution. Never adjust it wider during a trade.`;
+  }
+  
+  // ── Fundamental questions  
+  if ((msg.includes('fundamental') || msg.includes('pe ratio') || msg.includes('p/e') || msg.includes('roe') || msg.includes('debt') || msg.includes('valuation')) && !isQueryAboutActiveStock) {
+    return `[AGENT STATUS: COMPLETED]
+[DECISION LOG]
+- Subject: Fundamental Scoring Metrics
+- Target: Evaluate financial stability and growth
+
+[ANALYSIS LOG]
+- P/E Ratio: Cheap (< 15 for Indian, < 20 for US), Fair (15-35), Expensive (> 50).
+- Return on Equity (ROE): Target > 15% (underlying capital efficiency).
+- Debt/Equity Ratio: Target < 1.0 (excluding banking/finance sectors).
+- Growth: Consistent > 10% YoY revenue and profit growth.
+- Scoring weight: Max 25 points per pillar in composite model.`;
+  }
+  
+  // ── Score / rating questions
+  if ((msg.includes('score') || msg.includes('rating') || msg.includes('how is') || msg.includes('analysis')) && !isQueryAboutActiveStock) {
+    return `[AGENT STATUS: COMPLETED]
+[DECISION LOG]
+- Subject: Scoring Architecture (0-100 scale)
+- Rating scale: 🟢 Strong Buy (≥80) | 🟡 Buy (65-79) | 🟠 Hold/Watch (50-64) | 🔴 Avoid (<50)
+
+[ANALYSIS LOG]
+- Fundamentals: Weighted 25% (P/E, growth, debt, margins).
+- Technical Setup: Weighted 25% (moving averages, support levels).
+- Momentum: Weighted 25% (RSI, MACD crossover, volume).
+- Sentiment & Flows: Weighted 25% (news sentiment, Fear & Greed).`;
+  }
+  
+  // ── General trading / strategy questions
+  if (msg.includes('swing trade') || msg.includes('strategy') || msg.includes('how to') || msg.includes('explain')) {
+    return `[AGENT STATUS: COMPLETED]
+[DECISION LOG]
+- Strategy: Swing Trading
+- Hold Timeframe: 2 to 14 sessions
+
+[ANALYSIS LOG]
+- Screen: Find liquid stocks with solid fundamentals in primary uptrends.
+- Timing: Wait for pullbacks to support levels or moving averages (RSI dip).
+- Execution: Buy on bullish candle confirmations with expanding volume.
+- Exit: Set fixed targets at 1.5x to 3.0x risk parameters.
+- Context: Optimal results occur when Fear & Greed lies in the 30-60 zone.`;
+  }
+
+  // 2. Stock-Specific Fallback Report
   if (currentStockContext?.symbol) {
     const symbol = currentStockContext.symbol;
     const name = currentStockContext.name || symbol;
@@ -873,7 +1081,10 @@ function generateDetailedFallbackReport(currentStockContext, userMessage) {
     const macdVal = scores.momentum?.checklist?.[1]?.value || 'N/A';
     const flowVal = scores.sentimentFlow?.checklist?.[0]?.value || 'N/A';
     const fgVal = scores.sentimentFlow?.checklist?.[1]?.value || 'N/A';
-    const formatPrice = (p) => typeof p === 'number' ? '₹' + p.toLocaleString('en-IN', { minimumFractionDigits: 2 }) : 'N/A';
+    
+    const isUS = !symbol.endsWith('.NS') && !symbol.endsWith('.BO');
+    const cSym = isUS ? '$' : '₹';
+    const formatPrice = (p) => typeof p === 'number' ? cSym + p.toLocaleString(isUS ? 'en-US' : 'en-IN', { minimumFractionDigits: 2 }) : 'N/A';
     const price = quote.price || 0;
 
     const s1 = tradeSetup.indicators?.sr?.s1 || null;
@@ -951,12 +1162,12 @@ function generateDetailedFallbackReport(currentStockContext, userMessage) {
     if (composite.total >= 80) {
       const entryMin = s1 ? Math.min(price, s1) : price * 0.98;
       const entryMax = price * 1.01;
-      entryZone = `₹${entryMin.toFixed(2)} - ₹${entryMax.toFixed(2)} (Accumulate on minor pullbacks to support S1 at ₹${s1 || 'support'} or 20 EMA, or on breakout above R1 at ₹${r1 || 'resistance'})`;
+      entryZone = `${cSym}${entryMin.toFixed(2)} - ${cSym}${entryMax.toFixed(2)} (Accumulate on minor pullbacks to support S1 at ${cSym}${s1 || 'support'} or 20 EMA, or on breakout above R1 at ${cSym}${r1 || 'resistance'})`;
     } else if (composite.total >= 65) {
       const entryMin = s1 ? s1 : price * 0.97;
-      entryZone = `₹${entryMin.toFixed(2)} - ₹${price.toFixed(2)} (Optimal entry on minor pullbacks towards support S1 at ₹${s1 || 'support'} or the 50 SMA)`;
+      entryZone = `${cSym}${entryMin.toFixed(2)} - ${cSym}${price.toFixed(2)} (Optimal entry on minor pullbacks towards support S1 at ${cSym}${s1 || 'support'} or the 50 SMA)`;
     } else if (composite.total >= 50) {
-      entryZone = `Wait for breakout above ₹${r1 ? r1.toFixed(2) : 'R1'} or pullback to ₹${s1 ? s1.toFixed(2) : 'S1'}`;
+      entryZone = `Wait for breakout above ${cSym}${r1 ? r1.toFixed(2) : 'R1'} or pullback to ${cSym}${s1 ? s1.toFixed(2) : 'S1'}`;
     } else {
       entryZone = `N/A (Not suitable for long swing trades)`;
     }
@@ -1181,7 +1392,8 @@ Rules:
     const contents = [...(history || [])];
 
     let messageWithContext = message;
-    if (currentStockContext) {
+    if (currentStockContext && currentStockContext.symbol) {
+      const symbol = currentStockContext.symbol;
       const quote = currentStockContext.quote || {};
       const scores = currentStockContext.scores || {};
       const tradeSetup = currentStockContext.tradeSetup || {};
@@ -1192,10 +1404,13 @@ Rules:
       const totalChecks = checklist.length || 12;
       const winChance = Math.round(35 + (passedChecks / totalChecks) * 50);
 
+      const isUS = !symbol.endsWith('.NS') && !symbol.endsWith('.BO');
+      const cSym = isUS ? '$' : '₹';
+
       messageWithContext = `[Context for currently selected stock: ${currentStockContext.name} (${currentStockContext.symbol})
-- Price: ₹${(quote.price || 0).toFixed(2)} (Change: ${(quote.changePct || 0).toFixed(2)}%)
+- Price: ${cSym}${(quote.price || 0).toFixed(2)} (Change: ${(quote.changePct || 0).toFixed(2)}%)
 - Scores (out of 25 each): Fundamentals: ${scores.fundamental?.score || 0}, Technicals: ${scores.technicalSetup?.score || 0}, Momentum: ${scores.momentum?.score || 0}, Sentiment & Flows: ${scores.sentimentFlow?.score || 0} (Total: ${composite.total}/100)
-- Trade Setup: Entry: ₹${(quote.price || 0).toFixed(2)}, Stop Loss: ₹${tradeSetup.stopLoss || 0}, Target 1: ₹${tradeSetup.target1 || 0}, Target 2: ₹${tradeSetup.target2 || 0}, Target 3: ₹${tradeSetup.target3 || 0}
+- Trade Setup: Entry: ${cSym}${(quote.price || 0).toFixed(2)}, Stop Loss: ${cSym}${tradeSetup.stopLoss || 0}, Target 1: ${cSym}${tradeSetup.target1 || 0}, Target 2: ${cSym}${tradeSetup.target2 || 0}, Target 3: ${cSym}${tradeSetup.target3 || 0}
 - Win Probability: ${winChance}%, Risk/Reward: ${tradeSetup.riskReward || 0}:1]
 
 User Query: ${message}`;

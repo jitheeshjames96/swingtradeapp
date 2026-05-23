@@ -54,6 +54,30 @@ const UI = (() => {
     return sign + parseFloat(val).toFixed(2) + '%';
   }
   function colorClass(val) { return val >= 0 ? 'pos' : 'neg'; }
+  function formatNewsDate(unixTime, fallbackText) {
+    if (!unixTime) return fallbackText || 'Recent';
+    const pubDate = new Date(unixTime * 1000);
+    const now = new Date();
+    const diffMs = now - pubDate;
+    const diffMins = Math.floor(diffMs / (60 * 1000));
+    const diffHours = Math.floor(diffMs / (60 * 60 * 1000));
+    
+    if (diffMins < 0) {
+      return 'Just now';
+    }
+    if (diffMins < 60) {
+      return `${diffMins}m ago`;
+    }
+    if (diffHours < 24) {
+      return `${diffHours}h ago`;
+    }
+    
+    const day = pubDate.getDate();
+    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    const month = months[pubDate.getMonth()];
+    const year = pubDate.getFullYear();
+    return `${day} ${month} ${year}`;
+  }
   function getFinancialYear(period) {
     if (!period) return 'N/A';
     if (period.includes('-')) {
@@ -252,6 +276,24 @@ const UI = (() => {
         }
       }
 
+      let stocksListHtml = '';
+      if (window.API && window.API.STOCK_CATALOG) {
+        const allSectorStocks = window.API.STOCK_CATALOG.filter(item => getEtfSectorName(item.sector) === s.name);
+        if (allSectorStocks.length > 0) {
+          stocksListHtml = `
+            <div style="border-top:1px solid rgba(255,255,255,0.06); margin-top:8px; padding-top:6px;">
+              <div style="font-size:0.58rem; color:var(--text-muted); font-weight:700; margin-bottom:4px; text-transform:uppercase; letter-spacing:0.03em;">Sector Stocks:</div>
+              <div style="display:flex; flex-wrap:wrap; gap:4px;">
+                ${allSectorStocks.map(item => {
+                  const cleanSym = item.symbol.replace('.NS', '').replace('.BO', '');
+                  return `<span class="sector-stock-tag" onclick="event.preventDefault(); event.stopPropagation(); App.selectStock('${item.symbol}')" title="${item.name}" style="cursor:pointer; font-size:0.62rem; font-weight:700; color:var(--text-muted); background:rgba(255,255,255,0.04); padding:2px 5px; border-radius:3px; border:1px solid rgba(255,255,255,0.04); transition:all 0.15s ease;" onmouseover="this.style.color='var(--text-accent, #6366f1)'; this.style.background='rgba(99,102,241,0.08)'; this.style.borderColor='rgba(99,102,241,0.2)';" onmouseout="this.style.color='var(--text-muted)'; this.style.background='rgba(255,255,255,0.04)'; this.style.borderColor='rgba(255,255,255,0.04)';">${cleanSym}</span>`;
+                }).join('')}
+              </div>
+            </div>
+          `;
+        }
+      }
+
       return `
         <div class="sector-tile ${cls}" title="${s.name}" style="margin-bottom:8px;">
           <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
@@ -268,6 +310,7 @@ const UI = (() => {
               <div style="display:flex; flex-direction:column; gap:2px;">${losersHtml}</div>
             </div>
           </div>
+          ${stocksListHtml}
         </div>
       `;
     }).join('');
@@ -621,7 +664,7 @@ const UI = (() => {
         <span>📈 TradingView Interactive Chart</span>
         <span style="font-size:0.75rem; color:var(--text-muted); font-weight:normal;">Candlestick Feed</span>
       </div>
-      <div class="chart-wrap" style="height:400px; margin-bottom:20px; border-radius:var(--radius-md); overflow:hidden; border:1px solid var(--border)">
+      <div class="chart-wrap" style="height:500px; margin-bottom:20px; border-radius:var(--radius-md); overflow:hidden; border:1px solid var(--border)">
         <div id="tradingview_widget" style="width:100%; height:100%"></div>
       </div>
 
@@ -770,12 +813,12 @@ const UI = (() => {
           <div style="display: flex; align-items: center; gap: 8px; font-size: 0.78rem; color: var(--text-muted); margin-top: 4px;">
             <span style="font-weight: 600; color: var(--text-color);">${major.source}</span>
             <span>•</span>
-            <span>${major.time}</span>
+            <span>${formatNewsDate(major.date, major.time)}</span>
           </div>
         </div>
       `;
     })() : '';
-
+ 
     const recentNewsHtml = hasNews ? news.slice(1).map(n => {
       const dotColor = n.sentiment === 'positive' ? 'var(--green)' : n.sentiment === 'negative' ? 'var(--red)' : 'var(--yellow)';
       return `
@@ -786,7 +829,7 @@ const UI = (() => {
             <div class="news-meta">
               <span>${n.source}</span>
               <span>•</span>
-              <span>${n.time}</span>
+              <span>${formatNewsDate(n.date, n.time)}</span>
               <span style="color:${dotColor};font-weight:600">${n.sentiment.toUpperCase()}</span>
             </div>
           </div>
@@ -1216,7 +1259,7 @@ const UI = (() => {
           </div>
         </div>
 
-        <div class="chart-widget-wrap" style="height:550px; border-radius:var(--radius-md); overflow:hidden; border:1px solid var(--border); background:var(--bg-card); position:relative;">
+        <div class="chart-widget-wrap" style="height:650px; border-radius:var(--radius-md); overflow:hidden; border:1px solid var(--border); background:var(--bg-card); position:relative;">
           <div id="tradingview_widget_main" style="width:100%; height:100%; display:flex; align-items:center; justify-content:center; background:#0d1220;">
             <div style="display:flex; flex-direction:column; align-items:center; gap:12px;">
               <div class="spinner"></div>

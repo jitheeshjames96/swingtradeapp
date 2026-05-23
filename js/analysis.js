@@ -468,16 +468,19 @@ function scoreTechnicalSetup(data, quote) {
   const distS1 = sr.s1 ? Math.abs(currentPrice - sr.s1) / currentPrice : 99;
   const distS2 = sr.s2 ? Math.abs(currentPrice - sr.s2) / currentPrice : 99;
   const distSma200 = lastSma200 ? Math.abs(currentPrice - lastSma200) / currentPrice : 99;
+  const symbol = quote?.symbol || '';
+  const isUS = !symbol.endsWith('.NS') && !symbol.endsWith('.BO');
+  const cSym = isUS ? '$' : '₹';
 
   if (distS1 < 0.03) {
     supportPassed = true;
-    supportVal = `Near S1 (₹${sr.s1.toFixed(1)})`;
+    supportVal = `Near S1 (${cSym}${sr.s1.toFixed(1)})`;
   } else if (distS2 < 0.03) {
     supportPassed = true;
-    supportVal = `Near S2 (₹${sr.s2.toFixed(1)})`;
+    supportVal = `Near S2 (${cSym}${sr.s2.toFixed(1)})`;
   } else if (distSma200 < 0.03) {
     supportPassed = true;
-    supportVal = `Near SMA200 (₹${lastSma200.toFixed(1)})`;
+    supportVal = `Near SMA200 (${cSym}${lastSma200.toFixed(1)})`;
   }
 
   const supportScore = supportPassed ? 8 : 3;
@@ -485,7 +488,7 @@ function scoreTechnicalSetup(data, quote) {
   checklist.push({
     label: 'Support Zone Proximity',
     passed: supportPassed,
-    value: supportPassed ? supportVal : `S1: ₹${sr.s1?.toFixed(1) || 'N/A'}`,
+    value: supportPassed ? supportVal : `S1: ${cSym}${sr.s1?.toFixed(1) || 'N/A'}`,
     desc: 'Entering trades near key supports provides optimal risk-to-reward setup and invalidation levels.',
     score: supportScore,
     max: 8
@@ -653,15 +656,24 @@ function scoreSentimentFlows(fearGreed, news, volData, fund) {
   let flowVal = 'Neutral Flows';
   let sh = fund?.shareholding || {};
 
-  if (sh && sh.institutions !== undefined && sh.institutions > 25) {
+  let instPercentage = null;
+  if (sh.fii && sh.fii.length > 0 && sh.dii && sh.dii.length > 0) {
+    instPercentage = (sh.fii[sh.fii.length - 1] || 0) + (sh.dii[sh.dii.length - 1] || 0);
+  } else if (sh.institutions !== undefined && sh.institutions !== null) {
+    instPercentage = sh.institutions;
+  }
+
+  if (instPercentage !== null && instPercentage > 25) {
     flowPassed = true;
-    flowVal = `High FII/DII (${sh.institutions.toFixed(1)}%)`;
+    flowVal = `High FII/DII (${instPercentage.toFixed(1)}%)`;
   } else if (volData?.accumulation) {
     flowPassed = true;
     flowVal = 'Accumulation Spike (Est)';
+  } else if (instPercentage !== null) {
+    flowVal = `FII/DII: ${instPercentage.toFixed(1)}%`;
   }
 
-  const instScore = sh.institutions > 35 ? 9 : volData?.accumulation ? 8 : volData?.institutionalSignal === 'moderate' ? 6 : 3;
+  const instScore = instPercentage > 35 ? 9 : volData?.accumulation ? 8 : volData?.institutionalSignal === 'moderate' ? 6 : 3;
   score += instScore;
   checklist.push({
     label: 'Institutional Flows (FII/DII)',
@@ -767,6 +779,9 @@ function generateStaticRationale(symbol, name, scores, tradeSetup, quote) {
   const sym = symbol.replace('.NS', '').replace('.BO', '');
   const price = quote?.price || 0;
 
+  const isUS = !symbol.endsWith('.NS') && !symbol.endsWith('.BO');
+  const cSym = isUS ? '$' : '₹';
+
   const stopLoss = tradeSetup.stopLoss;
   const target1 = tradeSetup.target1;
   const target2 = tradeSetup.target2;
@@ -784,22 +799,22 @@ function generateStaticRationale(symbol, name, scores, tradeSetup, quote) {
   if (composite.total >= 80) {
     const entryMin = s1 ? Math.min(price, s1) : price * 0.98;
     const entryMax = price * 1.01;
-    entryZone = `₹${entryMin.toFixed(2)} - ₹${entryMax.toFixed(2)} (Accumulate on minor pullbacks to support S1 at ₹${s1 || 'support'} or 20 EMA, or on a confirmed high-volume breakout above ₹${r1 || 'resistance'})`;
+    entryZone = `${cSym}${entryMin.toFixed(2)} - ${cSym}${entryMax.toFixed(2)} (Accumulate on minor pullbacks to support S1 at ${cSym}${s1 || 'support'} or 20 EMA, or on a confirmed high-volume breakout above ${cSym}${r1 || 'resistance'})`;
     verdictExplain = `Strong confluence of fundamental value and momentum breakout makes this a high-conviction trade. Institutional net buying combined with a clear price breakout above key SMAs indicates robust smart money accumulation. The stock exhibits superior relative strength in its sector.`;
-    winReason = `Sustained momentum and high volume support a quick expansion to Target 1 (₹${target1}) and Target 2 (₹${target2}). The price has verified support levels and exhibits low relative volatility band expansion. Risk-to-reward ratio is highly favorable at 1:${rr}.`;
-    lossRisk = `A broader market correction or volume exhaustion could trigger a pullback to the stop loss. However, placing the SL below support (₹${stopLoss}) protects from market noise.`;
+    winReason = `Sustained momentum and high volume support a quick expansion to Target 1 (${cSym}${target1}) and Target 2 (${cSym}${target2}). The price has verified support levels and exhibits low relative volatility band expansion. Risk-to-reward ratio is highly favorable at 1:${rr}.`;
+    lossRisk = `A broader market correction or volume exhaustion could trigger a pullback to the stop loss. However, placing the SL below support (${cSym}${stopLoss}) protects from market noise.`;
   } else if (composite.total >= 65) {
     const entryMin = s1 ? s1 : price * 0.97;
-    entryZone = `₹${entryMin.toFixed(2)} - ₹${price.toFixed(2)} (Optimal entry on minor pullbacks towards support S1 at ₹${s1 || 'support'} or the 50 SMA)`;
+    entryZone = `${cSym}${entryMin.toFixed(2)} - ${cSym}${price.toFixed(2)} (Optimal entry on minor pullbacks towards support S1 at ${cSym}${s1 || 'support'} or the 50 SMA)`;
     verdictExplain = `Stock is in a healthy uptrend with supportive fundamentals. While minor indicators are cooling off, it provides a solid swing structure. Entry within current ranges is optimal.`;
-    winReason = `The trend is backed by SMA alignment and decent volume. A continuation move has high odds (~65% probability) given current sector momentum. Expected targets are Target 1 (₹${target1}) and Target 2 (₹${target2}).`;
-    lossRisk = `Failure to hold the immediate support might lead to a minor retracement to key levels before the primary trend resumes. Keep the stop loss firm at ₹${stopLoss}.`;
+    winReason = `The trend is backed by SMA alignment and decent volume. A continuation move has high odds (~65% probability) given current sector momentum. Expected targets are Target 1 (${cSym}${target1}) and Target 2 (${cSym}${target2}).`;
+    lossRisk = `Failure to hold the immediate support might lead to a minor retracement to key levels before the primary trend resumes. Keep the stop loss firm at ${cSym}${stopLoss}.`;
   } else if (composite.total >= 50) {
     const entryMin = s1 ? s1 : price * 0.95;
-    entryZone = `₹${entryMin.toFixed(2)} - ₹${r1 ? r1 : price * 1.02} (Wait for a confirmed volume breakout above resistance at ₹${r1 || 'R1'} or a deeper pullback to key support at ₹${s1 || 'S1'})`;
+    entryZone = `${cSym}${entryMin.toFixed(2)} - ${cSym}${r1 ? r1 : price * 1.02} (Wait for a confirmed volume breakout above resistance at ${cSym}${r1 || 'R1'} or a deeper pullback to key support at ${cSym}${s1 || 'S1'})`;
     verdictExplain = `The stock is currently in a range-bound or consolidation phase. Mixed signals across momentum (RSI/MACD) and fundamentals suggest waiting for a clear breakout confirmation above immediate resistance.`;
-    winReason = `An upside breakout would validate the base structure, leading to a quick rally to Target 1 (₹${target1}).`;
-    lossRisk = `Consolidation could drag on, tying up trading capital, or break down towards key levels. A tight entry zone and stop loss at ₹${stopLoss} is required to manage risk.`;
+    winReason = `An upside breakout would validate the base structure, leading to a quick rally to Target 1 (${cSym}${target1}).`;
+    lossRisk = `Consolidation could drag on, tying up trading capital, or break down towards key levels. A tight entry zone and stop loss at ${cSym}${stopLoss} is required to manage risk.`;
   } else {
     entryZone = `N/A (Avoid or short-sell if appropriate; not suitable for long swing trades)`;
     verdictExplain = `High debt, weak bottom-line growth, or a severe technical markdown structure makes this stock highly risky. Smart money indicators suggest active institutional distribution (selling).`;
@@ -821,7 +836,7 @@ function generateStaticRationale(symbol, name, scores, tradeSetup, quote) {
       <div>⚡ <strong>Technical Entry Zone:</strong> <strong style="color:var(--text-primary)">${entryZone}</strong></div>
       <div>🟢 <strong>Chances of Profit:</strong> ${winReason}</div>
       <div>🔴 <strong>Key Risks:</strong> ${lossRisk}</div>
-      <div>📈 <strong>Stop Loss / Targets:</strong> SL: <strong style="color:var(--red)">₹${stopLoss}</strong> | T1: <strong style="color:var(--green)">₹${target1}</strong> | T2: <strong style="color:var(--green)">₹${target2}</strong></div>
+      <div>📈 <strong>Stop Loss / Targets:</strong> SL: <strong style="color:var(--red)">${cSym}${stopLoss}</strong> | T1: <strong style="color:var(--green)">${cSym}${target1}</strong> | T2: <strong style="color:var(--green)">${cSym}${target2}</strong></div>
       <div>📊 <strong>Score & Probability:</strong> Composite score is <strong>${composite.total}/100</strong>. Evaluated win probability is <strong style="color:var(--green)">${winChance}%</strong> based on ${passedChecks} out of ${totalChecks} professional-grade criteria matching.</div>
     </div>
   `;

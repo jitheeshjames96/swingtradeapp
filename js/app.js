@@ -2,10 +2,9 @@
    APP.JS — Main Application Controller
    ============================================================ */
 
-const App = (() => {
-
-  // ── State
+const App = (() => {  // ── State
   const state = {
+    marketMode: localStorage.getItem('stid_market_mode') || 'IN',
     watchlist: [],          // Array of { symbol, name, sector }
     results: new Map(),     // symbol → full analysis result
     catalogResults: new Map(), // symbol → analysis result for catalog scan
@@ -22,13 +21,22 @@ const App = (() => {
   };
 
 
-  const DEFAULT_WATCHLIST = [
+  const DEFAULT_WATCHLIST_IN = [
     { symbol: 'RELIANCE.NS',  name: 'Reliance Industries',      sector: 'Energy' },
     { symbol: 'TCS.NS',       name: 'Tata Consultancy Services', sector: 'IT' },
     { symbol: 'HDFCBANK.NS',  name: 'HDFC Bank',                sector: 'Banking' },
     { symbol: 'INFY.NS',      name: 'Infosys Ltd',              sector: 'IT' },
     { symbol: 'BAJAJFINSV.NS',name: 'Bajaj Finserv',            sector: 'NBFC' },
     { symbol: 'ETERNAL.NS',   name: 'Eternal Limited (Zomato)', sector: 'Consumer' },
+  ];
+
+  const DEFAULT_WATCHLIST_US = [
+    { symbol: 'AAPL',         name: 'Apple Inc.',               sector: 'Technology' },
+    { symbol: 'MSFT',         name: 'Microsoft Corp.',          sector: 'Technology' },
+    { symbol: 'GOOGL',        name: 'Alphabet Inc.',            sector: 'Technology' },
+    { symbol: 'AMZN',         name: 'Amazon.com Inc.',          sector: 'Consumer' },
+    { symbol: 'TSLA',         name: 'Tesla Inc.',               sector: 'Auto' },
+    { symbol: 'NVDA',         name: 'NVIDIA Corp.',             sector: 'Technology' },
   ];
 
   // Indian NSE stock suffixes — bare tickers we auto-fix to .NS
@@ -48,48 +56,62 @@ const App = (() => {
   // ── LocalStorage helpers
   function saveWatchlist() {
     try {
-      localStorage.setItem('stid_watchlist', JSON.stringify(state.watchlist));
-      localStorage.setItem('stid_watchlist_version', String(WATCHLIST_VERSION));
+      const key = `stid_watchlist_${state.marketMode}`;
+      const verKey = `stid_watchlist_version_${state.marketMode}`;
+      localStorage.setItem(key, JSON.stringify(state.watchlist));
+      localStorage.setItem(verKey, String(WATCHLIST_VERSION));
     } catch(e) {}
   }
   function loadWatchlist() {
     try {
-      const version = parseInt(localStorage.getItem('stid_watchlist_version') || '0');
-      const saved = localStorage.getItem('stid_watchlist');
+      // Legacy watchlist migration:
+      const legacySaved = localStorage.getItem('stid_watchlist');
+      if (legacySaved) {
+        localStorage.setItem('stid_watchlist_IN', legacySaved);
+        const legacyVer = localStorage.getItem('stid_watchlist_version');
+        if (legacyVer) localStorage.setItem('stid_watchlist_version_IN', legacyVer);
+        localStorage.removeItem('stid_watchlist');
+        localStorage.removeItem('stid_watchlist_version');
+        console.log('Migrating legacy watchlist to stid_watchlist_IN');
+      }
+
+      const key = `stid_watchlist_${state.marketMode}`;
+      const verKey = `stid_watchlist_version_${state.marketMode}`;
+      const version = parseInt(localStorage.getItem(verKey) || '0');
+      const saved = localStorage.getItem(key);
       
       if (saved && version >= WATCHLIST_VERSION) {
         const parsed = JSON.parse(saved);
-        // Auto-fix bare Indian tickers: RELIANCE → RELIANCE.NS, etc.
-        return parsed.map(item => {
-          let sym = (item.symbol || '').trim().toUpperCase();
-          // If bare uppercase with no dot/caret, check if it's a known Indian ticker
-          if (!sym.includes('.') && !sym.startsWith('^')) {
-            if (KNOWN_INDIAN_BASES.has(sym)) {
-              sym = sym + '.NS';
+        if (state.marketMode === 'IN') {
+          return parsed.map(item => {
+            let sym = (item.symbol || '').trim().toUpperCase();
+            if (!sym.includes('.') && !sym.startsWith('^')) {
+              if (KNOWN_INDIAN_BASES.has(sym)) {
+                sym = sym + '.NS';
+              }
             }
-          }
-          return { ...item, symbol: sym };
-        });
+            return { ...item, symbol: sym };
+          });
+        }
+        return parsed;
       } else if (saved && version < WATCHLIST_VERSION) {
-        // Stale version: migrate old entries to .NS where needed
         console.log('Migrating watchlist from version', version, 'to', WATCHLIST_VERSION);
         const parsed = JSON.parse(saved);
         const migrated = parsed.map(item => {
           let sym = (item.symbol || '').trim().toUpperCase();
-          if (!sym.includes('.') && !sym.startsWith('^')) {
-            sym = sym + '.NS'; // Aggressively append .NS to any bare Indian-style ticker
+          if (state.marketMode === 'IN' && !sym.includes('.') && !sym.startsWith('^')) {
+            sym = sym + '.NS';
           }
           return { ...item, symbol: sym };
         });
-        // Save migrated version
         try {
-          localStorage.setItem('stid_watchlist', JSON.stringify(migrated));
-          localStorage.setItem('stid_watchlist_version', String(WATCHLIST_VERSION));
+          localStorage.setItem(key, JSON.stringify(migrated));
+          localStorage.setItem(verKey, String(WATCHLIST_VERSION));
         } catch(e) {}
         return migrated;
       }
     } catch(e) {}
-    return DEFAULT_WATCHLIST;
+    return state.marketMode === 'US' ? DEFAULT_WATCHLIST_US : DEFAULT_WATCHLIST_IN;
   }
 
   let googleClientId = '';
@@ -149,6 +171,34 @@ const App = (() => {
     if (state.watchlist.length > 0) {
       selectStock(state.watchlist[0].symbol);
     }
+  }
+
+  async function setMarketMode(mode) {
+    if (state.marketMode === mode) return;
+    state.marketMode = mode;
+    localStorage.setItem('stid_market_mode', mode);
+    
+    API.setMarketMode(mode);
+    
+    // Update button visual states
+    const btnIn = document.getElementById('btn-market-in');
+    const btnUs = document.getElementById('btn-market-us');
+    if (btnIn) btnIn.classList.toggle('active', mode === 'IN');
+    if (btnUs) btnUs.classList.toggle('active', mode === 'US');
+    
+    // Reset state & detail panel
+    state.results.clear();
+    state.catalogResults.clear();
+    state.activeSymbol = null;
+    const detailPanel = document.getElementById('detail-panel');
+    if (detailPanel) detailPanel.classList.remove('show');
+    
+    // Load new watchlist
+    state.watchlist = loadWatchlist();
+    
+    UI.toast(`Switched to ${mode === 'US' ? 'US Stocks' : 'Indian Stocks'}`, 'success');
+    
+    await finishInit();
   }
 
   // ── Init
@@ -218,16 +268,36 @@ const App = (() => {
 
   // ── Event Bindings
   function bindEvents() {
+    // Market Switcher buttons
+    const btnIn = document.getElementById('btn-market-in');
+    const btnUs = document.getElementById('btn-market-us');
+    if (btnIn) {
+      btnIn.classList.toggle('active', state.marketMode === 'IN');
+      btnIn.addEventListener('click', () => setMarketMode('IN'));
+    }
+    if (btnUs) {
+      btnUs.classList.toggle('active', state.marketMode === 'US');
+      btnUs.addEventListener('click', () => setMarketMode('US'));
+    }
+
     // Search input
     const searchInput = document.getElementById('search-input');
     if (searchInput) {
       let debounceTimer;
       searchInput.addEventListener('input', e => {
         clearTimeout(debounceTimer);
-        debounceTimer = setTimeout(() => {
+        debounceTimer = setTimeout(async () => {
           const q = e.target.value.trim();
-          if (q.length > 0) UI.renderSearchResults(API.searchStocks(q));
-          else document.getElementById('search-dropdown')?.classList.remove('show');
+          if (q.length > 0) {
+            try {
+              const results = await API.searchStocks(q);
+              UI.renderSearchResults(results);
+            } catch (err) {
+              console.error('Failed to search stocks:', err);
+            }
+          } else {
+            document.getElementById('search-dropdown')?.classList.remove('show');
+          }
         }, 200);
       });
       searchInput.addEventListener('keydown', e => {
@@ -249,7 +319,8 @@ const App = (() => {
         document.getElementById('search-dropdown')?.classList.remove('show');
       }
       if (!e.target.closest('#btn-settings') && !e.target.closest('#settings-dropdown')) {
-        document.getElementById('settings-dropdown').style.display = 'none';
+        const dd = document.getElementById('settings-dropdown');
+        if (dd) dd.style.display = 'none';
       }
     });
 
@@ -317,6 +388,8 @@ const App = (() => {
     if (btnResetWatchlist) {
       btnResetWatchlist.addEventListener('click', () => {
         if (!confirm('This will reset your watchlist to the default stocks. Continue?')) return;
+        localStorage.removeItem(`stid_watchlist_${state.marketMode}`);
+        localStorage.removeItem(`stid_watchlist_version_${state.marketMode}`);
         localStorage.removeItem('stid_watchlist');
         localStorage.removeItem('stid_watchlist_version');
         settingsDropdown.style.display = 'none';
@@ -455,6 +528,7 @@ const App = (() => {
       state.fearGreed = fearGreed;
       state.sectors = sectors;
       UI.renderMarketTickers(indices);
+      UI.renderMarketIndicesPanel(indices);
       UI.renderFearGreed(fearGreed);
       UI.renderSectorHeatmap(sectors, state.results);
     } catch (e) {
@@ -585,17 +659,16 @@ const App = (() => {
 
   // ── Add stock to watchlist
   async function addStock(symbol, name, sector) {
-    symbol = symbol.toUpperCase();
+    symbol = symbol.toUpperCase().trim();
+    if (state.marketMode === 'IN' && !symbol.includes('.') && !symbol.startsWith('^')) {
+      symbol = symbol + '.NS';
+    }
     if (state.watchlist.find(w => w.symbol === symbol)) {
       UI.toast(`${symbol} is already in watchlist`, 'info');
       document.getElementById('search-dropdown')?.classList.remove('show');
       const inp = document.getElementById('search-input');
       if (inp) inp.value = '';
       return;
-    }
-    // For Indian stocks without suffix, try adding .NS
-    if (!symbol.includes('.') && !symbol.startsWith('^')) {
-      // Check if it looks like Indian stock name
     }
     state.watchlist.push({ symbol, name: name || symbol, sector: sector || 'N/A' });
     saveWatchlist();
@@ -1126,7 +1199,7 @@ const App = (() => {
   }
 
   // Expose public API
-  return { init, addStock, removeStock, selectStock, switchTab, setRecFilter };
+  return { init, addStock, removeStock, selectStock, switchTab, setRecFilter, setMarketMode };
 })();
 
 window.App = App;
@@ -1143,7 +1216,10 @@ document.addEventListener('DOMContentLoaded', () => {
         if (backendActive) {
           API.fetchMarketPulseFromBackend().then(pulse => {
             if (pulse) {
-              if (pulse.indices) UI.renderMarketTickers(pulse.indices);
+              if (pulse.indices) {
+                UI.renderMarketTickers(pulse.indices);
+                UI.renderMarketIndicesPanel(pulse.indices);
+              }
               if (pulse.fearGreed) UI.renderFearGreed(pulse.fearGreed);
             }
           }).catch(() => {});

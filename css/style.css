@@ -1397,3 +1397,107 @@ body {
   color: #f59e0b;
   border: 1px solid rgba(245, 158, 11, 0.2);
 }
+
+/* ── Market Switch Segmented Control ── */
+.market-switch {
+  display: flex;
+  background: var(--bg-input);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: 2px;
+  gap: 2px;
+}
+.market-btn {
+  background: transparent;
+  border: none;
+  color: var(--text-secondary);
+  padding: 4px 10px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  border-radius: calc(var(--radius-md) - 2px);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.market-btn:hover {
+  color: var(--text-primary);
+}
+.market-btn.active {
+  background: var(--bg-surface);
+  color: var(--text-primary);
+  box-shadow: 0 1px 3px rgba(0,0,0,0.4);
+  border: 1px solid var(--border-active);
+}
+
+/* ── Sidebar Market Indices ── */
+.sidebar-indices-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.sidebar-index-card {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: 8px 12px;
+  transition: all 0.2s ease;
+}
+.sidebar-index-card:hover {
+  transform: translateY(-1px);
+  border-color: var(--border-active);
+  box-shadow: 0 4px 12px var(--border-glow);
+}
+.sidebar-index-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.sidebar-index-name {
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  font-family: 'Outfit', 'Inter', sans-serif;
+  letter-spacing: 0.03em;
+}
+.sidebar-index-symbol {
+  font-size: 0.65rem;
+  color: var(--text-muted);
+  font-family: 'JetBrains Mono', monospace;
+}
+.sidebar-index-vals {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 2px;
+}
+.sidebar-index-price {
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  font-family: 'JetBrains Mono', monospace;
+}
+.sidebar-index-change {
+  font-size: 0.68rem;
+  font-weight: 700;
+  font-family: 'JetBrains Mono', monospace;
+  padding: 1px 5px;
+  border-radius: 4px;
+}
+.sidebar-index-change.positive {
+  background: var(--green-dim);
+  color: var(--green);
+}
+.sidebar-index-change.negative {
+  background: var(--red-dim);
+  color: var(--red);
+}
+.sidebar-index-change.neutral {
+  background: var(--bg-input);
+  color: var(--text-muted);
+}
+

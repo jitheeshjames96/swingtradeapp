@@ -31,8 +31,13 @@ function renderPriceChart(canvasId, historical, symbol) {
   const ctx = getOrCreate(canvasId);
   if (!ctx) return;
 
+  const mode = localStorage.getItem('stid_market_mode') || 'IN';
+  const isUS = mode === 'US';
+  const cSym = isUS ? '$' : '₹';
+  const fmtLoc = isUS ? 'en-US' : 'en-IN';
+
   const data = historical.slice(-90); // Last 90 trading days
-  const labels = data.map(d => d.date.toLocaleDateString('en-IN', { month: 'short', day: 'numeric' }));
+  const labels = data.map(d => d.date.toLocaleDateString(fmtLoc, { month: 'short', day: 'numeric' }));
   const closes = data.map(d => d.close);
   const volumes = data.map(d => d.volume);
 
@@ -48,7 +53,7 @@ function renderPriceChart(canvasId, historical, symbol) {
       borderDash: [6, 4],
       label: {
         display: true,
-        content: `S1: ₹${sr.s1.toFixed(1)}`,
+        content: `S1: ${cSym}${sr.s1.toFixed(1)}`,
         position: 'start',
         backgroundColor: 'rgba(16, 185, 129, 0.85)',
         color: '#fff',
@@ -67,7 +72,7 @@ function renderPriceChart(canvasId, historical, symbol) {
       borderDash: [6, 4],
       label: {
         display: true,
-        content: `R1: ₹${sr.r1.toFixed(1)}`,
+        content: `R1: ${cSym}${sr.r1.toFixed(1)}`,
         position: 'start',
         backgroundColor: 'rgba(239, 68, 68, 0.85)',
         color: '#fff',
@@ -110,7 +115,7 @@ function renderPriceChart(canvasId, historical, symbol) {
           borderWidth: 1,
           padding: 10,
           callbacks: {
-            label: ctx => ` ₹${ctx.parsed.y.toLocaleString('en-IN', { minimumFractionDigits: 2 })}`,
+            label: ctx => ` ${cSym}${ctx.parsed.y.toLocaleString(fmtLoc, { minimumFractionDigits: 2 })}`,
           },
         },
         annotation: {
@@ -125,7 +130,7 @@ function renderPriceChart(canvasId, historical, symbol) {
         y: {
           position: 'right',
           grid: { color: 'rgba(255,255,255,0.04)' },
-          ticks: { font: { size: 10 }, callback: v => '₹' + v.toLocaleString('en-IN') },
+          ticks: { font: { size: 10 }, callback: v => cSym + v.toLocaleString(fmtLoc) },
         },
       },
     },
@@ -139,8 +144,10 @@ function renderRSIChart(canvasId, historical) {
 
   const closes = historical.slice(-90).map(d => d.close);
   const rsiValues = Analysis.calcRSI(closes, 14).filter(v => v !== null);
+  const mode = localStorage.getItem('stid_market_mode') || 'IN';
+  const fmtLoc = mode === 'US' ? 'en-US' : 'en-IN';
   const labels = historical.slice(-rsiValues.length).map(d =>
-    d.date.toLocaleDateString('en-IN', { month: 'short', day: 'numeric' })
+    d.date.toLocaleDateString(fmtLoc, { month: 'short', day: 'numeric' })
   );
 
   _charts[canvasId] = new Chart(ctx, {
@@ -206,8 +213,10 @@ function renderMACDChart(canvasId, historical) {
   const histogram = macdData.histogram.filter(v => v !== null);
   const len = Math.min(macdLine.length, signalLine.length, histogram.length);
 
+  const mode = localStorage.getItem('stid_market_mode') || 'IN';
+  const fmtLoc = mode === 'US' ? 'en-US' : 'en-IN';
   const labels = historical.slice(-len).map(d =>
-    d.date.toLocaleDateString('en-IN', { month: 'short', day: 'numeric' })
+    d.date.toLocaleDateString(fmtLoc, { month: 'short', day: 'numeric' })
   );
 
   _charts[canvasId] = new Chart(ctx, {
@@ -262,7 +271,9 @@ function renderVolumeChart(canvasId, historical) {
   if (!ctx) return;
 
   const data = historical.slice(-60);
-  const labels = data.map(d => d.date.toLocaleDateString('en-IN', { month: 'short', day: 'numeric' }));
+  const mode = localStorage.getItem('stid_market_mode') || 'IN';
+  const fmtLoc = mode === 'US' ? 'en-US' : 'en-IN';
+  const labels = data.map(d => d.date.toLocaleDateString(fmtLoc, { month: 'short', day: 'numeric' }));
   const volumes = data.map(d => d.volume);
   const avgVols = Analysis.calcSMA(volumes, 20);
 
@@ -315,10 +326,16 @@ function renderEarningsChart(canvasId, earningsData) {
   const ctx = getOrCreate(canvasId);
   if (!ctx) return;
 
+  const mode = localStorage.getItem('stid_market_mode') || 'IN';
+  const isUS = mode === 'US';
+  const cSym = isUS ? '$' : '₹';
+  const div = isUS ? 1e6 : 1e7;
+  const unit = isUS ? 'M' : 'Cr';
+
   const quarterly = earningsData.quarterly.slice(0, 8).reverse();
   const labels = quarterly.map(q => q.period);
-  const revenue = quarterly.map(q => q.revenue / 1e7);  // in Cr
-  const netIncome = quarterly.map(q => q.netIncome / 1e7);
+  const revenue = quarterly.map(q => q.revenue / div);
+  const netIncome = quarterly.map(q => q.netIncome / div);
 
   _charts[canvasId] = new Chart(ctx, {
     type: 'bar',
@@ -326,7 +343,7 @@ function renderEarningsChart(canvasId, earningsData) {
       labels,
       datasets: [
         {
-          label: 'Revenue (₹ Cr)',
+          label: `Revenue (${cSym} ${unit})`,
           data: revenue,
           backgroundColor: 'rgba(59,130,246,0.6)',
           borderColor: '#3b82f6',
@@ -334,7 +351,7 @@ function renderEarningsChart(canvasId, earningsData) {
           borderRadius: 4,
         },
         {
-          label: 'Net Income (₹ Cr)',
+          label: `Net Income (${cSym} ${unit})`,
           data: netIncome,
           backgroundColor: 'rgba(16,185,129,0.6)',
           borderColor: '#10b981',
@@ -352,14 +369,14 @@ function renderEarningsChart(canvasId, earningsData) {
           backgroundColor: '#1a2235',
           borderColor: 'rgba(255,255,255,0.1)',
           borderWidth: 1,
-          callbacks: { label: ctx => ` ₹${ctx.parsed.y.toFixed(0)} Cr` },
+          callbacks: { label: ctx => ` ${cSym}${ctx.parsed.y.toFixed(0)} ${unit}` },
         },
       },
       scales: {
         x: { grid: { display: false }, ticks: { font: { size: 10 } } },
         y: {
           grid: { color: 'rgba(255,255,255,0.04)' },
-          ticks: { font: { size: 10 }, callback: v => '₹' + v.toFixed(0) + 'Cr' },
+          ticks: { font: { size: 10 }, callback: v => cSym + v.toFixed(0) + unit },
         },
       },
     },
@@ -371,10 +388,16 @@ function renderAnnualEarningsChart(canvasId, earningsData) {
   const ctx = getOrCreate(canvasId);
   if (!ctx) return;
 
+  const mode = localStorage.getItem('stid_market_mode') || 'IN';
+  const isUS = mode === 'US';
+  const cSym = isUS ? '$' : '₹';
+  const div = isUS ? 1e6 : 1e7;
+  const unit = isUS ? 'M' : 'Cr';
+
   const annual = earningsData.annual.slice(0, 5).reverse();
   const labels = annual.map(a => a.period);
-  const revenue = annual.map(a => a.revenue / 1e7);
-  const netIncome = annual.map(a => a.netIncome / 1e7);
+  const revenue = annual.map(a => a.revenue / div);
+  const netIncome = annual.map(a => a.netIncome / div);
 
   _charts[canvasId] = new Chart(ctx, {
     type: 'line',
@@ -382,7 +405,7 @@ function renderAnnualEarningsChart(canvasId, earningsData) {
       labels,
       datasets: [
         {
-          label: 'Revenue (₹ Cr)',
+          label: `Revenue (${cSym} ${unit})`,
           data: revenue,
           borderColor: '#3b82f6',
           backgroundColor: 'rgba(59,130,246,0.15)',
@@ -393,7 +416,7 @@ function renderAnnualEarningsChart(canvasId, earningsData) {
           pointBackgroundColor: '#3b82f6',
         },
         {
-          label: 'Net Income (₹ Cr)',
+          label: `Net Income (${cSym} ${unit})`,
           data: netIncome,
           borderColor: '#10b981',
           backgroundColor: 'rgba(16,185,129,0.1)',
@@ -414,14 +437,14 @@ function renderAnnualEarningsChart(canvasId, earningsData) {
           backgroundColor: '#1a2235',
           borderColor: 'rgba(255,255,255,0.1)',
           borderWidth: 1,
-          callbacks: { label: ctx => ` ₹${ctx.parsed.y.toFixed(0)} Cr` },
+          callbacks: { label: ctx => ` ${cSym}${ctx.parsed.y.toFixed(0)} ${unit}` },
         },
       },
       scales: {
         x: { grid: { display: false }, ticks: { font: { size: 10 } } },
         y: {
           grid: { color: 'rgba(255,255,255,0.04)' },
-          ticks: { font: { size: 10 }, callback: v => '₹' + v.toFixed(0) + 'Cr' },
+          ticks: { font: { size: 10 }, callback: v => cSym + v.toFixed(0) + unit },
         },
       },
     },
@@ -477,7 +500,9 @@ function renderBBChart(canvasId, historical) {
   const data = historical.slice(-60);
   const closes = data.map(d => d.close);
   const bb = Analysis.calcBollingerBands(closes, 20, 2);
-  const labels = data.map(d => d.date.toLocaleDateString('en-IN', { month: 'short', day: 'numeric' }));
+  const mode = localStorage.getItem('stid_market_mode') || 'IN';
+  const fmtLoc = mode === 'US' ? 'en-US' : 'en-IN';
+  const labels = data.map(d => d.date.toLocaleDateString(fmtLoc, { month: 'short', day: 'numeric' }));
 
   _charts[canvasId] = new Chart(ctx, {
     type: 'line',

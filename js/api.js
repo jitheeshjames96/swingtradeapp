@@ -169,7 +169,8 @@ async function fetchAndCacheAnalysis(symbol) {
 }
 
 async function fetchMarketPulseFromBackend() {
-  const res = await fetchWithTimeout(`${BACKEND_URL}/api/market-pulse`, {
+  const mode = localStorage.getItem('stid_market_mode') || 'IN';
+  const res = await fetchWithTimeout(`${BACKEND_URL}/api/market-pulse?market=${mode}`, {
     headers: getAuthHeaders(),
     timeout: 5000
   });
@@ -179,9 +180,10 @@ async function fetchMarketPulseFromBackend() {
 
 async function fetchMarketSummary() {
   const isBackend = await checkBackend();
+  const mode = localStorage.getItem('stid_market_mode') || 'IN';
   if (isBackend) {
     try {
-      const res = await fetchWithTimeout(`${BACKEND_URL}/api/market-summary`, {
+      const res = await fetchWithTimeout(`${BACKEND_URL}/api/market-summary?market=${mode}`, {
         headers: getAuthHeaders(),
         timeout: 10000
       });
@@ -342,8 +344,8 @@ async function fetchMarketSummary() {
   }
 }
 
-// Predefined popular Indian and US stocks — expanded NSE catalog (55+ stocks)
-const STOCK_CATALOG = [
+// Predefined popular Indian and US stocks — split catalogs
+const STOCK_CATALOG_IN = [
   // ── Nifty 50 Core ──
   { symbol: 'RELIANCE.NS',   name: 'Reliance Industries',       sector: 'Energy' },
   { symbol: 'TCS.NS',        name: 'Tata Consultancy Services', sector: 'IT' },
@@ -393,7 +395,7 @@ const STOCK_CATALOG = [
   { symbol: 'ULTRACEMCO.NS', name: 'UltraTech Cement',          sector: 'Cement' },
   { symbol: 'GRASIM.NS',     name: 'Grasim Industries',         sector: 'Cement' },
   { symbol: 'ASIANPAINT.NS', name: 'Asian Paints',              sector: 'Materials' },
-  { symbol: 'PIDILITIND.NS', name: 'Pidilite Industries',        sector: 'Materials' },
+  { symbol: 'PIDILITIND.NS', name: 'Pidilite Industries',       sector: 'Materials' },
   { symbol: 'RELIANCE.NS',   name: 'Reliance Industries',       sector: 'Energy' },
   { symbol: 'ONGC.NS',       name: 'Oil & Natural Gas Corp',    sector: 'Energy' },
   { symbol: 'COALINDIA.NS',  name: 'Coal India',                sector: 'Energy' },
@@ -411,17 +413,34 @@ const STOCK_CATALOG = [
   { symbol: 'OBEROIRLTY.NS', name: 'Oberoi Realty',             sector: 'Real Estate' },
 ];
 
-// De-duplicate by symbol (RELIANCE appears twice in original)
-(function dedup() {
+// De-duplicate STOCK_CATALOG_IN by symbol
+(function dedupIn() {
   const seen = new Set();
-  for (let i = STOCK_CATALOG.length - 1; i >= 0; i--) {
-    if (seen.has(STOCK_CATALOG[i].symbol)) STOCK_CATALOG.splice(i, 1);
-    else seen.add(STOCK_CATALOG[i].symbol);
+  for (let i = STOCK_CATALOG_IN.length - 1; i >= 0; i--) {
+    if (seen.has(STOCK_CATALOG_IN[i].symbol)) STOCK_CATALOG_IN.splice(i, 1);
+    else seen.add(STOCK_CATALOG_IN[i].symbol);
   }
 })();
 
-// Sector ETF proxies for heatmap (Indian NSE sectors use NIFTY indices)
-const SECTOR_MAP = [
+const STOCK_CATALOG_US = [
+  { symbol: 'AAPL',  name: 'Apple Inc.',               sector: 'Technology' },
+  { symbol: 'MSFT',  name: 'Microsoft Corp.',          sector: 'Technology' },
+  { symbol: 'GOOGL', name: 'Alphabet Inc.',            sector: 'Technology' },
+  { symbol: 'AMZN',  name: 'Amazon.com Inc.',          sector: 'Consumer' },
+  { symbol: 'TSLA',  name: 'Tesla Inc.',               sector: 'Auto' },
+  { symbol: 'NVDA',  name: 'NVIDIA Corp.',             sector: 'Technology' },
+  { symbol: 'META',  name: 'Meta Platforms Inc.',      sector: 'Technology' },
+  { symbol: 'AMD',   name: 'Advanced Micro Devices',   sector: 'Technology' },
+  { symbol: 'NFLX',  name: 'Netflix Inc.',             sector: 'Consumer' },
+  { symbol: 'WMT',   name: 'Walmart Inc.',             sector: 'Consumer' },
+  { symbol: 'JPM',   name: 'JPMorgan Chase & Co.',     sector: 'Financials' },
+  { symbol: 'V',     name: 'Visa Inc.',                sector: 'Financials' },
+  { symbol: 'DIS',   name: 'The Walt Disney Co.',      sector: 'Consumer' },
+  { symbol: 'PG',    name: 'Procter & Gamble Co.',     sector: 'Consumer' },
+  { symbol: 'HD',    name: 'Home Depot Inc.',          sector: 'Consumer' },
+];
+
+const SECTOR_MAP_IN = [
   { name: 'Technology', symbol: 'TCS.NS',         icon: '💻' },
   { name: 'Financials', symbol: '^NSEBANK',        icon: '🏦' },
   { name: 'Healthcare', symbol: 'SUNPHARMA.NS',    icon: '🏥' },
@@ -434,12 +453,63 @@ const SECTOR_MAP = [
   { name: 'Renewables', symbol: 'SUZLON.NS',       icon: '🌱' },
 ];
 
-// Market indices — Indian indices only
-const MARKET_INDICES = [
+const SECTOR_MAP_US = [
+  { name: 'Technology', symbol: 'XLK',    icon: '💻' },
+  { name: 'Financials', symbol: 'XLF',    icon: '🏦' },
+  { name: 'Healthcare', symbol: 'XLV',    icon: '🏥' },
+  { name: 'Energy',     symbol: 'XLE',    icon: '⚡' },
+  { name: 'Industrials',symbol: 'XLI',    icon: '🏭' },
+  { name: 'Materials',  symbol: 'XLB',    icon: '🪨' },
+  { name: 'Real Estate',symbol: 'XLRE',   icon: '🏢' },
+  { name: 'Utilities',  symbol: 'XLU',    icon: '💡' },
+  { name: 'Telecom',    symbol: 'XLC',    icon: '📡' },
+  { name: 'Renewables', symbol: 'ICLN',   icon: '🌱' },
+];
+
+const MARKET_INDICES_IN = [
   { name: 'NIFTY 50',   symbol: '^NSEI' },
   { name: 'SENSEX',     symbol: '^BSESN' },
   { name: 'BANK NIFTY', symbol: '^NSEBANK' },
 ];
+
+const MARKET_INDICES_US = [
+  { name: 'S&P 500',   symbol: '^GSPC' },
+  { name: 'NASDAQ',    symbol: '^IXIC' },
+  { name: 'DOW JONES', symbol: '^DJI' },
+];
+
+// Mutable exported references
+const STOCK_CATALOG = [];
+const SECTOR_MAP = [];
+const MARKET_INDICES = [];
+
+function setMarketMode(mode) {
+  const currentMode = (mode || 'IN').toUpperCase();
+  
+  STOCK_CATALOG.length = 0;
+  if (currentMode === 'US') {
+    STOCK_CATALOG.push(...STOCK_CATALOG_US);
+  } else {
+    STOCK_CATALOG.push(...STOCK_CATALOG_IN);
+  }
+  
+  SECTOR_MAP.length = 0;
+  if (currentMode === 'US') {
+    SECTOR_MAP.push(...SECTOR_MAP_US);
+  } else {
+    SECTOR_MAP.push(...SECTOR_MAP_IN);
+  }
+
+  MARKET_INDICES.length = 0;
+  if (currentMode === 'US') {
+    MARKET_INDICES.push(...MARKET_INDICES_US);
+  } else {
+    MARKET_INDICES.push(...MARKET_INDICES_IN);
+  }
+}
+
+// Initial active market mode setup
+setMarketMode(localStorage.getItem('stid_market_mode') || 'IN');
 
 // ── Cache layer
 const _cache = new Map();
@@ -733,13 +803,32 @@ function analyzeSentimentKeywords(text) {
 }
 
 // ── SEARCH STOCKS
-function searchStocks(query) {
+async function searchStocks(query) {
   if (!query || query.length < 1) return [];
-  const q = query.toLowerCase();
+  const q = query.trim();
+  
+  // Try querying backend search if available
+  const isBackend = await checkBackend();
+  if (isBackend) {
+    try {
+      const res = await fetchWithTimeout(`${BACKEND_URL}/api/search?q=${encodeURIComponent(q)}`, {
+        headers: getAuthHeaders(),
+        timeout: 4000
+      });
+      if (res.ok) {
+        return await res.json();
+      }
+    } catch (e) {
+      console.warn('Backend search failed, using frontend local catalog fallback:', e.message);
+    }
+  }
+
+  // Fallback to local catalog search
+  const qLower = q.toLowerCase();
   return STOCK_CATALOG.filter(s =>
-    s.symbol.toLowerCase().includes(q) ||
-    s.name.toLowerCase().includes(q) ||
-    s.sector.toLowerCase().includes(q)
+    s.symbol.toLowerCase().includes(qLower) ||
+    s.name.toLowerCase().includes(qLower) ||
+    s.sector.toLowerCase().includes(qLower)
   ).slice(0, 8);
 }
 
@@ -1270,6 +1359,6 @@ window.API = {
   fetchSectorPerformance, fetchMarketIndices, fetchFearGreed,
   fetchNewsSentiment, fetchGeminiAnalysis, searchStocks, STOCK_CATALOG, SECTOR_MAP,
   checkBackend, fetchFullAnalysisFromBackend, fetchAndCacheAnalysis, fetchMarketPulseFromBackend, fetchMarketSummary, setBackendUrl,
-  sendInvyChatMessage, fetchAuthConfig, fetchWithTimeout,
+  sendInvyChatMessage, fetchAuthConfig, fetchWithTimeout, setMarketMode,
   getBackendUrl: () => BACKEND_URL
 };

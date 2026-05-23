@@ -72,6 +72,12 @@
 
       <!-- Right controls -->
       <div class="topbar-right">
+        <!-- Market Selector Toggle -->
+        <div class="market-switch" role="group" aria-label="Market Selection">
+          <button id="btn-market-in" class="market-btn active" title="Switch to Indian Stocks">🇮🇳 IN</button>
+          <button id="btn-market-us" class="market-btn" title="Switch to US Stocks">🇺🇸 US</button>
+        </div>
+
         <div id="connection-status" class="connection-badge connected" title="Backend Connection State">
           <div class="market-dot" style="width:8px; height:8px; background-color:#22c55e; border-radius:50%; display:inline-block; margin-right:4px;"></div>
           <span>Checking...</span>
@@ -193,6 +199,18 @@
         </div>
         <div class="panel-body" style="padding:10px">
           <div id="watchlist-items" role="list" aria-label="Watchlist stocks">
+            <!-- Filled by JS -->
+          </div>
+        </div>
+      </div>
+
+      <!-- Market Indices Panel -->
+      <div id="market-indices-panel" class="panel">
+        <div class="panel-header">
+          <div class="panel-title"><span>📈</span> Market Indices</div>
+        </div>
+        <div class="panel-body" style="padding:10px">
+          <div id="sidebar-indices-list" class="sidebar-indices-list" role="list" aria-label="Market indices performance">
             <!-- Filled by JS -->
           </div>
         </div>

@@ -23,16 +23,30 @@ const UI = (() => {
   }
   function fmtCr(val) {
     if (!val) return 'N/A';
-    const cr = val / 1e7;
-    if (cr >= 1e5) return '₹' + (cr / 1e5).toFixed(2) + 'L Cr';
-    if (cr >= 1e3) return '₹' + (cr / 1e3).toFixed(2) + 'K Cr';
-    return '₹' + cr.toFixed(0) + ' Cr';
+    const mode = localStorage.getItem('stid_market_mode') || 'IN';
+    if (mode === 'US') {
+      const mil = val / 1e6;
+      if (mil >= 1e3) return '$' + (mil / 1e3).toFixed(2) + 'B';
+      return '$' + mil.toFixed(0) + 'M';
+    } else {
+      const cr = val / 1e7;
+      if (cr >= 1e5) return '₹' + (cr / 1e5).toFixed(2) + 'L Cr';
+      if (cr >= 1e3) return '₹' + (cr / 1e3).toFixed(2) + 'K Cr';
+      return '₹' + cr.toFixed(0) + ' Cr';
+    }
   }
   function fmtVol(val) {
     if (!val) return 'N/A';
-    if (val >= 1e7) return (val / 1e7).toFixed(2) + ' Cr';
-    if (val >= 1e5) return (val / 1e5).toFixed(2) + ' L';
-    return val.toLocaleString();
+    const mode = localStorage.getItem('stid_market_mode') || 'IN';
+    if (mode === 'US') {
+      if (val >= 1e9) return (val / 1e9).toFixed(2) + ' B';
+      if (val >= 1e6) return (val / 1e6).toFixed(2) + ' M';
+      return val.toLocaleString('en-US');
+    } else {
+      if (val >= 1e7) return (val / 1e7).toFixed(2) + ' Cr';
+      if (val >= 1e5) return (val / 1e5).toFixed(2) + ' L';
+      return val.toLocaleString('en-IN');
+    }
   }
   function fmtPct(val) {
     if (val === null || val === undefined) return 'N/A';
@@ -68,13 +82,47 @@ const UI = (() => {
   function renderMarketTickers(indices) {
     const wrap = document.getElementById('market-tickers');
     if (!wrap) return;
+    const mode = localStorage.getItem('stid_market_mode') || 'IN';
+    const fmtLoc = mode === 'US' ? 'en-US' : 'en-IN';
     wrap.innerHTML = indices.map(idx => `
       <div class="market-ticker">
         <div class="mt-name">${idx.name}</div>
-        <div class="mt-value ${colorClass(idx.change)}">${idx.price ? idx.price.toLocaleString('en-IN', { maximumFractionDigits: 0 }) : '—'}</div>
+        <div class="mt-value ${colorClass(idx.change)}">${idx.price ? idx.price.toLocaleString(fmtLoc, { maximumFractionDigits: 0 }) : '—'}</div>
         <div class="mt-change ${colorClass(idx.change)}">${fmtPct(idx.change)}</div>
       </div>
     `).join('');
+  }
+
+  // ── Market indices sidebar panel
+  function renderMarketIndicesPanel(indices) {
+    const listEl = document.getElementById('sidebar-indices-list');
+    if (!listEl) return;
+    if (!indices || indices.length === 0) {
+      listEl.innerHTML = '<div style="font-size:0.75rem;color:var(--text-muted);text-align:center;padding:10px;">No index data</div>';
+      return;
+    }
+    const mode = localStorage.getItem('stid_market_mode') || 'IN';
+    const fmtLoc = mode === 'US' ? 'en-US' : 'en-IN';
+    
+    listEl.innerHTML = indices.map(idx => {
+      const priceStr = idx.price ? idx.price.toLocaleString(fmtLoc, { maximumFractionDigits: 0 }) : '—';
+      const changeVal = idx.change || 0;
+      const changeStr = fmtPct(changeVal);
+      const rawChangeStr = idx.rawChange !== undefined ? ((idx.rawChange >= 0 ? '+' : '') + idx.rawChange.toLocaleString(fmtLoc, { maximumFractionDigits: 0 })) : '';
+      const changeClass = changeVal > 0 ? 'positive' : (changeVal < 0 ? 'negative' : 'neutral');
+      return `
+        <div class="sidebar-index-card">
+          <div class="sidebar-index-info">
+            <span class="sidebar-index-name">${idx.name}</span>
+            <span class="sidebar-index-symbol">${idx.symbol}</span>
+          </div>
+          <div class="sidebar-index-vals">
+            <span class="sidebar-index-price">${priceStr}</span>
+            <span class="sidebar-index-change ${changeClass}">${changeStr} ${rawChangeStr ? `(${rawChangeStr})` : ''}</span>
+          </div>
+        </div>
+      `;
+    }).join('');
   }
 
   // ── Fear & Greed Widget
@@ -231,6 +279,8 @@ const UI = (() => {
     const score = scores.composite.total;
     const fillColor = score >= 80 ? '#10b981' : score >= 65 ? '#22c55e' : score >= 50 ? '#f59e0b' : score >= 35 ? '#f97316' : '#ef4444';
     const initials = symbol.replace('.NS','').replace('.BO','').slice(0, 3);
+    const mode = localStorage.getItem('stid_market_mode') || 'IN';
+    const cSym = mode === 'US' ? '$' : '₹';
     return `
       <div class="watchlist-item ${isActive ? 'active' : ''} fade-in" data-symbol="${symbol}" onclick="App.selectStock('${symbol}')">
         <div class="wi-avatar">${initials}</div>
@@ -242,7 +292,7 @@ const UI = (() => {
           </div>
         </div>
         <div class="wi-right">
-          <div class="wi-price ${colorClass(quote.changePct)}">₹${fmt(quote.price, 1)}</div>
+          <div class="wi-price ${colorClass(quote.changePct)}">${cSym}${fmt(quote.price, 1)}</div>
           <div class="wi-change ${colorClass(quote.changePct)}">${fmtPct(quote.changePct)}</div>
         </div>
         <button class="wi-remove" onclick="event.stopPropagation();App.removeStock('${symbol}')" title="Remove">✕</button>
@@ -256,6 +306,8 @@ const UI = (() => {
     const { composite, fundamental, technicalSetup, momentum, sentimentFlow } = scores;
     const fillClass = Analysis.scoreFillClass(composite.total);
     const badgeClass = Analysis.scoreBadgeClass(composite.ratingClass);
+    const mode = localStorage.getItem('stid_market_mode') || 'IN';
+    const cSym = mode === 'US' ? '$' : '₹';
 
     return `
       <div class="rec-card ${composite.ratingClass} fade-in" onclick="App.selectStock('${symbol}')">
@@ -267,7 +319,7 @@ const UI = (() => {
           <div class="rating-badge ${badgeClass}">${composite.emoji} ${composite.rating}</div>
         </div>
         <div class="rc-price-row">
-          <div class="rc-price ${colorClass(quote.changePct)}">₹${fmt(quote.price, 1)}</div>
+          <div class="rc-price ${colorClass(quote.changePct)}">${cSym}${fmt(quote.price, 1)}</div>
           <div class="rc-change ${colorClass(quote.changePct)}">${fmtPct(quote.changePct)}</div>
         </div>
         <div class="rc-score-section">
@@ -306,11 +358,13 @@ const UI = (() => {
     const { symbol, name, sector, quote, scores, tradeSetup } = result;
     const { composite, fundamental, technicalSetup, momentum, sentimentFlow } = scores;
     const badgeClass = Analysis.scoreBadgeClass(composite.ratingClass);
+    const mode = localStorage.getItem('stid_market_mode') || 'IN';
+    const cSym = mode === 'US' ? '$' : '₹';
 
     document.getElementById('dh-symbol').textContent = symbol.replace('.NS','').replace('.BO','');
     document.getElementById('dh-name').textContent = name;
     document.getElementById('dh-sector').textContent = sector;
-    document.getElementById('dh-price').textContent = `₹${fmt(quote.price, 2)}`;
+    document.getElementById('dh-price').textContent = `${cSym}${fmt(quote.price, 2)}`;
     document.getElementById('dh-change').textContent = fmtPct(quote.changePct);
     document.getElementById('dh-change').className = `dh-change ${colorClass(quote.changePct)}`;
     document.getElementById('dh-change-abs').textContent = `(${fmtPct(quote.change)})`;
@@ -330,6 +384,11 @@ const UI = (() => {
   function renderFundamentals(result) {
     const { fund, scores, quote } = result;
     const f = fund;
+    const mode = localStorage.getItem('stid_market_mode') || 'IN';
+    const isUS = mode === 'US';
+    const cSym = isUS ? '$' : '₹';
+    const div = isUS ? 1e6 : 1e7;
+    const unit = isUS ? 'M' : 'Cr';
 
     const uniqueFYs = Array.from(new Set(
       result.earnings.quarterly.map(q => getFinancialYear(q.period))
@@ -339,7 +398,7 @@ const UI = (() => {
       <div class="fundamental-grid">
         ${fundCard('P/E Ratio', fmt(f.pe, 1), f.forwardPE ? `Fwd: ${fmt(f.forwardPE,1)}` : '', peColor(f.pe))}
         ${fundCard('Industry P/E', f.industryPe ? fmt(f.industryPe, 1) : 'N/A', 'Sector Average', '')}
-        ${fundCard('EPS', f.eps ? '₹' + fmt(f.eps, 2) : 'N/A', 'Trailing 12M', '')}
+        ${fundCard('EPS', f.eps ? cSym + fmt(f.eps, 2) : 'N/A', 'Trailing 12M', '')}
         ${fundCard('P/B Ratio', fmt(f.pb, 2), 'Price to Book', pbColor(f.pb))}
         ${fundCard('ROE', f.roe ? fmt(f.roe, 1) + '%' : 'N/A', 'Return on Equity', roeColor(f.roe))}
         ${fundCard('Debt/Equity', fmt(f.debtToEquity, 2), 'Leverage ratio', deColor(f.debtToEquity))}
@@ -383,7 +442,7 @@ const UI = (() => {
         <div style="overflow-x:auto">
           <table class="data-table">
             <thead><tr>
-              <th>Period</th><th>Revenue (₹ Cr)</th><th>Net Income (₹ Cr)</th><th>EPS</th><th>YoY Rev</th>
+              <th>Period</th><th>Revenue (${cSym} ${unit})</th><th>Net Income (${cSym} ${unit})</th><th>EPS</th><th>YoY Rev</th>
             </tr></thead>
             <tbody>
               ${result.earnings.quarterly.map((q, i, arr) => {
@@ -392,9 +451,9 @@ const UI = (() => {
                 const fy = getFinancialYear(q.period);
                 return `<tr class="quarter-row" data-fy="${fy}">
                   <td>${q.period}</td>
-                  <td>₹${(q.revenue/1e7).toFixed(0)}</td>
-                  <td class="${q.netIncome >= 0 ? 'pos' : 'neg'}">₹${(q.netIncome/1e7).toFixed(0)}</td>
-                  <td>${q.eps !== null ? '₹' + fmt(q.eps, 2) : 'N/A'}</td>
+                  <td>${cSym}${(q.revenue/div).toFixed(0)}</td>
+                  <td class="${q.netIncome >= 0 ? 'pos' : 'neg'}">${cSym}${(q.netIncome/div).toFixed(0)}</td>
+                  <td>${q.eps !== null ? cSym + fmt(q.eps, 2) : 'N/A'}</td>
                   <td class="${yoy !== null ? colorClass(yoy) : ''}">${yoy !== null ? fmtPct(yoy) : '—'}</td>
                 </tr>`;
               }).join('')}
@@ -408,7 +467,7 @@ const UI = (() => {
         <div style="overflow-x:auto">
           <table class="data-table">
             <thead><tr>
-              <th>Year</th><th>Revenue (₹ Cr)</th><th>Net Income (₹ Cr)</th><th>EPS</th><th>Rev Growth</th>
+              <th>Year</th><th>Revenue (${cSym} ${unit})</th><th>Net Income (${cSym} ${unit})</th><th>EPS</th><th>Rev Growth</th>
             </tr></thead>
             <tbody>
               ${result.earnings.annual.slice(0, 5).map((a, i, arr) => {
@@ -416,9 +475,9 @@ const UI = (() => {
                 const yoy = prev && prev.revenue ? ((a.revenue - prev.revenue) / prev.revenue * 100) : null;
                 return `<tr>
                   <td>${a.period}</td>
-                  <td>₹${(a.revenue/1e7).toFixed(0)}</td>
-                  <td class="${a.netIncome >= 0 ? 'pos' : 'neg'}">₹${(a.netIncome/1e7).toFixed(0)}</td>
-                  <td>${a.eps !== null ? '₹' + fmt(a.eps, 2) : 'N/A'}</td>
+                  <td>${cSym}${(a.revenue/div).toFixed(0)}</td>
+                  <td class="${a.netIncome >= 0 ? 'pos' : 'neg'}">${cSym}${(a.netIncome/div).toFixed(0)}</td>
+                  <td>${a.eps !== null ? cSym + fmt(a.eps, 2) : 'N/A'}</td>
                   <td class="${yoy !== null ? colorClass(yoy) : ''}">${yoy !== null ? fmtPct(yoy) : '—'}</td>
                 </tr>`;
               }).join('')}
@@ -520,6 +579,8 @@ const UI = (() => {
     const sr = techInds.sr || {};
     const vd = techInds.volData || {};
     const currentPrice = quote.price;
+    const mode = localStorage.getItem('stid_market_mode') || 'IN';
+    const cSym = mode === 'US' ? '$' : '₹';
 
     const trendColor = techInds.trend === 'uptrend' ? 'var(--green)' : techInds.trend === 'downtrend' ? 'var(--red)' : 'var(--yellow)';
     const trendEmoji = techInds.trend === 'uptrend' ? '📈' : techInds.trend === 'downtrend' ? '📉' : '➡️';
@@ -528,10 +589,10 @@ const UI = (() => {
       <div class="technical-grid">
         ${techIndicator('RSI (14)', fmt(momInds.rsi, 1), momInds.rsiSignal, rsiSignalClass(momInds.rsi))}
         ${techIndicator('MACD', fmt(momInds.macd, 3), momInds.macdCrossover ? '🔥 Bullish Crossover!' : momInds.macdBullish ? 'Bullish' : 'Bearish', momInds.macdBullish ? 'signal-bullish' : 'signal-bearish')}
-        ${techIndicator('SMA 20', techInds.sma20 ? '₹' + fmt(techInds.sma20, 1) : 'N/A', currentPrice > (techInds.sma20||0) ? 'Price Above ↑' : 'Price Below ↓', currentPrice > (techInds.sma20||0) ? 'signal-bullish' : 'signal-bearish')}
-        ${techIndicator('SMA 50', techInds.sma50 ? '₹' + fmt(techInds.sma50, 1) : 'N/A', currentPrice > (techInds.sma50||0) ? 'Price Above ↑' : 'Price Below ↓', currentPrice > (techInds.sma50||0) ? 'signal-bullish' : 'signal-bearish')}
-        ${techIndicator('SMA 200', techInds.sma200 ? '₹' + fmt(techInds.sma200, 1) : 'N/A', currentPrice > (techInds.sma200||0) ? 'Golden Zone ☀️' : 'Below 200 SMA', currentPrice > (techInds.sma200||0) ? 'signal-bullish' : 'signal-bearish')}
-        ${techIndicator('ATR (14)', momInds.atr ? '₹' + fmt(momInds.atr, 2) : 'N/A', 'Avg True Range (volatility)', 'signal-neutral')}
+        ${techIndicator('SMA 20', techInds.sma20 ? cSym + fmt(techInds.sma20, 1) : 'N/A', currentPrice > (techInds.sma20||0) ? 'Price Above ↑' : 'Price Below ↓', currentPrice > (techInds.sma20||0) ? 'signal-bullish' : 'signal-bearish')}
+        ${techIndicator('SMA 50', techInds.sma50 ? cSym + fmt(techInds.sma50, 1) : 'N/A', currentPrice > (techInds.sma50||0) ? 'Price Above ↑' : 'Price Below ↓', currentPrice > (techInds.sma50||0) ? 'signal-bullish' : 'signal-bearish')}
+        ${techIndicator('SMA 200', techInds.sma200 ? cSym + fmt(techInds.sma200, 1) : 'N/A', currentPrice > (techInds.sma200||0) ? 'Golden Zone ☀️' : 'Below 200 SMA', currentPrice > (techInds.sma200||0) ? 'signal-bullish' : 'signal-bearish')}
+        ${techIndicator('ATR (14)', momInds.atr ? cSym + fmt(momInds.atr, 2) : 'N/A', 'Avg True Range (volatility)', 'signal-neutral')}
         ${techIndicator('Trend', `${trendEmoji} ${techInds.trend.charAt(0).toUpperCase() + techInds.trend.slice(1)}`, 'SMA crossover analysis', techInds.trend === 'uptrend' ? 'signal-bullish' : techInds.trend === 'downtrend' ? 'signal-bearish' : 'signal-neutral')}
         ${techIndicator('Vol Ratio', `${vd.latestRatio || 1}x`, vd.accumulation ? '🏦 Accumulation Signal' : vd.distribution ? '🏦 Distribution Signal' : 'Normal Activity', vd.latestRatio > 1.5 ? 'signal-bullish' : 'signal-neutral')}
       </div>
@@ -659,10 +720,14 @@ const UI = (() => {
   }
 
   function levelItem(type, price, label, color) {
+    const isUS = (localStorage.getItem('stid_market_mode') || 'IN') === 'US';
+    const cSym = isUS ? '$' : '₹';
+    const isRatio = type.toLowerCase().includes('ratio') || type.toLowerCase().includes('r/r');
+    const displayVal = price ? (isRatio ? (typeof price === 'string' ? price : parseFloat(price).toFixed(1) + 'x') : cSym + parseFloat(price).toFixed(1)) : '—';
     return `
       <div class="level-item">
         <div class="li-type">${type}</div>
-        <div class="li-price" style="color:${color}">₹${price ? parseFloat(price).toFixed(1) : '—'}</div>
+        <div class="li-price" style="color:${color}">${displayVal}</div>
         <div class="li-label" style="color:var(--text-muted);font-size:0.68rem">${label}</div>
       </div>
     `;
@@ -995,10 +1060,12 @@ const UI = (() => {
     if (techInds.trend === 'uptrend') text += `      📈 <strong>Uptrend Intact:</strong> Price is above SMA20 & SMA50. Trend alignment is bullish — dips are buying opportunities.<br>`;
     if (sentimentFlow.score >= 18) text += `      🏦 <strong>Institutional &amp; Flows:</strong> High institutional holding or accumulation volume suggests strong smart money backing.<br>`;
 
+    const isUS = (localStorage.getItem('stid_market_mode') || 'IN') === 'US';
+    const cSym = isUS ? '$' : '₹';
     text += `<br><strong style="color:var(--text-accent)">🎯 Swing Trade Setup:</strong><br>`;
-    text += `• Entry: <strong>₹${quote.price.toFixed(2)}</strong> (current market price)<br>`;
-    text += `• Stop Loss: <strong style="color:var(--red)">₹${tradeSetup.stopLoss}</strong><br>`;
-    text += `• Target 1: <strong style="color:#22c55e">₹${tradeSetup.target1}</strong> | Target 2: <strong style="color:var(--green)">₹${tradeSetup.target2}</strong> | Target 3: <strong style="color:var(--cyan)">₹${tradeSetup.target3}</strong><br>`;
+    text += `• Entry: <strong>${cSym}${quote.price.toFixed(2)}</strong> (current market price)<br>`;
+    text += `• Stop Loss: <strong style="color:var(--red)">${cSym}${tradeSetup.stopLoss}</strong><br>`;
+    text += `• Target 1: <strong style="color:#22c55e">${cSym}${tradeSetup.target1}</strong> | Target 2: <strong style="color:var(--green)">${cSym}${tradeSetup.target2}</strong> | Target 3: <strong style="color:var(--cyan)">${cSym}${tradeSetup.target3}</strong><br>`;
     text += `• Risk/Reward Ratio: <strong style="color:${tradeSetup.riskReward >= 2 ? 'var(--green)' : 'var(--yellow)'}">${tradeSetup.riskReward}:1</strong><br>`;
 
     return text;
@@ -1141,7 +1208,7 @@ const UI = (() => {
           </div>
           <div style="text-align:right;">
             <div style="font-size:1.15rem; font-weight:700; color:${result.quote.changePct >= 0 ? 'var(--green)' : 'var(--red)'}">
-              ₹${fmt(result.quote.price, 2)}
+              ${(localStorage.getItem('stid_market_mode') || 'IN') === 'US' ? '$' : '₹'}${fmt(result.quote.price, 2)}
             </div>
             <div style="font-size:0.75rem; font-weight:600;" class="${colorClass(result.quote.changePct)}">
               ${fmtPct(result.quote.changePct)} (${result.quote.change >= 0 ? '+' : ''}${fmt(result.quote.change, 2)})
@@ -1226,7 +1293,7 @@ const UI = (() => {
   }
 
   return {
-    toast, renderMarketTickers, renderFearGreed, renderSectorHeatmap,
+    toast, renderMarketTickers, renderMarketIndicesPanel, renderFearGreed, renderSectorHeatmap,
     renderWatchlistItem, renderRecCard, renderDetailHeader,
     renderFundamentals, renderTechnicals, renderSentiment,
     renderInstitutional, renderOverview, renderSearchResults, renderInvyMessage,

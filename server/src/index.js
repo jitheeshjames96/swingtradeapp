@@ -435,6 +435,23 @@ const STOCK_CATALOG = [
   { symbol: 'OBEROIRLTY.NS', name: 'Oberoi Realty',             sector: 'Real Estate' },
 ];
 
+const STOCK_CATALOG_US = [
+  { symbol: 'AAPL',  name: 'Apple Inc.',               sector: 'Technology' },
+  { symbol: 'MSFT',  name: 'Microsoft Corp.',          sector: 'Technology' },
+  { symbol: 'GOOGL', name: 'Alphabet Inc.',            sector: 'Technology' },
+  { symbol: 'AMZN',  name: 'Amazon.com Inc.',          sector: 'Consumer' },
+  { symbol: 'TSLA',  name: 'Tesla Inc.',               sector: 'Auto' },
+  { symbol: 'NVDA',  name: 'NVIDIA Corp.',             sector: 'Technology' },
+  { symbol: 'META',  name: 'Meta Platforms Inc.',      sector: 'Technology' },
+  { symbol: 'AMD',   name: 'Advanced Micro Devices',   sector: 'Technology' },
+  { symbol: 'NFLX',  name: 'Netflix Inc.',             sector: 'Consumer' },
+  { symbol: 'WMT',   name: 'Walmart Inc.',             sector: 'Consumer' },
+  { symbol: 'JPM',   name: 'JPMorgan Chase & Co.',     sector: 'Financials' },
+  { symbol: 'V',     name: 'Visa Inc.',                sector: 'Financials' },
+  { symbol: 'DIS',   name: 'The Walt Disney Co.',      sector: 'Consumer' },
+  { symbol: 'PG',    name: 'Procter & Gamble Co.',     sector: 'Consumer' },
+  { symbol: 'HD',    name: 'Home Depot Inc.',          sector: 'Consumer' },
+];
 
 const SECTOR_MAP = [
   { name: 'Technology', symbol: 'TCS.NS',         icon: '💻' },
@@ -449,6 +466,19 @@ const SECTOR_MAP = [
   { name: 'Renewables', symbol: 'SUZLON.NS',       icon: '🌱' },
 ];
 
+const SECTOR_MAP_US = [
+  { name: 'Technology', symbol: 'XLK',    icon: '💻' },
+  { name: 'Financials', symbol: 'XLF',    icon: '🏦' },
+  { name: 'Healthcare', symbol: 'XLV',    icon: '🏥' },
+  { name: 'Energy',     symbol: 'XLE',    icon: '⚡' },
+  { name: 'Industrials',symbol: 'XLI',    icon: '🏭' },
+  { name: 'Materials',  symbol: 'XLB',    icon: '🪨' },
+  { name: 'Real Estate',symbol: 'XLRE',   icon: '🏢' },
+  { name: 'Utilities',  symbol: 'XLU',    icon: '💡' },
+  { name: 'Telecom',    symbol: 'XLC',    icon: '📡' },
+  { name: 'Renewables', symbol: 'ICLN',   icon: '🌱' },
+];
+
 function getEtfSectorName(stockSector) {
   const s = (stockSector || '').toLowerCase();
   if (s === 'it' || s.includes('tech') || s.includes('semiconductor') || s.includes('social') || s.includes('streaming') || s.includes('e-commerce') || s.includes('consumer tech')) {
@@ -460,13 +490,13 @@ function getEtfSectorName(stockSector) {
   if (s.includes('pharma') || s.includes('health')) {
     return 'Healthcare';
   }
-  if (s.includes('renewable') || s.includes('wind') || s.includes('solar') || s.includes('green energy')) {
+  if (s.includes('renewable') || s.includes('wind') || s.includes('solar') || s.includes('green energy') || s.includes('clean energy')) {
     return 'Renewables';
   }
   if (s.includes('energy')) {
     return 'Energy';
   }
-  if (s.includes('telecom') || s.includes('telco') || s.includes('telecom')) {
+  if (s.includes('telecom') || s.includes('telco') || s.includes('telecommunications')) {
     return 'Telecom';
   }
   if (s.includes('auto') || s.includes('engineer') || s.includes('conglomerate') || s.includes('industrial')) {
@@ -484,23 +514,65 @@ function getEtfSectorName(stockSector) {
   return '';
 }
 
+function guessSector(symbol, name) {
+  const s = ((symbol || '') + ' ' + (name || '')).toLowerCase();
+  if (s.includes('bank') || s.includes('nbfc') || s.includes('financial') || s.includes('finance') || s.includes('insurance') || s.includes('capital') || s.includes('investment') || s.includes('credit') || s.includes('fintech') || s.includes('wealth') || s.includes('holding') || s.includes('mutual')) {
+    return 'Financials';
+  }
+  if (s.includes('pharma') || s.includes('health') || s.includes('hospital') || s.includes('biotech') || s.includes('life sciences') || s.includes('diagnostics') || s.includes('labs') || s.includes('clinic')) {
+    return 'Healthcare';
+  }
+  if (s.includes('software') || s.includes('technologies') || s.includes('tech') || s.includes('systems') || s.includes('digital') || s.includes('consultancy') || s.includes('infosys') || s.includes('computers') || s.includes('semiconductor') || s.includes('cyber')) {
+    return 'Technology';
+  }
+  if (s.includes('wind') || s.includes('solar') || s.includes('renewable') || s.includes('green energy') || s.includes('suzlon') || s.includes('clean energy')) {
+    return 'Renewables';
+  }
+  if (s.includes('power') || s.includes('grid') || s.includes('ntpc') || s.includes('electricity') || s.includes('utility') || s.includes('utilities')) {
+    return 'Utilities';
+  }
+  if (s.includes('energy') || s.includes('petroleum') || s.includes('oil') || s.includes('gas') || s.includes('coal') || s.includes('fuel') || s.includes('refinery') || s.includes('ongc') || s.includes('bpcl') || s.includes('hpcl') || s.includes('iocl')) {
+    return 'Energy';
+  }
+  if (s.includes('steel') || s.includes('metal') || s.includes('iron') || s.includes('aluminum') || s.includes('zinc') || s.includes('copper') || s.includes('sail') || s.includes('jsw') || s.includes('hindalco') || s.includes('vedanta') || s.includes('cement') || s.includes('ultratech') || s.includes('grasim') || s.includes('materials') || s.includes('paints') || s.includes('chemicals') || s.includes('industries') || s.includes('pidilite')) {
+    return 'Materials';
+  }
+  if (s.includes('telecommunication') || s.includes('telecom') || s.includes('airtel') || s.includes('communications') || s.includes('mobile') || s.includes('network') || s.includes('broadband')) {
+    return 'Telecom';
+  }
+  if (s.includes('realty') || s.includes('estate') || s.includes('dlf') || s.includes('property') || s.includes('properties') || s.includes('infra') || s.includes('construction') || s.includes('developer')) {
+    return 'Real Estate';
+  }
+  if (s.includes('motors') || s.includes('auto') || s.includes('automobile') || s.includes('maruti') || s.includes('suzuki') || s.includes('eicher') || s.includes('mahindra') || s.includes('tatamotors') || s.includes('automotive')) {
+    return 'Auto';
+  }
+  if (s.includes('retail') || s.includes('trent') || s.includes('titan') || s.includes('britannia') || s.includes('unilever') || s.includes('nestle') || s.includes('fmcg') || s.includes('foods') || s.includes('beverages') || s.includes('hotel') || s.includes('hotels') || s.includes('consumer') || s.includes('zomato') || s.includes('swiggy') || s.includes('e-commerce')) {
+    return 'Consumer';
+  }
+  return 'Industrials';
+}
+
 /**
  * Route: Market Summary (Sector leaders, Gainers/Losers from all catalog stocks)
  */
 app.get('/api/market-summary', authMiddleware, async (req, res) => {
-  const cacheKey = 'market_summary';
+  const market = (req.query.market || 'IN').toUpperCase();
+  const cacheKey = `market_summary_${market}`;
   const cachedData = appCache.get(cacheKey);
   if (cachedData) {
     return res.json(cachedData);
   }
 
   try {
-    const symbols = STOCK_CATALOG.map(s => s.symbol);
+    const catalog = market === 'US' ? STOCK_CATALOG_US : STOCK_CATALOG;
+    const sectorMap = market === 'US' ? SECTOR_MAP_US : SECTOR_MAP;
+
+    const symbols = catalog.map(s => s.symbol);
     const quotes = await scraper.fetchQuotes(symbols);
 
     // Map quotes back to catalog items with names and sectors
     const enrichedQuotes = quotes.map(q => {
-      const catItem = STOCK_CATALOG.find(s => s.symbol === q.symbol);
+      const catItem = catalog.find(s => s.symbol === q.symbol);
       return {
         ...q,
         name: catItem ? catItem.name : q.longName || q.symbol,
@@ -532,7 +604,7 @@ app.get('/api/market-summary', authMiddleware, async (req, res) => {
 
     // 3. Group by Sector and compute top 5 Gainers & Losers per sector
     const sectors = [];
-    for (const etf of SECTOR_MAP) {
+    for (const etf of sectorMap) {
       const sectorStocks = enrichedQuotes.filter(q => getEtfSectorName(q.sector) === etf.name);
       
       let sectorGainers = [];
@@ -599,19 +671,30 @@ app.get('/api/market-summary', authMiddleware, async (req, res) => {
  * Route: Market indices & Fear/Greed Index
  */
 app.get('/api/market-pulse', authMiddleware, async (req, res) => {
-  // Log request to database
-  const email = req.user?.email || 'unknown';
-  await logToDatabase(email, 'market-pulse', null, 'Market pulse requested');
-
-  const cacheKey = 'market_pulse';
+  const market = (req.query.market || 'IN').toUpperCase();
+  const cacheKey = `market_pulse_${market}`;
   const cachedData = appCache.get(cacheKey);
   if (cachedData) {
     return res.json(cachedData);
   }
 
+  // Log request to database
+  const email = req.user?.email || 'unknown';
+  await logToDatabase(email, 'market-pulse', null, `Market pulse requested for ${market}`);
+
   try {
-    // Fetch indices (Nifty, Sensex, BankNifty) from Yahoo chart endpoints
-    const indicesSymbols = ['^NSEI', '^BSESN', '^NSEBANK'];
+    // Select indices based on market
+    const indicesList = market === 'US' ? [
+      { name: 'S&P 500',   symbol: '^GSPC' },
+      { name: 'NASDAQ',    symbol: '^IXIC' },
+      { name: 'DOW JONES', symbol: '^DJI' }
+    ] : [
+      { name: 'NIFTY 50',   symbol: '^NSEI' },
+      { name: 'SENSEX',     symbol: '^BSESN' },
+      { name: 'BANK NIFTY', symbol: '^NSEBANK' }
+    ];
+
+    const indicesSymbols = indicesList.map(idx => idx.symbol);
     const indicesPromises = indicesSymbols.map(async (sym) => {
       try {
         const url = `https://query1.finance.yahoo.com/v8/finance/chart/${sym}?interval=1d&range=1d`;
@@ -621,7 +704,14 @@ app.get('/api/market-pulse', authMiddleware, async (req, res) => {
         const prev = meta.chartPreviousClose || meta.previousClose || price;
         const change = price - prev;
         const changePct = prev ? (change / prev * 100) : 0;
-        const nameMap = { '^NSEI': 'NIFTY 50', '^BSESN': 'SENSEX', '^NSEBANK': 'BANK NIFTY' };
+        const nameMap = { 
+          '^NSEI': 'NIFTY 50', 
+          '^BSESN': 'SENSEX', 
+          '^NSEBANK': 'BANK NIFTY',
+          '^GSPC': 'S&P 500',
+          '^IXIC': 'NASDAQ',
+          '^DJI': 'DOW JONES'
+        };
         return {
           symbol: sym,
           name: nameMap[sym] || sym,
@@ -657,6 +747,42 @@ app.get('/api/market-pulse', authMiddleware, async (req, res) => {
 
   } catch (error) {
     res.status(500).json({ error: 'Failed to retrieve market pulse', details: error.message });
+  }
+});
+
+/**
+ * Route: Live Stock Search (Yahoo Finance search endpoint)
+ */
+app.get('/api/search', authMiddleware, async (req, res) => {
+  const query = (req.query.q || '').trim();
+  if (!query) {
+    return res.json([]);
+  }
+
+  try {
+    const url = `https://query1.finance.yahoo.com/v1/finance/search?q=${encodeURIComponent(query)}&newsCount=0`;
+    const response = await axios.get(url, { headers: { 'User-Agent': 'Mozilla/5.0' } });
+    
+    if (response.data && response.data.quotes) {
+      const results = response.data.quotes
+        .filter(q => q.quoteType === 'EQUITY' || q.quoteType === 'INDEX')
+        .slice(0, 8)
+        .map(q => {
+          const name = q.longname || q.shortname || q.symbol;
+          const guessedSector = guessSector(q.symbol, name);
+          return {
+            symbol: q.symbol,
+            name: name,
+            sector: guessedSector
+          };
+        });
+      return res.json(results);
+    }
+    
+    return res.json([]);
+  } catch (err) {
+    console.error(`Search error for query "${query}":`, err.message);
+    return res.status(500).json({ error: 'Failed to search stocks' });
   }
 });
 
@@ -728,8 +854,130 @@ app.get('/api/news', authMiddleware, async (req, res) => {
 function generateDetailedFallbackReport(currentStockContext, userMessage) {
   const msg = (userMessage || '').toLowerCase();
   
+  if (currentStockContext?.symbol) {
+    const symbol = currentStockContext.symbol;
+    const name = currentStockContext.name || symbol;
+    const quote = currentStockContext.quote || {};
+    const scores = currentStockContext.scores || {};
+    const tradeSetup = currentStockContext.tradeSetup || {};
+    const composite = scores.composite || { total: 0, rating: 'N/A', emoji: '⚪' };
+    const checklist = scores.checklist || [];
+    const passedChecks = checklist.filter(c => c.passed).length;
+    const totalChecks = checklist.length || 12;
+    const winChance = Math.round(35 + (passedChecks / totalChecks) * 50);
+    const peVal = scores.fundamental?.checklist?.[0]?.value || 'N/A';
+    const growthVal = scores.fundamental?.checklist?.[1]?.value || 'N/A';
+    const debtVal = scores.fundamental?.checklist?.[2]?.value || 'N/A';
+    const trendVal = scores.technicalSetup?.checklist?.[0]?.value || 'N/A';
+    const rsiVal = scores.momentum?.checklist?.[0]?.value || 'N/A';
+    const macdVal = scores.momentum?.checklist?.[1]?.value || 'N/A';
+    const flowVal = scores.sentimentFlow?.checklist?.[0]?.value || 'N/A';
+    const fgVal = scores.sentimentFlow?.checklist?.[1]?.value || 'N/A';
+    const formatPrice = (p) => typeof p === 'number' ? '₹' + p.toLocaleString('en-IN', { minimumFractionDigits: 2 }) : 'N/A';
+    const price = quote.price || 0;
+
+    const s1 = tradeSetup.indicators?.sr?.s1 || null;
+    const r1 = tradeSetup.indicators?.sr?.r1 || null;
+
+    let ratingJustification = '';
+    if (composite.total >= 80) {
+      ratingJustification = `Strong buy rating is justified by a robust combination of exceptional fundamentals, clear technical breakout above key moving averages, and high institutional volume accumulation.`;
+    } else if (composite.total >= 65) {
+      ratingJustification = `Buy rating is supported by a healthy primary uptrend and solid core financials, though wait for key levels or minor cooling of indicators for optimal risk-to-reward.`;
+    } else if (composite.total >= 50) {
+      ratingJustification = `Watch rating is due to range-bound price action and consolidation. Momentum indicators (RSI/MACD) are flat. Conserve capital until a clear direction is established.`;
+    } else {
+      ratingJustification = `Avoid rating due to weak fundamentals (high debt/declining margins), severe technical markdown structure, or heavy smart-money distribution.`;
+    }
+
+    if (msg.includes('rsi')) {
+      return `[AGENT STATUS: COMPLETED]
+[DECISION LOG]
+- Active Stock: ${name} (${symbol})
+- Metric: Relative Strength Index (RSI)
+- Current RSI Value: ${rsiVal}
+
+[ANALYSIS LOG]
+- The current RSI for ${symbol} is ${rsiVal}.
+- In swing trading, RSI below 30 is oversold, while RSI 45-65 represents bullish momentum acceleration.
+- Current Interpretation: ${symbol}'s RSI is in the ${parseFloat(rsiVal) < 30 ? 'OVERSOLD zone, indicating a possible reversal.' : parseFloat(rsiVal) > 70 ? 'OVERBOUGHT zone, indicating short-term pullback risk.' : 'neutral momentum sweet spot, favorable for trend continuation.'}
+- Rationale: ${ratingJustification}`;
+    }
+
+    if (msg.includes('macd')) {
+      return `[AGENT STATUS: COMPLETED]
+[DECISION LOG]
+- Active Stock: ${name} (${symbol})
+- Metric: Moving Average Convergence Divergence (MACD)
+- Current MACD Value: ${macdVal}
+
+[ANALYSIS LOG]
+- The current MACD status for ${symbol} is: ${macdVal}.
+- A bullish MACD crossover occurs when the MACD line crosses above the signal line.
+- Current Interpretation: ${macdVal.toLowerCase().includes('bullish') || macdVal.toLowerCase().includes('above') ? 'Bullish crossover confirmed. Momentum is accelerating upward.' : 'Bearish or flat crossover. Exercise caution before entry.'}
+- Rationale: ${ratingJustification}`;
+    }
+
+    if (msg.includes('stop loss') || msg.includes('stoploss') || (msg.includes('sl') && msg.length < 20) || msg.includes('risk')) {
+      return `[AGENT STATUS: COMPLETED]
+[DECISION LOG]
+- Active Stock: ${name} (${symbol})
+- Metric: Risk Parameters (Stop Loss & Target)
+- Target SL: ${formatPrice(tradeSetup.stopLoss)}
+
+[ANALYSIS LOG]
+- For ${symbol}, the calculated stop loss is placed at ${formatPrice(tradeSetup.stopLoss)}.
+- Upside targets: T1: ${formatPrice(tradeSetup.target1)} | T2: ${formatPrice(tradeSetup.target2)} | T3: ${formatPrice(tradeSetup.target3)}.
+- Win Probability: ${winChance}% with a Risk/Reward ratio of 1:${tradeSetup.riskReward || 0}.
+- Always strictly respect the stop loss to protect trading capital.`;
+    }
+
+    if (msg.includes('pe ratio') || msg.includes('p/e') || msg.includes('pe') || msg.includes('fundamental') || msg.includes('valuation') || msg.includes('debt')) {
+      return `[AGENT STATUS: COMPLETED]
+[DECISION LOG]
+- Active Stock: ${name} (${symbol})
+- Metric: Fundamental Valuation (P/E & Debt)
+- Current P/E: ${peVal}
+
+[ANALYSIS LOG]
+- ${symbol}'s current P/E Ratio is ${peVal}.
+- Debt-to-Equity is assessed at ${debtVal}, and YoY Growth is ${growthVal}.
+- Pillar Score: Fundamentals: ${scores.fundamental?.score || 0}/25.
+- Valuation context: ${parseFloat(peVal) < 20 ? 'Under-valued / Cheap' : parseFloat(peVal) > 45 ? 'Over-valued / Expensive' : 'Reasonable / Fairly valued'} compared to industry averages.`;
+    }
+
+    // Default stock-specific response:
+    let entryZone = '';
+    if (composite.total >= 80) {
+      const entryMin = s1 ? Math.min(price, s1) : price * 0.98;
+      const entryMax = price * 1.01;
+      entryZone = `₹${entryMin.toFixed(2)} - ₹${entryMax.toFixed(2)} (Accumulate on minor pullbacks to support S1 at ₹${s1 || 'support'} or 20 EMA, or on breakout above R1 at ₹${r1 || 'resistance'})`;
+    } else if (composite.total >= 65) {
+      const entryMin = s1 ? s1 : price * 0.97;
+      entryZone = `₹${entryMin.toFixed(2)} - ₹${price.toFixed(2)} (Optimal entry on minor pullbacks towards support S1 at ₹${s1 || 'support'} or the 50 SMA)`;
+    } else if (composite.total >= 50) {
+      entryZone = `Wait for breakout above ₹${r1 ? r1.toFixed(2) : 'R1'} or pullback to ₹${s1 ? s1.toFixed(2) : 'S1'}`;
+    } else {
+      entryZone = `N/A (Not suitable for long swing trades)`;
+    }
+
+    return `[AGENT STATUS: COMPLETED]
+[DECISION LOG]
+- Verdict: ${composite.rating || 'N/A'}
+- Score: ${composite.total || 0}/100
+- Entry Trigger: ${entryZone}
+- Stop Loss: ${formatPrice(tradeSetup.stopLoss)}
+- Targets: T1: ${formatPrice(tradeSetup.target1)} | T2: ${formatPrice(tradeSetup.target2)} | T3: ${formatPrice(tradeSetup.target3)}
+
+[ANALYSIS LOG]
+- Active symbol is ${name} (${symbol}) at price ${formatPrice(quote.price)} (${(quote.changePct || 0) >= 0 ? '+' : ''}${(quote.changePct || 0).toFixed(2)}%).
+- Pillar scores: Fundamentals: ${scores.fundamental?.score || 0}/25 (P/E: ${peVal}, Growth: ${growthVal}), Technicals: ${scores.technicalSetup?.score || 0}/25 (Trend: ${trendVal}), Momentum: ${scores.momentum?.score || 0}/25 (RSI: ${rsiVal}, MACD: ${macdVal}), Sentiment: ${scores.sentimentFlow?.score || 0}/25 (Flows: ${flowVal}).
+- Win Probability: ${winChance}%, Risk/Reward: 1:${tradeSetup.riskReward || 0}.
+- Rationale: ${ratingJustification}`;
+  }
+
   // ── Greeting / intro
-  if (!currentStockContext?.symbol && (!msg || msg.match(/^(hi|hello|hey|greet|start|help|what can you do)/))) {
+  if (!msg || msg.match(/^(hi|hello|hey|greet|start|help|what can you do)/)) {
     return `[AGENT STATUS: COMPLETED]
 [DECISION LOG]
 - Terminal status: Online and ready.
@@ -845,8 +1093,7 @@ function generateDetailedFallbackReport(currentStockContext, userMessage) {
   
   // ── Score / rating questions
   if (msg.includes('score') || msg.includes('rating') || msg.includes('how is') || msg.includes('analysis')) {
-    if (!currentStockContext?.symbol) {
-      return `[AGENT STATUS: COMPLETED]
+    return `[AGENT STATUS: COMPLETED]
 [DECISION LOG]
 - Subject: Scoring Architecture (0-100 scale)
 - Rating scale: 🟢 Strong Buy (≥80) | 🟡 Buy (65-79) | 🟠 Hold/Watch (50-64) | 🔴 Avoid (<50)
@@ -856,7 +1103,6 @@ function generateDetailedFallbackReport(currentStockContext, userMessage) {
 - Technical Setup: Weighted 25% (moving averages, support levels).
 - Momentum: Weighted 25% (RSI, MACD crossover, volume).
 - Sentiment & Flows: Weighted 25% (news sentiment, Fear & Greed).`;
-    }
   }
   
   // ── General trading / strategy questions
@@ -874,67 +1120,6 @@ function generateDetailedFallbackReport(currentStockContext, userMessage) {
 - Context: Optimal results occur when Fear & Greed lies in the 30-60 zone.`;
   }
   
-  // ── Stock-specific report
-  if (currentStockContext?.symbol) {
-    const symbol = currentStockContext.symbol;
-    const name = currentStockContext.name || symbol;
-    const quote = currentStockContext.quote || {};
-    const scores = currentStockContext.scores || {};
-    const tradeSetup = currentStockContext.tradeSetup || {};
-    const composite = scores.composite || { total: 0, rating: 'N/A', emoji: '⚪' };
-    const checklist = scores.checklist || [];
-    const passedChecks = checklist.filter(c => c.passed).length;
-    const totalChecks = checklist.length || 12;
-    const winChance = Math.round(35 + (passedChecks / totalChecks) * 50);
-    const peVal = scores.fundamental?.checklist?.[0]?.value || 'N/A';
-    const growthVal = scores.fundamental?.checklist?.[1]?.value || 'N/A';
-    const debtVal = scores.fundamental?.checklist?.[2]?.value || 'N/A';
-    const trendVal = scores.technicalSetup?.checklist?.[0]?.value || 'N/A';
-    const rsiVal = scores.momentum?.checklist?.[0]?.value || 'N/A';
-    const macdVal = scores.momentum?.checklist?.[1]?.value || 'N/A';
-    const flowVal = scores.sentimentFlow?.checklist?.[0]?.value || 'N/A';
-    const fgVal = scores.sentimentFlow?.checklist?.[1]?.value || 'N/A';
-    const formatPrice = (p) => typeof p === 'number' ? '₹' + p.toLocaleString('en-IN', { minimumFractionDigits: 2 }) : 'N/A';
-
-    const s1 = tradeSetup.indicators?.sr?.s1 || null;
-    const r1 = tradeSetup.indicators?.sr?.r1 || null;
-    const price = quote.price || 0;
-
-    let entryZone = '';
-    let ratingJustification = '';
-
-    if (composite.total >= 80) {
-      const entryMin = s1 ? Math.min(price, s1) : price * 0.98;
-      const entryMax = price * 1.01;
-      entryZone = `₹${entryMin.toFixed(2)} - ₹${entryMax.toFixed(2)} (Accumulate on minor pullbacks to support S1 at ₹${s1 || 'support'} or 20 EMA, or on breakout above R1 at ₹${r1 || 'resistance'})`;
-      ratingJustification = `Strong buy rating is justified by a robust combination of exceptional fundamentals, clear technical breakout above key moving averages, and high institutional volume accumulation.`;
-    } else if (composite.total >= 65) {
-      const entryMin = s1 ? s1 : price * 0.97;
-      entryZone = `₹${entryMin.toFixed(2)} - ₹${price.toFixed(2)} (Optimal entry on minor pullbacks towards support S1 at ₹${s1 || 'support'} or the 50 SMA)`;
-      ratingJustification = `Buy rating is supported by a healthy primary uptrend and solid core financials, though wait for key levels or minor cooling of indicators for optimal risk-to-reward.`;
-    } else if (composite.total >= 50) {
-      entryZone = `Wait for breakout above ₹${r1 ? r1.toFixed(2) : 'R1'} or pullback to ₹${s1 ? s1.toFixed(2) : 'S1'}`;
-      ratingJustification = `Watch rating is due to range-bound price action and consolidation. Momentum indicators (RSI/MACD) are flat. Conserve capital until a clear direction is established.`;
-    } else {
-      entryZone = `N/A (Not suitable for long swing trades)`;
-      ratingJustification = `Avoid rating due to weak fundamentals (high debt/declining margins), severe technical markdown structure, or heavy smart-money distribution.`;
-    }
-
-    return `[AGENT STATUS: COMPLETED]
-[DECISION LOG]
-- Verdict: ${composite.rating || 'N/A'}
-- Score: ${composite.total || 0}/100
-- Entry Trigger: ${entryZone}
-- Stop Loss: ${formatPrice(tradeSetup.stopLoss)}
-- Targets: T1: ${formatPrice(tradeSetup.target1)} | T2: ${formatPrice(tradeSetup.target2)} | T3: ${formatPrice(tradeSetup.target3)}
-
-[ANALYSIS LOG]
-- Active symbol is ${name} (${symbol}) at price ${formatPrice(quote.price)} (${(quote.changePct || 0) >= 0 ? '+' : ''}${(quote.changePct || 0).toFixed(2)}%).
-- Pillar scores: Fundamentals: ${scores.fundamental?.score || 0}/25 (P/E: ${peVal}, Growth: ${growthVal}), Technicals: ${scores.technicalSetup?.score || 0}/25 (Trend: ${trendVal}), Momentum: ${scores.momentum?.score || 0}/25 (RSI: ${rsiVal}, MACD: ${macdVal}), Sentiment: ${scores.sentimentFlow?.score || 0}/25 (Flows: ${flowVal}).
-- Win Probability: ${winChance}%, Risk/Reward: 1:${tradeSetup.riskReward || 0}.
-- Rationale: ${ratingJustification}`;
-  }
-
   // ── Default catch-all
   return `[AGENT STATUS: COMPLETED]
 [DECISION LOG]

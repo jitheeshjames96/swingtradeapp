@@ -86,6 +86,11 @@ async function authMiddleware(req, res, next) {
   }
 
   const idToken = authHeader.split(' ')[1];
+  if (idToken === 'DEMO_BYPASS') {
+    req.user = { email: 'demo@guest.com' };
+    return next();
+  }
+
   try {
     const payload = await verifyGoogleToken(idToken);
     if (!payload) {
@@ -359,98 +364,132 @@ app.get('/api/analyze', authMiddleware, async (req, res) => {
  * STOCK_CATALOG & SECTOR_MAP for backend market summary
  */
 const STOCK_CATALOG = [
-  // ── Banking & Finance ──
-  { symbol: 'HDFCBANK.NS',   name: 'HDFC Bank',                 sector: 'Banking' },
-  { symbol: 'ICICIBANK.NS',  name: 'ICICI Bank',                sector: 'Banking' },
-  { symbol: 'SBIN.NS',       name: 'State Bank of India',       sector: 'Banking' },
-  { symbol: 'KOTAKBANK.NS',  name: 'Kotak Mahindra Bank',       sector: 'Banking' },
-  { symbol: 'AXISBANK.NS',   name: 'Axis Bank',                 sector: 'Banking' },
-  { symbol: 'INDUSINDBK.NS', name: 'IndusInd Bank',             sector: 'Banking' },
-  { symbol: 'BANKBARODA.NS', name: 'Bank of Baroda',            sector: 'Banking' },
-  { symbol: 'PNB.NS',        name: 'Punjab National Bank',      sector: 'Banking' },
-  { symbol: 'CANBK.NS',      name: 'Canara Bank',               sector: 'Banking' },
-  { symbol: 'BAJFINANCE.NS', name: 'Bajaj Finance',             sector: 'NBFC' },
-  { symbol: 'BAJAJFINSV.NS', name: 'Bajaj Finserv',             sector: 'NBFC' },
-  // ── IT & Technology ──
-  { symbol: 'TCS.NS',        name: 'Tata Consultancy Services', sector: 'IT' },
-  { symbol: 'INFY.NS',       name: 'Infosys Ltd',               sector: 'IT' },
-  { symbol: 'WIPRO.NS',      name: 'Wipro Ltd',                 sector: 'IT' },
-  { symbol: 'HCLTECH.NS',    name: 'HCL Technologies',          sector: 'IT' },
-  { symbol: 'TECHM.NS',      name: 'Tech Mahindra',             sector: 'IT' },
-  { symbol: 'LTIM.NS',       name: 'LTIMindtree',               sector: 'IT' },
-  { symbol: 'MPHASIS.NS',    name: 'Mphasis Ltd',               sector: 'IT' },
-  // ── Pharma & Healthcare ──
-  { symbol: 'SUNPHARMA.NS',  name: 'Sun Pharmaceutical',        sector: 'Pharma' },
-  { symbol: 'DRREDDY.NS',    name: "Dr. Reddy's Laboratories",  sector: 'Pharma' },
-  { symbol: 'CIPLA.NS',      name: 'Cipla Ltd',                 sector: 'Pharma' },
-  { symbol: 'DIVISLAB.NS',   name: "Divi's Laboratories",       sector: 'Pharma' },
-  { symbol: 'APOLLOHOSP.NS', name: 'Apollo Hospitals',          sector: 'Healthcare' },
-  { symbol: 'ZYDUSLIFE.NS',  name: 'Zydus Lifesciences',        sector: 'Pharma' },
-  { symbol: 'BIOCON.NS',     name: 'Biocon Ltd',                sector: 'Pharma' },
-  // ── FMCG & Consumer ──
-  { symbol: 'HINDUNILVR.NS', name: 'Hindustan Unilever',        sector: 'FMCG' },
-  { symbol: 'NESTLEIND.NS',  name: 'Nestle India',              sector: 'FMCG' },
-  { symbol: 'BRITANNIA.NS',  name: 'Britannia Industries',      sector: 'FMCG' },
-  { symbol: 'TITAN.NS',      name: 'Titan Company',             sector: 'Consumer' },
-  { symbol: 'TRENT.NS',      name: 'Trent Ltd',                 sector: 'Consumer' },
-  { symbol: 'ETERNAL.NS',    name: 'Eternal Limited (Zomato)',  sector: 'Consumer Tech' },
-  { symbol: 'IRCTC.NS',      name: 'IRCTC',                     sector: 'Consumer' },
-  // ── Auto ──
-  { symbol: 'MARUTI.NS',     name: 'Maruti Suzuki',             sector: 'Auto' },
-  { symbol: 'EICHERMOT.NS',  name: 'Eicher Motors',             sector: 'Auto' },
-  { symbol: 'HEROMOTOCO.NS', name: 'Hero MotoCorp',             sector: 'Auto' },
-  { symbol: 'MAHINDM.NS',    name: 'Mahindra & Mahindra',       sector: 'Auto' },
-  // ── Metals & Materials ──
-  { symbol: 'TATASTEEL.NS',  name: 'Tata Steel',                sector: 'Metals' },
-  { symbol: 'JSWSTEEL.NS',   name: 'JSW Steel',                 sector: 'Metals' },
-  { symbol: 'HINDALCO.NS',   name: 'Hindalco Industries',       sector: 'Metals' },
-  { symbol: 'VEDL.NS',       name: 'Vedanta Ltd',               sector: 'Metals' },
-  { symbol: 'SAIL.NS',       name: 'Steel Authority of India',  sector: 'Metals' },
-  { symbol: 'ULTRACEMCO.NS', name: 'UltraTech Cement',          sector: 'Cement' },
-  { symbol: 'GRASIM.NS',     name: 'Grasim Industries',         sector: 'Cement' },
-  { symbol: 'ASIANPAINT.NS', name: 'Asian Paints',              sector: 'Materials' },
-  { symbol: 'PIDILITIND.NS', name: 'Pidilite Industries',       sector: 'Materials' },
-  // ── Energy ──
-  { symbol: 'RELIANCE.NS',   name: 'Reliance Industries',       sector: 'Energy' },
-  { symbol: 'ONGC.NS',       name: 'Oil & Natural Gas Corp',    sector: 'Energy' },
-  { symbol: 'COALINDIA.NS',  name: 'Coal India',                sector: 'Energy' },
-  { symbol: 'BPCL.NS',       name: 'Bharat Petroleum',          sector: 'Energy' },
-  { symbol: 'SUZLON.NS',     name: 'Suzlon Energy',             sector: 'Renewables' },
-  // ── Engineering & Industrials ──
-  { symbol: 'LT.NS',         name: 'Larsen & Toubro',           sector: 'Engineering' },
-  { symbol: 'SIEMENS.NS',    name: 'Siemens India',             sector: 'Engineering' },
-  { symbol: 'ABB.NS',        name: 'ABB India',                 sector: 'Engineering' },
-  { symbol: 'ADANIENT.NS',   name: 'Adani Enterprises',         sector: 'Conglomerate' },
-  { symbol: 'ADANIPORTS.NS', name: 'Adani Ports',               sector: 'Industrials' },
-  { symbol: 'HAVELLS.NS',    name: 'Havells India',             sector: 'Industrials' },
-  { symbol: 'VOLTAS.NS',     name: 'Voltas Ltd',                sector: 'Industrials' },
-  // ── Utilities ──
-  { symbol: 'POWERGRID.NS',  name: 'Power Grid Corp',           sector: 'Utilities' },
-  { symbol: 'NTPC.NS',       name: 'NTPC Ltd',                  sector: 'Utilities' },
-  { symbol: 'TATAPOWER.NS',  name: 'Tata Power',                sector: 'Utilities' },
-  // ── Telecom ──
-  { symbol: 'BHARTIARTL.NS', name: 'Bharti Airtel',             sector: 'Telecom' },
-  // ── Real Estate ──
-  { symbol: 'DLF.NS',        name: 'DLF Limited',               sector: 'Real Estate' },
-  { symbol: 'OBEROIRLTY.NS', name: 'Oberoi Realty',             sector: 'Real Estate' },
+  // ── Large Cap ──
+  { symbol: 'RELIANCE.NS',   name: 'Reliance Industries',       sector: 'Energy', cap: 'large' },
+  { symbol: 'TCS.NS',        name: 'Tata Consultancy Services', sector: 'IT', cap: 'large' },
+  { symbol: 'INFY.NS',       name: 'Infosys Ltd',               sector: 'IT', cap: 'large' },
+  { symbol: 'HDFCBANK.NS',   name: 'HDFC Bank',                 sector: 'Banking', cap: 'large' },
+  { symbol: 'ICICIBANK.NS',  name: 'ICICI Bank',                sector: 'Banking', cap: 'large' },
+  { symbol: 'SBIN.NS',       name: 'State Bank of India',       sector: 'Banking', cap: 'large' },
+  { symbol: 'KOTAKBANK.NS',  name: 'Kotak Mahindra Bank',       sector: 'Banking', cap: 'large' },
+  { symbol: 'AXISBANK.NS',   name: 'Axis Bank',                 sector: 'Banking', cap: 'large' },
+  { symbol: 'BAJFINANCE.NS', name: 'Bajaj Finance',             sector: 'NBFC', cap: 'large' },
+  { symbol: 'WIPRO.NS',      name: 'Wipro Ltd',                 sector: 'IT', cap: 'large' },
+  { symbol: 'HCLTECH.NS',    name: 'HCL Technologies',          sector: 'IT', cap: 'large' },
+  { symbol: 'TECHM.NS',      name: 'Tech Mahindra',             sector: 'IT', cap: 'large' },
+  { symbol: 'LTIM.NS',       name: 'LTIMindtree',               sector: 'IT', cap: 'large' },
+  { symbol: 'LT.NS',         name: 'Larsen & Toubro',           sector: 'Engineering', cap: 'large' },
+  { symbol: 'SIEMENS.NS',    name: 'Siemens India',             sector: 'Engineering', cap: 'large' },
+  { symbol: 'SUNPHARMA.NS',  name: 'Sun Pharmaceutical',        sector: 'Pharma', cap: 'large' },
+  { symbol: 'DRREDDY.NS',    name: "Dr. Reddy's Laboratories",  sector: 'Pharma', cap: 'large' },
+  { symbol: 'CIPLA.NS',      name: 'Cipla Ltd',                 sector: 'Pharma', cap: 'large' },
+  { symbol: 'DIVISLAB.NS',   name: "Divi's Laboratories",       sector: 'Pharma', cap: 'large' },
+  { symbol: 'APOLLOHOSP.NS', name: 'Apollo Hospitals',          sector: 'Healthcare', cap: 'large' },
+  { symbol: 'HINDUNILVR.NS', name: 'Hindustan Unilever',        sector: 'FMCG', cap: 'large' },
+  { symbol: 'NESTLEIND.NS',  name: 'Nestle India',              sector: 'FMCG', cap: 'large' },
+  { symbol: 'TITAN.NS',      name: 'Titan Company',             sector: 'Consumer', cap: 'large' },
+  { symbol: 'MARUTI.NS',     name: 'Maruti Suzuki',             sector: 'Auto', cap: 'large' },
+  { symbol: 'M&M.NS',        name: 'Mahindra & Mahindra',       sector: 'Auto', cap: 'large' },
+  { symbol: 'TATASTEEL.NS',  name: 'Tata Steel',                sector: 'Metals', cap: 'large' },
+  { symbol: 'JSWSTEEL.NS',   name: 'JSW Steel',                 sector: 'Metals', cap: 'large' },
+  { symbol: 'ULTRACEMCO.NS', name: 'UltraTech Cement',          sector: 'Cement', cap: 'large' },
+  { symbol: 'ONGC.NS',       name: 'Oil & Natural Gas Corp',    sector: 'Energy', cap: 'large' },
+  { symbol: 'COALINDIA.NS',  name: 'Coal India',                sector: 'Energy', cap: 'large' },
+  { symbol: 'ADANIENT.NS',   name: 'Adani Enterprises',         sector: 'Conglomerate', cap: 'large' },
+  { symbol: 'ADANIPORTS.NS', name: 'Adani Ports',               sector: 'Industrials', cap: 'large' },
+  { symbol: 'POWERGRID.NS',  name: 'Power Grid Corp',           sector: 'Utilities', cap: 'large' },
+  { symbol: 'NTPC.NS',       name: 'NTPC Ltd',                  sector: 'Utilities', cap: 'large' },
+  { symbol: 'BHARTIARTL.NS', name: 'Bharti Airtel',             sector: 'Telecom', cap: 'large' },
+  { symbol: 'VBL.NS',        name: 'Varun Beverages',           sector: 'Consumer', cap: 'large' },
+  { symbol: 'BAJAJ-AUTO.NS', name: 'Bajaj Auto Ltd',            sector: 'Auto', cap: 'large' },
+  { symbol: 'ITC.NS',        name: 'ITC Limited',               sector: 'FMCG', cap: 'large' },
+  { symbol: 'SBILIFE.NS',    name: 'SBI Life Insurance',        sector: 'Financials', cap: 'large' },
+  { symbol: 'SHRIRAMFIN.NS', name: 'Shriram Finance',           sector: 'NBFC', cap: 'large' },
+  { symbol: 'TATACONSUM.NS', name: 'Tata Consumer Products',    sector: 'FMCG', cap: 'large' },
+  { symbol: 'JIOFIN.NS',     name: 'Jio Financial Services',    sector: 'NBFC', cap: 'large' },
+  { symbol: 'BEL.NS',        name: 'Bharat Electronics',        sector: 'Electronics', cap: 'large' },
+  { symbol: 'HAL.NS',        name: 'Hindustan Aeronautics',     sector: 'Aerospace', cap: 'large' },
+  { symbol: 'IRFC.NS',       name: 'Indian Railway Finance',    sector: 'NBFC', cap: 'large' },
+  { symbol: 'TATAMOTORS.NS', name: 'Tata Motors Limited',       sector: 'Auto', cap: 'large' },
+
+  // ── Mid Cap ──
+  { symbol: 'BAJAJFINSV.NS', name: 'Bajaj Finserv',             sector: 'NBFC', cap: 'mid' },
+  { symbol: 'INDUSINDBK.NS', name: 'IndusInd Bank',             sector: 'Banking', cap: 'mid' },
+  { symbol: 'BANKBARODA.NS', name: 'Bank of Baroda',            sector: 'Banking', cap: 'mid' },
+  { symbol: 'PNB.NS',        name: 'Punjab National Bank',      sector: 'Banking', cap: 'mid' },
+  { symbol: 'CANBK.NS',      name: 'Canara Bank',               sector: 'Banking', cap: 'mid' },
+  { symbol: 'MPHASIS.NS',    name: 'Mphasis Ltd',               sector: 'IT', cap: 'mid' },
+  { symbol: 'ABB.NS',        name: 'ABB India',                 sector: 'Engineering', cap: 'mid' },
+  { symbol: 'ZYDUSLIFE.NS',  name: 'Zydus Lifesciences',        sector: 'Pharma', cap: 'mid' },
+  { symbol: 'BIOCON.NS',     name: 'Biocon Ltd',                sector: 'Pharma', cap: 'mid' },
+  { symbol: 'BRITANNIA.NS',  name: 'Britannia Industries',      sector: 'FMCG', cap: 'mid' },
+  { symbol: 'TRENT.NS',      name: 'Trent Ltd',                 sector: 'Consumer', cap: 'mid' },
+  { symbol: 'ETERNAL.NS',    name: 'Eternal Limited (Zomato)',  sector: 'Consumer Tech', cap: 'mid' },
+  { symbol: 'IRCTC.NS',      name: 'IRCTC',                     sector: 'Consumer', cap: 'mid' },
+  { symbol: 'EICHERMOT.NS',  name: 'Eicher Motors',             sector: 'Auto', cap: 'mid' },
+  { symbol: 'HEROMOTOCO.NS', name: 'Hero MotoCorp',             sector: 'Auto', cap: 'mid' },
+  { symbol: 'HINDALCO.NS',   name: 'Hindalco Industries',       sector: 'Metals', cap: 'mid' },
+  { symbol: 'VEDL.NS',       name: 'Vedanta Ltd',               sector: 'Metals', cap: 'mid' },
+  { symbol: 'SAIL.NS',       name: 'Steel Authority of India',  sector: 'Metals', cap: 'mid' },
+  { symbol: 'GRASIM.NS',     name: 'Grasim Industries',         sector: 'Cement', cap: 'mid' },
+  { symbol: 'ASIANPAINT.NS', name: 'Asian Paints',              sector: 'Materials', cap: 'mid' },
+  { symbol: 'PIDILITIND.NS', name: 'Pidilite Industries',       sector: 'Materials', cap: 'mid' },
+  { symbol: 'BPCL.NS',       name: 'Bharat Petroleum',          sector: 'Energy', cap: 'mid' },
+  { symbol: 'SUZLON.NS',     name: 'Suzlon Energy',             sector: 'Renewables', cap: 'mid' },
+  { symbol: 'TATAPOWER.NS',  name: 'Tata Power',                sector: 'Utilities', cap: 'mid' },
+  { symbol: 'HAVELLS.NS',    name: 'Havells India',             sector: 'Industrials', cap: 'mid' },
+  { symbol: 'VOLTAS.NS',     name: 'Voltas Ltd',                sector: 'Industrials', cap: 'mid' },
+  { symbol: 'DLF.NS',        name: 'DLF Limited',               sector: 'Real Estate', cap: 'mid' },
+  { symbol: 'OBEROIRLTY.NS', name: 'Oberoi Realty',             sector: 'Real Estate', cap: 'mid' },
+  { symbol: 'CDSL.NS',       name: 'CDSL',                      sector: 'Financials', cap: 'mid' },
+  { symbol: 'NTPCGREEN.NS',  name: 'NTPC Green Energy',         sector: 'Renewables', cap: 'mid' },
+  { symbol: 'ASTRAL.NS',     name: 'Astral Limited',            sector: 'Materials', cap: 'mid' },
+  { symbol: 'RVNL.NS',       name: 'Rail Vikas Nigam',          sector: 'Infrastructure', cap: 'mid' },
+  { symbol: 'RECLTD.NS',     name: 'REC Limited',               sector: 'NBFC', cap: 'mid' },
+  { symbol: 'PFC.NS',        name: 'Power Finance Corp',        sector: 'NBFC', cap: 'mid' },
+  { symbol: 'NHPC.NS',       name: 'NHPC Limited',              sector: 'Utilities', cap: 'mid' },
+  { symbol: 'IREDA.NS',      name: 'IREDA',                     sector: 'Renewables', cap: 'mid' },
+  { symbol: 'SJVN.NS',       name: 'SJVN Limited',              sector: 'Utilities', cap: 'mid' },
+
+  // ── Small Cap ──
+  { symbol: 'RPOWER.NS',     name: 'Reliance Power',            sector: 'Utilities', cap: 'small' },
+  { symbol: 'ARVIND.NS',     name: 'Arvind Limited',            sector: 'Materials', cap: 'small' },
+  { symbol: 'PCJEWELLER.NS', name: 'PC Jeweller',               sector: 'Consumer', cap: 'small' },
+  { symbol: 'GTLINFRA.NS',   name: 'GTL Infrastructure',        sector: 'Telecom', cap: 'small' },
+  { symbol: 'MOREPENLAB.NS', name: 'Morepen Laboratories',      sector: 'Healthcare', cap: 'small' },
+  { symbol: 'SUVENPHAR.NS',  name: 'Suven Pharmaceuticals',     sector: 'Healthcare', cap: 'small' }
 ];
 
 const STOCK_CATALOG_US = [
-  { symbol: 'AAPL',  name: 'Apple Inc.',               sector: 'Technology' },
-  { symbol: 'MSFT',  name: 'Microsoft Corp.',          sector: 'Technology' },
-  { symbol: 'GOOGL', name: 'Alphabet Inc.',            sector: 'Technology' },
-  { symbol: 'AMZN',  name: 'Amazon.com Inc.',          sector: 'Consumer' },
-  { symbol: 'TSLA',  name: 'Tesla Inc.',               sector: 'Auto' },
-  { symbol: 'NVDA',  name: 'NVIDIA Corp.',             sector: 'Technology' },
-  { symbol: 'META',  name: 'Meta Platforms Inc.',      sector: 'Technology' },
-  { symbol: 'AMD',   name: 'Advanced Micro Devices',   sector: 'Technology' },
-  { symbol: 'NFLX',  name: 'Netflix Inc.',             sector: 'Consumer' },
-  { symbol: 'WMT',   name: 'Walmart Inc.',             sector: 'Consumer' },
-  { symbol: 'JPM',   name: 'JPMorgan Chase & Co.',     sector: 'Financials' },
-  { symbol: 'V',     name: 'Visa Inc.',                sector: 'Financials' },
-  { symbol: 'DIS',   name: 'The Walt Disney Co.',      sector: 'Consumer' },
-  { symbol: 'PG',    name: 'Procter & Gamble Co.',     sector: 'Consumer' },
-  { symbol: 'HD',    name: 'Home Depot Inc.',          sector: 'Consumer' },
+  // ── Large Cap ──
+  { symbol: 'AAPL',  name: 'Apple Inc.',               sector: 'Technology', cap: 'large' },
+  { symbol: 'MSFT',  name: 'Microsoft Corp.',          sector: 'Technology', cap: 'large' },
+  { symbol: 'GOOGL', name: 'Alphabet Inc.',            sector: 'Technology', cap: 'large' },
+  { symbol: 'AMZN',  name: 'Amazon.com Inc.',          sector: 'Consumer', cap: 'large' },
+  { symbol: 'TSLA',  name: 'Tesla Inc.',               sector: 'Auto', cap: 'large' },
+  { symbol: 'NVDA',  name: 'NVIDIA Corp.',             sector: 'Technology', cap: 'large' },
+  { symbol: 'META',  name: 'Meta Platforms Inc.',      sector: 'Technology', cap: 'large' },
+  { symbol: 'WMT',   name: 'Walmart Inc.',             sector: 'Consumer', cap: 'large' },
+  { symbol: 'JPM',   name: 'JPMorgan Chase & Co.',     sector: 'Financials', cap: 'large' },
+  { symbol: 'V',     name: 'Visa Inc.',                sector: 'Financials', cap: 'large' },
+  { symbol: 'DIS',   name: 'The Walt Disney Co.',      sector: 'Consumer', cap: 'large' },
+  { symbol: 'PG',    name: 'Procter & Gamble Co.',     sector: 'Consumer', cap: 'large' },
+  { symbol: 'HD',    name: 'Home Depot Inc.',          sector: 'Consumer', cap: 'large' },
+
+  // ── Mid Cap ──
+  { symbol: 'AMD',   name: 'Advanced Micro Devices',   sector: 'Technology', cap: 'mid' },
+  { symbol: 'NFLX',  name: 'Netflix Inc.',             sector: 'Consumer', cap: 'mid' },
+  { symbol: 'PLTR',  name: 'Palantir Technologies',    sector: 'Technology', cap: 'mid' },
+  { symbol: 'SNAP',  name: 'Snap Inc.',                sector: 'Technology', cap: 'mid' },
+  { symbol: 'ROKU',  name: 'Roku Inc.',                sector: 'Consumer', cap: 'mid' },
+  { symbol: 'HOOD',  name: 'Robinhood Markets',        sector: 'Financials', cap: 'mid' },
+
+  // ── Small Cap ──
+  { symbol: 'GME',   name: 'GameStop Corp.',           sector: 'Consumer', cap: 'small' },
+  { symbol: 'AMC',   name: 'AMC Entertainment',        sector: 'Consumer', cap: 'small' },
+  { symbol: 'SIRI',  name: 'Sirius XM Holdings',       sector: 'Telecom', cap: 'small' },
+  { symbol: 'SPCE',  name: 'Virgin Galactic',          sector: 'Industrials', cap: 'small' },
+  { symbol: 'CLOV',  name: 'Clover Health',            sector: 'Healthcare', cap: 'small' }
 ];
 
 const SECTOR_MAP = [
@@ -464,6 +503,7 @@ const SECTOR_MAP = [
   { name: 'Utilities',  symbol: 'POWERGRID.NS',    icon: '💡' },
   { name: 'Telecom',    symbol: 'BHARTIARTL.NS',   icon: '📡' },
   { name: 'Renewables', symbol: 'SUZLON.NS',       icon: '🌱' },
+  { name: 'Consumer',   symbol: '^CNXFMCG',        icon: '🛒' },
 ];
 
 const SECTOR_MAP_US = [
@@ -477,6 +517,7 @@ const SECTOR_MAP_US = [
   { name: 'Utilities',  symbol: 'XLU',    icon: '💡' },
   { name: 'Telecom',    symbol: 'XLC',    icon: '📡' },
   { name: 'Renewables', symbol: 'ICLN',   icon: '🌱' },
+  { name: 'Consumer',   symbol: 'XLY',    icon: '🛒' },
 ];
 
 function getEtfSectorName(stockSector) {
@@ -484,10 +525,10 @@ function getEtfSectorName(stockSector) {
   if (s === 'it' || s.includes('tech') || s.includes('semiconductor') || s.includes('social') || s.includes('streaming') || s.includes('e-commerce') || s.includes('consumer tech')) {
     return 'Technology';
   }
-  if (s.includes('bank') || s.includes('nbfc') || s.includes('financial')) {
+  if (s.includes('bank') || s.includes('nbfc') || s.includes('financial') || s.includes('insurance')) {
     return 'Financials';
   }
-  if (s.includes('pharma') || s.includes('health')) {
+  if (s.includes('pharma') || s.includes('health') || s.includes('hospital')) {
     return 'Healthcare';
   }
   if (s.includes('renewable') || s.includes('wind') || s.includes('solar') || s.includes('green energy') || s.includes('clean energy')) {
@@ -499,10 +540,13 @@ function getEtfSectorName(stockSector) {
   if (s.includes('telecom') || s.includes('telco') || s.includes('telecommunications')) {
     return 'Telecom';
   }
-  if (s.includes('auto') || s.includes('engineer') || s.includes('conglomerate') || s.includes('industrial')) {
+  if (s.includes('auto') || s.includes('engineer') || s.includes('conglomerate') || s.includes('industrial') || s.includes('aerospace') || s.includes('defense') || s.includes('defence') || s.includes('electronics') || s.includes('infrastructure')) {
     return 'Industrials';
   }
-  if (s.includes('metal') || s.includes('cement') || s.includes('material') || s.includes('fmcg') || s.includes('consumer')) {
+  if (s.includes('fmcg') || s.includes('consumer') || s.includes('retail')) {
+    return 'Consumer';
+  }
+  if (s.includes('metal') || s.includes('cement') || s.includes('material')) {
     return 'Materials';
   }
   if (s.includes('utility') || s.includes('utilities')) {
@@ -576,13 +620,14 @@ app.get('/api/market-summary', async (req, res) => {
       return {
         ...q,
         name: catItem ? catItem.name : q.longName || q.symbol,
-        sector: catItem ? catItem.sector : ''
+        sector: catItem ? catItem.sector : '',
+        cap: catItem ? catItem.cap : 'mid'
       };
     });
 
     // 1. Calculate Top 5 Gainers
     const gainers = [...enrichedQuotes]
-      .filter(q => typeof q.changePct === 'number')
+      .filter(q => typeof q.changePct === 'number' && q.changePct > 0)
       .sort((a, b) => b.changePct - a.changePct)
       .slice(0, 5)
       .map(q => ({
@@ -593,7 +638,7 @@ app.get('/api/market-summary', async (req, res) => {
 
     // 2. Calculate Top 5 Losers
     const losers = [...enrichedQuotes]
-      .filter(q => typeof q.changePct === 'number')
+      .filter(q => typeof q.changePct === 'number' && q.changePct < 0)
       .sort((a, b) => a.changePct - b.changePct)
       .slice(0, 5)
       .map(q => ({
@@ -611,14 +656,18 @@ app.get('/api/market-summary', async (req, res) => {
       let sectorLosers = [];
 
       if (sectorStocks.length > 0) {
-        const sortedDesc = [...sectorStocks].sort((a, b) => (b.changePct || 0) - (a.changePct || 0));
+        const sortedDesc = [...sectorStocks]
+          .filter(q => (q.changePct || 0) > 0)
+          .sort((a, b) => (b.changePct || 0) - (a.changePct || 0));
         sectorGainers = sortedDesc.slice(0, 5).map(q => ({
           symbol: q.symbol,
           name: q.name,
           quote: { price: q.price, change: q.change, changePct: q.changePct }
         }));
 
-        const sortedAsc = [...sectorStocks].sort((a, b) => (a.changePct || 0) - (b.changePct || 0));
+        const sortedAsc = [...sectorStocks]
+          .filter(q => (q.changePct || 0) < 0)
+          .sort((a, b) => (a.changePct || 0) - (b.changePct || 0));
         sectorLosers = sortedAsc.slice(0, 5).map(q => ({
           symbol: q.symbol,
           name: q.name,
@@ -626,14 +675,33 @@ app.get('/api/market-summary', async (req, res) => {
         }));
       }
 
-      // Fetch ETF price for this sector to get overall sector index change
+      // Fetch ETF price for this sector to get overall sector index change, but compute average of stock changePct if available
       let etfChange = 0;
       let etfPrice = 0;
+      let hasStockAverage = false;
+
+      if (sectorStocks.length > 0) {
+        let sumChange = 0;
+        let validCount = 0;
+        for (const stock of sectorStocks) {
+          if (typeof stock.changePct === 'number' && !isNaN(stock.changePct)) {
+            sumChange += stock.changePct;
+            validCount++;
+          }
+        }
+        if (validCount > 0) {
+          etfChange = sumChange / validCount;
+          hasStockAverage = true;
+        }
+      }
+
       try {
         const etfQuote = await scraper.fetchQuote(etf.symbol);
         if (etfQuote) {
-          etfChange = etfQuote.changePct || 0;
           etfPrice = etfQuote.price || 0;
+          if (!hasStockAverage) {
+            etfChange = etfQuote.changePct || 0;
+          }
         }
       } catch (err) {
         console.warn(`Failed to fetch sector ETF ${etf.symbol}: ${err.message}`);
@@ -654,6 +722,15 @@ app.get('/api/market-summary', async (req, res) => {
       gainers,
       losers,
       sectors,
+      allQuotes: enrichedQuotes.map(q => ({
+        symbol: q.symbol,
+        name: q.name,
+        sector: q.sector,
+        cap: q.cap || 'mid',
+        price: q.price,
+        change: q.change,
+        changePct: q.changePct
+      })),
       timestamp: new Date().toISOString()
     };
 
@@ -1338,7 +1415,7 @@ function generateDetailedFallbackReport(currentStockContext, userMessage) {
 
 // Route: Invy AI Chat Backend Proxy
 app.post('/api/chat', authMiddleware, async (req, res) => {
-  const { history, message, currentStockContext } = req.body;
+  const { history, message, currentStockContext, marketSummary } = req.body;
   if (!message) {
     return res.status(400).json({ error: 'Message is required' });
   }
@@ -1358,12 +1435,11 @@ app.post('/api/chat', authMiddleware, async (req, res) => {
 
   try {
     const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
-    const systemInstructionText = `You are "Invy AI", a highly advanced robotic swing trading intelligence agent.
+    const systemInstructionText = `You are "Invy AI", a highly advanced, intelligent swing trading assistant.
 Your goal is to guide users to pick stocks at the perfect price using a combination of fundamentals, technical setup, momentum, sentiment & flows, and disciplined risk management.
-You communicate using structured logs and direct technical commands.
-Your responses MUST be formatted in markdown with distinct agent logs.
-Each response MUST contain the following sections:
 
+Formatting & Response Rules:
+1. If the user is asking about a specific stock setup or analyzing a stock, you must respond with a highly structured decision log in markdown:
 [AGENT STATUS: COMPLETED]
 [DECISION LOG]
 - Verdict: [Strong Buy / Buy / Hold / Avoid]
@@ -1377,14 +1453,23 @@ Each response MUST contain the following sections:
 - [Brief 1-2 sentence fundamental summary]
 - Win Probability: [Calculated probability]%
 
-Rules:
-1. Be professional, highly concise, and direct. Keep responses under 150 words. Do NOT include polite pleasantries.
-2. Use bullet points or short paragraphs. Avoid wordy explanations to minimize API usage/quota.
-3. If there is no stock context or the query is general, output under [AGENT STATUS: COMPLETED] and [ANALYSIS LOG] explaining the general concepts in a robotic, structured, bulleted format.`;
+2. If the user is asking a general trading question (e.g. "What is RSI?", "How does swing trading work?"), do NOT use the rigid log/verdict tables above. Instead, provide a highly conversational, educational, clear, and customized explanation in elegant markdown. Keep it engaging, direct, and helpful.
+3. Be professional and concise. Keep responses under 200 words. Avoid generic or overly wordy text.`;
 
     const contents = [...(history || [])];
 
     let messageWithContext = message;
+    let summaryText = "";
+    if (marketSummary) {
+      const topGainersStr = (marketSummary.gainers || []).map(g => `${g.symbol}: ${g.quote?.changePct >= 0 ? '+' : ''}${(g.quote?.changePct || 0).toFixed(2)}%`).join(', ');
+      const topLosersStr = (marketSummary.losers || []).map(l => `${l.symbol}: ${l.quote?.changePct >= 0 ? '+' : ''}${(l.quote?.changePct || 0).toFixed(2)}%`).join(', ');
+      const sectorPerfStr = (marketSummary.sectors || []).map(s => `${s.name}: ${s.change >= 0 ? '+' : ''}${(s.change || 0).toFixed(2)}%`).join(', ');
+      summaryText = `[Current Market Summary Context:
+- Top Gainers: ${topGainersStr || 'N/A'}
+- Top Losers: ${topLosersStr || 'N/A'}
+- Sector Performance: ${sectorPerfStr || 'N/A'}]`;
+    }
+
     if (currentStockContext && currentStockContext.symbol) {
       const symbol = currentStockContext.symbol;
       const quote = currentStockContext.quote || {};
@@ -1400,11 +1485,16 @@ Rules:
       const isUS = !symbol.endsWith('.NS') && !symbol.endsWith('.BO');
       const cSym = isUS ? '$' : '₹';
 
-      messageWithContext = `[Context for currently selected stock: ${currentStockContext.name} (${currentStockContext.symbol})
+      messageWithContext = `${summaryText}
+[Context for currently selected stock: ${currentStockContext.name} (${currentStockContext.symbol})
 - Price: ${cSym}${(quote.price || 0).toFixed(2)} (Change: ${(quote.changePct || 0).toFixed(2)}%)
 - Scores (out of 25 each): Fundamentals: ${scores.fundamental?.score || 0}, Technicals: ${scores.technicalSetup?.score || 0}, Momentum: ${scores.momentum?.score || 0}, Sentiment & Flows: ${scores.sentimentFlow?.score || 0} (Total: ${composite.total}/100)
 - Trade Setup: Entry: ${cSym}${(quote.price || 0).toFixed(2)}, Stop Loss: ${cSym}${tradeSetup.stopLoss || 0}, Target 1: ${cSym}${tradeSetup.target1 || 0}, Target 2: ${cSym}${tradeSetup.target2 || 0}, Target 3: ${cSym}${tradeSetup.target3 || 0}
 - Win Probability: ${winChance}%, Risk/Reward: ${tradeSetup.riskReward || 0}:1]
+
+User Query: ${message}`;
+    } else if (summaryText) {
+      messageWithContext = `${summaryText}
 
 User Query: ${message}`;
     }
@@ -1489,12 +1579,152 @@ let simulatedRecommendations = [
   }
 ];
 
+let recommendationsInitialized = false;
+async function initializeRecommendationsPrice() {
+  if (recommendationsInitialized) return;
+  console.log('Initializing simulated recommendations prices with live market data...');
+  for (const rec of simulatedRecommendations) {
+    try {
+      const quote = await scraper.fetchQuote(rec.symbol);
+      if (quote && quote.price && quote.price > 0) {
+        rec.price = quote.price;
+        rec.stop_loss = parseFloat((quote.price * 0.95).toFixed(2));
+        rec.target_1 = parseFloat((quote.price * 1.05).toFixed(2));
+        rec.target_2 = parseFloat((quote.price * 1.12).toFixed(2));
+        console.log(`Initialized simulated recommendation for ${rec.symbol} at ${rec.price} (SL: ${rec.stop_loss}, T1: ${rec.target_1}, T2: ${rec.target_2})`);
+      }
+    } catch (e) {
+      console.warn(`Failed to initialize simulated recommendation price for ${rec.symbol}:`, e.message);
+    }
+  }
+  recommendationsInitialized = true;
+}
+
 let simulatedSettings = {
   telegram_enabled: false,
   telegram_chat_id: '',
+  telegram_bot_token: '',
   whatsapp_enabled: false,
-  whatsapp_phone: ''
+  whatsapp_phone: '',
+  whatsapp_apikey: ''
 };
+
+async function sendAlertNotification(symbol, status, currentPrice, target2, stopLoss) {
+  let settings = simulatedSettings;
+  if (dbPool) {
+    try {
+      const res = await dbPool.query('SELECT * FROM user_settings ORDER BY id ASC LIMIT 1');
+      if (res.rows[0]) {
+        settings = res.rows[0];
+      }
+    } catch (e) {
+      console.warn('Failed to fetch user settings for alert notification:', e.message);
+    }
+  }
+
+  const isUS = !symbol.endsWith('.NS') && !symbol.endsWith('.BO');
+  const cSym = isUS ? '$' : '₹';
+  const emoji = status === 'WIN' ? '🟢' : '🔴';
+  const msg = `${emoji} *SWING TRADE UPDATE: ${status}* ${emoji}\n\n` +
+              `*Stock:* ${symbol.toUpperCase()}\n` +
+              `*Status:* Closed as ${status}\n` +
+              `*Exit Price:* ${cSym}${currentPrice.toFixed(2)}\n` +
+              `*Original Stop Loss:* ${cSym}${stopLoss.toFixed(2)}\n` +
+              `*Original Target:* ${cSym}${target2.toFixed(2)}\n` +
+              `*Timestamp:* ${new Date().toLocaleString()}`;
+
+  // Send Telegram
+  if (settings.telegram_enabled && settings.telegram_chat_id && settings.telegram_bot_token) {
+    try {
+      const tgUrl = `https://api.telegram.org/bot${settings.telegram_bot_token}/sendMessage`;
+      await axios.post(tgUrl, {
+        chat_id: settings.telegram_chat_id,
+        text: msg,
+        parse_mode: 'Markdown'
+      }, { timeout: 8000 });
+      console.log(`Dispatched real Telegram status update for ${symbol} (${status})`);
+    } catch (err) {
+      console.error(`Failed to send Telegram status update alert for ${symbol}:`, err.message);
+    }
+  }
+
+  // Send WhatsApp via CallMeBot
+  if (settings.whatsapp_enabled && settings.whatsapp_phone && settings.whatsapp_apikey) {
+    try {
+      const cleanPhone = settings.whatsapp_phone.replace(/\+/g, '').trim();
+      const waUrl = `https://api.callmebot.com/whatsapp.php?phone=${encodeURIComponent(cleanPhone)}&text=${encodeURIComponent(msg)}&apikey=${encodeURIComponent(settings.whatsapp_apikey)}`;
+      await axios.get(waUrl, { timeout: 8000 });
+      console.log(`Dispatched real WhatsApp status update for ${symbol} (${status})`);
+    } catch (err) {
+      console.error(`Failed to send WhatsApp status update alert for ${symbol}:`, err.message);
+    }
+  }
+}
+
+async function sendWelcomeActiveRecommendationsAlert(settings) {
+  let activeRecs = [];
+  if (dbPool) {
+    try {
+      const dbRes = await dbPool.query("SELECT * FROM recommendations WHERE status = 'ACTIVE' ORDER BY rating DESC, symbol ASC");
+      activeRecs = dbRes.rows.map(r => ({
+        symbol: r.symbol,
+        name: r.name,
+        rating: r.rating,
+        price: parseFloat(r.price),
+        target_1: parseFloat(r.target_1),
+        target_2: parseFloat(r.target_2),
+        stop_loss: parseFloat(r.stop_loss),
+        market: r.market
+      }));
+    } catch (dbErr) {
+      console.error('Failed to query recommendations for welcome alert:', dbErr.message);
+    }
+  } else {
+    activeRecs = (simulatedRecommendations || []).filter(r => r.status === 'ACTIVE' || !r.status);
+  }
+
+  if (activeRecs.length > 0) {
+    const listMsg = activeRecs.map(r => {
+      const isUS = r.market === 'US';
+      const cSym = isUS ? '$' : '₹';
+      return `📌 *${r.symbol.toUpperCase()}* (${r.rating || 'BUY'})\n` +
+             `Price: ${cSym}${r.price.toFixed(2)} | Stop: ${cSym}${r.stop_loss.toFixed(2)}\n` +
+             `Target 1: ${cSym}${r.target_1.toFixed(2)} | Target 2: ${cSym}${r.target_2.toFixed(2)}`;
+    }).join('\n\n');
+
+    const msg = `🔔 *Swing Trading Alerts Enabled!* 🔔\n\n` +
+                `Here is a summary of our current active swing trading picks:\n\n` +
+                `${listMsg}\n\n` +
+                `We will notify you immediately if any pick hits its target or stop loss!`;
+
+    // Send Telegram
+    if (settings.telegram_enabled && settings.telegram_chat_id && settings.telegram_bot_token) {
+      try {
+        const tgUrl = `https://api.telegram.org/bot${settings.telegram_bot_token}/sendMessage`;
+        await axios.post(tgUrl, {
+          chat_id: settings.telegram_chat_id,
+          text: msg,
+          parse_mode: 'Markdown'
+        }, { timeout: 8000 });
+        console.log(`Welcome active recommendations Telegram alert sent successfully!`);
+      } catch (err) {
+        console.error(`Failed to send Welcome Telegram alert:`, err.message);
+      }
+    }
+
+    // Send WhatsApp via CallMeBot
+    if (settings.whatsapp_enabled && settings.whatsapp_phone && settings.whatsapp_apikey) {
+      try {
+        const cleanPhone = settings.whatsapp_phone.replace(/\+/g, '').trim();
+        const waUrl = `https://api.callmebot.com/whatsapp.php?phone=${encodeURIComponent(cleanPhone)}&text=${encodeURIComponent(msg)}&apikey=${encodeURIComponent(settings.whatsapp_apikey)}`;
+        await axios.get(waUrl, { timeout: 8000 });
+        console.log(`Welcome active recommendations WhatsApp alert sent successfully!`);
+      } catch (err) {
+        console.error(`Failed to send Welcome WhatsApp alert:`, err.message);
+      }
+    }
+  }
+}
 
 async function initTables() {
   if (dbPool) {
@@ -1523,11 +1753,18 @@ async function initTables() {
           email VARCHAR(255) UNIQUE,
           telegram_enabled BOOLEAN DEFAULT false,
           telegram_chat_id VARCHAR(50) DEFAULT '',
+          telegram_bot_token TEXT DEFAULT '',
           whatsapp_enabled BOOLEAN DEFAULT false,
           whatsapp_phone VARCHAR(50) DEFAULT '',
+          whatsapp_apikey TEXT DEFAULT '',
           updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         );
       `);
+
+      await dbPool.query(`
+        ALTER TABLE user_settings ADD COLUMN IF NOT EXISTS telegram_bot_token TEXT DEFAULT '';
+        ALTER TABLE user_settings ADD COLUMN IF NOT EXISTS whatsapp_apikey TEXT DEFAULT '';
+      `).catch(err => console.log('Migration error (can ignore if columns exist):', err.message));
     } catch (err) {
       console.error('Failed to initialize recommendations / settings tables:', err.message);
     }
@@ -1660,14 +1897,39 @@ app.get('/api/recommendations', authMiddleware, async (req, res) => {
     let recs = [];
     if (dbPool) {
       const result = await dbPool.query('SELECT * FROM recommendations ORDER BY created_at DESC');
-      recs = result.rows.map(r => ({
-        ...r,
-        price: parseFloat(r.price),
-        target_1: parseFloat(r.target_1),
-        target_2: parseFloat(r.target_2),
-        stop_loss: parseFloat(r.stop_loss)
-      }));
+      if (result.rows.length === 0) {
+        console.log('Seeding empty database recommendations table with live-priced defaults...');
+        await initializeRecommendationsPrice();
+        for (const rec of simulatedRecommendations) {
+          try {
+            await dbPool.query(
+              `INSERT INTO recommendations (symbol, name, sector, market, rating, price, target_1, target_2, stop_loss, status)
+               VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, 'ACTIVE')`,
+              [rec.symbol, rec.name, rec.sector, rec.market, rec.rating, rec.price, rec.target_1, rec.target_2, rec.stop_loss]
+            );
+          } catch (seedErr) {
+            console.error(`Database seeding failed for ${rec.symbol}:`, seedErr.message);
+          }
+        }
+        const newResult = await dbPool.query('SELECT * FROM recommendations ORDER BY created_at DESC');
+        recs = newResult.rows.map(r => ({
+          ...r,
+          price: parseFloat(r.price),
+          target_1: parseFloat(r.target_1),
+          target_2: parseFloat(r.target_2),
+          stop_loss: parseFloat(r.stop_loss)
+        }));
+      } else {
+        recs = result.rows.map(r => ({
+          ...r,
+          price: parseFloat(r.price),
+          target_1: parseFloat(r.target_1),
+          target_2: parseFloat(r.target_2),
+          stop_loss: parseFloat(r.stop_loss)
+        }));
+      }
     } else {
+      await initializeRecommendationsPrice();
       recs = simulatedRecommendations;
     }
 
@@ -1695,6 +1957,10 @@ app.get('/api/recommendations', authMiddleware, async (req, res) => {
               );
             }
             console.log(`Alert! ${r.symbol} closed as ${newStatus} at current price ${currentPrice}`);
+            // Send real webhook notifications for Target/SL hit
+            sendAlertNotification(r.symbol, newStatus, currentPrice, r.target_2, r.stop_loss).catch(err => {
+              console.error(`Alert dispatch error for status change:`, err.message);
+            });
           }
         }
       } catch (err) {
@@ -1829,8 +2095,10 @@ app.get('/api/settings', authMiddleware, async (req, res) => {
       email,
       telegram_enabled: simulatedSettings.telegram_enabled,
       telegram_chat_id: simulatedSettings.telegram_chat_id,
+      telegram_bot_token: simulatedSettings.telegram_bot_token,
       whatsapp_enabled: simulatedSettings.whatsapp_enabled,
-      whatsapp_phone: simulatedSettings.whatsapp_phone
+      whatsapp_phone: simulatedSettings.whatsapp_phone,
+      whatsapp_apikey: simulatedSettings.whatsapp_apikey
     });
   } catch (err) {
     console.error('Failed to get user settings:', err.message);
@@ -1841,37 +2109,49 @@ app.get('/api/settings', authMiddleware, async (req, res) => {
 // Route: Save Alert Settings
 app.post('/api/settings', authMiddleware, async (req, res) => {
   const email = req.user?.email || 'dev@local.com';
-  const { telegram_enabled, telegram_chat_id, whatsapp_enabled, whatsapp_phone } = req.body;
+  const { telegram_enabled, telegram_chat_id, telegram_bot_token, whatsapp_enabled, whatsapp_phone, whatsapp_apikey } = req.body;
   await initTables();
 
   try {
     if (dbPool) {
       await dbPool.query(
-        `INSERT INTO user_settings (email, telegram_enabled, telegram_chat_id, whatsapp_enabled, whatsapp_phone, updated_at)
-         VALUES ($1, $2, $3, $4, $5, NOW())
+        `INSERT INTO user_settings (email, telegram_enabled, telegram_chat_id, telegram_bot_token, whatsapp_enabled, whatsapp_phone, whatsapp_apikey, updated_at)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, NOW())
          ON CONFLICT (email) DO UPDATE
          SET telegram_enabled = EXCLUDED.telegram_enabled,
              telegram_chat_id = EXCLUDED.telegram_chat_id,
+             telegram_bot_token = EXCLUDED.telegram_bot_token,
              whatsapp_enabled = EXCLUDED.whatsapp_enabled,
              whatsapp_phone = EXCLUDED.whatsapp_phone,
+             whatsapp_apikey = EXCLUDED.whatsapp_apikey,
              updated_at = NOW()`,
-        [email, telegram_enabled || false, telegram_chat_id || '', whatsapp_enabled || false, whatsapp_phone || '']
+        [email, telegram_enabled || false, telegram_chat_id || '', telegram_bot_token || '', whatsapp_enabled || false, whatsapp_phone || '', whatsapp_apikey || '']
       );
     } else {
       simulatedSettings.telegram_enabled = !!telegram_enabled;
       simulatedSettings.telegram_chat_id = telegram_chat_id || '';
+      simulatedSettings.telegram_bot_token = telegram_bot_token || '';
       simulatedSettings.whatsapp_enabled = !!whatsapp_enabled;
       simulatedSettings.whatsapp_phone = whatsapp_phone || '';
+      simulatedSettings.whatsapp_apikey = whatsapp_apikey || '';
     }
+
+    const updatedSettings = {
+      telegram_enabled: telegram_enabled || false,
+      telegram_chat_id: telegram_chat_id || '',
+      telegram_bot_token: telegram_bot_token || '',
+      whatsapp_enabled: whatsapp_enabled || false,
+      whatsapp_phone: whatsapp_phone || '',
+      whatsapp_apikey: whatsapp_apikey || ''
+    };
+
+    sendWelcomeActiveRecommendationsAlert(updatedSettings).catch(e => console.error("Error sending welcome alert:", e));
 
     res.json({
       status: 'success',
       settings: {
         email,
-        telegram_enabled: telegram_enabled || false,
-        telegram_chat_id: telegram_chat_id || '',
-        whatsapp_enabled: whatsapp_enabled || false,
-        whatsapp_phone: whatsapp_phone || ''
+        ...updatedSettings
       }
     });
   } catch (err) {
@@ -1882,7 +2162,7 @@ app.post('/api/settings', authMiddleware, async (req, res) => {
 
 // Route: Send simulated webhook test signal
 app.post('/api/test-signal', authMiddleware, async (req, res) => {
-  const { symbol, telegram_chat_id, whatsapp_phone } = req.body;
+  const { symbol, telegram_chat_id, whatsapp_phone, telegram_bot_token, whatsapp_apikey } = req.body;
   if (!symbol) return res.status(400).json({ error: 'Symbol is required' });
 
   try {
@@ -1908,9 +2188,45 @@ app.post('/api/test-signal', authMiddleware, async (req, res) => {
       }
     };
 
+    const alertMsg = `📈 *SWING TRADE SIGNAL* 📈\n` +
+      `*Stock:* ${symbol.toUpperCase()}\n` +
+      `*Action:* BUY / ACCUMULATE\n` +
+      `*Price:* ${cSym}${price.toFixed(2)}\n` +
+      `*Stop Loss:* ${cSym}${(price * 0.95).toFixed(2)}\n` +
+      `*Targets:* T1: ${cSym}${(price * 1.05).toFixed(2)} | T2: ${cSym}${(price * 1.10).toFixed(2)}\n` +
+      `*Timeframe:* Daily / Weekly Swing\n` +
+      `*Rationale:* Confluence detected: Price near support S1, RSI oversold recovery, Volume spike > 1.3x average.`;
+
+    // 1. Dispatch real Telegram message if bot token is provided
+    if (telegram_chat_id && telegram_bot_token) {
+      try {
+        const tgUrl = `https://api.telegram.org/bot${telegram_bot_token}/sendMessage`;
+        console.log(`Sending real Telegram test signal to ${telegram_chat_id}...`);
+        await axios.post(tgUrl, {
+          chat_id: telegram_chat_id,
+          text: alertMsg,
+          parse_mode: 'Markdown'
+        }, { timeout: 8000 });
+      } catch (tgErr) {
+        console.warn(`Failed to dispatch real Telegram test signal:`, tgErr.message);
+      }
+    }
+
+    // 2. Dispatch real WhatsApp message via CallMeBot if API key is provided
+    if (whatsapp_phone && whatsapp_apikey) {
+      try {
+        const cleanPhone = whatsapp_phone.replace(/\+/g, '').trim();
+        const waUrl = `https://api.callmebot.com/whatsapp.php?phone=${encodeURIComponent(cleanPhone)}&text=${encodeURIComponent(alertMsg)}&apikey=${encodeURIComponent(whatsapp_apikey)}`;
+        console.log(`Sending real WhatsApp test signal to ${cleanPhone}...`);
+        await axios.get(waUrl, { timeout: 8000 });
+      } catch (waErr) {
+        console.warn(`Failed to dispatch real WhatsApp test signal:`, waErr.message);
+      }
+    }
+
     res.json({
       status: 'success',
-      message: 'Simulated webhook signal dispatched successfully.',
+      message: 'Webhook signal dispatched successfully.',
       payload: payload
     });
   } catch (err) {

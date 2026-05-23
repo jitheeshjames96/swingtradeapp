@@ -21,7 +21,27 @@ const App = (() => {  // ── State
     isAuthenticated: false,
     pendingSelectSymbol: null,
     pendingAction: null,
+    capFilter: 'all',
   };
+
+  function updateAuthButtons() {
+    const btnLogin = document.getElementById('btn-login');
+    const btnLogout = document.getElementById('btn-logout');
+    if (btnLogin && btnLogout) {
+      if (state.isAuthenticated) {
+        btnLogin.style.display = 'none';
+        btnLogout.style.display = 'inline-block';
+        if (localStorage.getItem('google_sso_token') === 'DEMO_BYPASS') {
+          btnLogout.textContent = 'Exit Demo Mode';
+        } else {
+          btnLogout.textContent = '🚪 Sign Out';
+        }
+      } else {
+        btnLogin.style.display = 'inline-block';
+        btnLogout.style.display = 'none';
+      }
+    }
+  }
 
 
   const DEFAULT_WATCHLIST_IN = [
@@ -149,10 +169,7 @@ const App = (() => {  // ── State
       if (overlay) overlay.style.display = 'none';
       
       state.isAuthenticated = true; // Set authenticated!
-      
-      // Show logout button
-      const btnLogout = document.getElementById('btn-logout');
-      if (btnLogout) btnLogout.style.display = 'inline-block';
+      updateAuthButtons();
       
       UI.toast('Signed in successfully!', 'success');
       
@@ -193,6 +210,7 @@ const App = (() => {  // ── State
   }
 
   async function finishInit() {
+    updateAuthButtons();
     showWatchlistSkeleton();
     await loadMarketData();
     await loadAllWatchlistStocks();
@@ -550,7 +568,15 @@ const App = (() => {  // ── State
       });
     }
 
-    // Google SSO Sign Out
+    // Google SSO Sign In/Out
+    const btnLogin = document.getElementById('btn-login');
+    if (btnLogin) {
+      btnLogin.addEventListener('click', () => {
+        const overlay = document.getElementById('login-overlay');
+        if (overlay) overlay.style.display = 'flex';
+      });
+    }
+
     const btnLogout = document.getElementById('btn-logout');
     if (btnLogout) {
       btnLogout.addEventListener('click', () => {
@@ -561,6 +587,67 @@ const App = (() => {  // ── State
         }, 800);
       });
     }
+
+    // Continue in Demo Mode Bypass
+    const btnBypass = document.getElementById('btn-bypass-sso');
+    if (btnBypass) {
+      btnBypass.addEventListener('click', async () => {
+        localStorage.setItem('google_sso_token', 'DEMO_BYPASS');
+        state.isAuthenticated = true;
+        const overlay = document.getElementById('login-overlay');
+        if (overlay) overlay.style.display = 'none';
+        
+        updateAuthButtons();
+        
+        UI.toast('Entered Demo Mode successfully!', 'success');
+        
+        // Reload watchlist and data
+        await loadAllWatchlistStocks();
+        
+        // Resume pending actions
+        if (state.pendingSelectSymbol) {
+          const sym = state.pendingSelectSymbol;
+          state.pendingSelectSymbol = null;
+          await selectStock(sym);
+        } else if (state.pendingAction === 'showPerformance') {
+          state.pendingAction = null;
+          const btnPicks = document.getElementById('btn-show-picks');
+          const btnPerf = document.getElementById('btn-show-performance');
+          const picksSect = document.getElementById('picks-section-container');
+          const perfSect = document.getElementById('performance-section-container');
+          if (btnPicks && btnPerf && picksSect && perfSect) {
+            btnPicks.classList.remove('active');
+            btnPerf.classList.add('active');
+            picksSect.style.display = 'none';
+            perfSect.style.display = 'block';
+          }
+          UI.renderPerformanceDashboard();
+        } else if (state.watchlist.length > 0) {
+          selectStock(state.watchlist[0].symbol);
+        }
+      });
+    }
+
+    // Capitalization Filter buttons
+    document.querySelectorAll('.cap-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('.cap-btn').forEach(b => {
+          b.classList.remove('active');
+          b.style.background = 'none';
+          b.style.border = '1px solid transparent';
+          b.style.color = 'var(--text-muted)';
+          b.style.fontWeight = '600';
+        });
+        btn.classList.add('active');
+        btn.style.background = 'rgba(99,102,241,0.15)';
+        btn.style.border = '1px solid rgba(99,102,241,0.3)';
+        btn.style.color = 'var(--text-accent)';
+        btn.style.fontWeight = '700';
+
+        state.capFilter = btn.dataset.cap;
+        updateRecommendations();
+      });
+    });
   }
 
   async function loadMarketData() {
@@ -847,6 +934,17 @@ const App = (() => {  // ── State
 
     // Render all sections
     UI.renderDetailHeader(result);
+    
+    // Show chart container and render chart
+    const chartContainer = document.getElementById('detail-live-chart-container');
+    if (chartContainer) {
+      chartContainer.style.display = 'block';
+    }
+    UI.renderLiveChart(result);
+
+    if (state.activeTab === 'live-chart') {
+      state.activeTab = 'overview';
+    }
     switchTab(state.activeTab || 'overview', result);
   }
 
@@ -866,7 +964,6 @@ const App = (() => {  // ── State
 
     switch (tabId) {
       case 'overview':      UI.renderOverview(r); break;
-      case 'live-chart':    UI.renderLiveChart(r); break;
       case 'fundamental':   UI.renderFundamentals(r); break;
       case 'technical':     UI.renderTechnicals(r); break;
       case 'sentiment':     UI.renderSentiment(r); break;
@@ -953,10 +1050,33 @@ const App = (() => {  // ── State
     const gainersList = document.getElementById('top-gainers-list');
     const losersList = document.getElementById('top-losers-list');
     if (gainersList && losersList) {
-      const summaryGainers = state.marketSummary?.gainers;
-      const summaryLosers = state.marketSummary?.losers;
+      let summaryGainers = state.marketSummary?.gainers;
+      let summaryLosers = state.marketSummary?.losers;
 
-      if (summaryGainers && summaryLosers && summaryGainers.length > 0) {
+      if (state.capFilter && state.capFilter !== 'all' && state.marketSummary?.allQuotes) {
+        const filtered = state.marketSummary.allQuotes.filter(q => q.cap === state.capFilter);
+        summaryGainers = [...filtered]
+          .filter(q => typeof q.changePct === 'number' && q.changePct > 0)
+          .sort((a, b) => b.changePct - a.changePct)
+          .slice(0, 5)
+          .map(q => ({
+            symbol: q.symbol,
+            name: q.name,
+            quote: { price: q.price, change: q.change, changePct: q.changePct }
+          }));
+
+        summaryLosers = [...filtered]
+          .filter(q => typeof q.changePct === 'number' && q.changePct < 0)
+          .sort((a, b) => a.changePct - b.changePct)
+          .slice(0, 5)
+          .map(q => ({
+            symbol: q.symbol,
+            name: q.name,
+            quote: { price: q.price, change: q.change, changePct: q.changePct }
+          }));
+      }
+
+      if (summaryGainers && summaryLosers && (summaryGainers.length > 0 || summaryLosers.length > 0)) {
         gainersList.innerHTML = summaryGainers.map(r => {
           const sym = r.symbol.replace('.NS', '').replace('.BO', '');
           const val = r.quote?.changePct ?? 0;
@@ -986,37 +1106,52 @@ const App = (() => {  // ── State
         losersList.innerHTML = `<div style="color:var(--text-muted);font-size:0.8rem;padding:6px 0">Waiting for data...</div>`;
       } else {
         // Fallback to active watchlist if summary is empty
-        const fallbackGainers = [...validResults]
+        let fallbackQuotes = [...validResults];
+        if (state.capFilter && state.capFilter !== 'all') {
+          fallbackQuotes = fallbackQuotes.filter(q => q.cap === state.capFilter);
+        }
+
+        const fallbackGainers = [...fallbackQuotes]
+          .filter(q => (q.quote?.changePct || 0) > 0)
           .sort((a, b) => (b.quote?.changePct || 0) - (a.quote?.changePct || 0))
           .slice(0, 5);
-        const fallbackLosers = [...validResults]
+        const fallbackLosers = [...fallbackQuotes]
+          .filter(q => (q.quote?.changePct || 0) < 0)
           .sort((a, b) => (a.quote?.changePct || 0) - (b.quote?.changePct || 0))
           .slice(0, 5);
 
-        gainersList.innerHTML = fallbackGainers.map(r => {
-          const sym = r.symbol.replace('.NS', '').replace('.BO', '');
-          const val = r.quote?.changePct ?? 0;
-          return `
-            <div class="ranking-item" onclick="App.selectStock('${r.symbol}')" style="cursor:pointer">
-              <span class="ranking-symbol">${sym}</span>
-              <span class="ranking-name" title="${r.name}">${r.name}</span>
-              <span class="ranking-pct positive">+${val.toFixed(2)}%</span>
-            </div>
-          `;
-        }).join('');
+        if (fallbackGainers.length === 0) {
+          gainersList.innerHTML = `<div style="color:var(--text-muted);font-size:0.8rem;padding:6px 0">No gainers found</div>`;
+        } else {
+          gainersList.innerHTML = fallbackGainers.map(r => {
+            const sym = r.symbol.replace('.NS', '').replace('.BO', '');
+            const val = r.quote?.changePct ?? 0;
+            return `
+              <div class="ranking-item" onclick="App.selectStock('${r.symbol}')" style="cursor:pointer">
+                <span class="ranking-symbol">${sym}</span>
+                <span class="ranking-name" title="${r.name}">${r.name}</span>
+                <span class="ranking-pct positive">+${val.toFixed(2)}%</span>
+              </div>
+            `;
+          }).join('');
+        }
 
-        losersList.innerHTML = fallbackLosers.map(r => {
-          const sym = r.symbol.replace('.NS', '').replace('.BO', '');
-          const val = r.quote?.changePct ?? 0;
-          const sign = val >= 0 ? '+' : '';
-          return `
-            <div class="ranking-item" onclick="App.selectStock('${r.symbol}')" style="cursor:pointer">
-              <span class="ranking-symbol">${sym}</span>
-              <span class="ranking-name" title="${r.name}">${r.name}</span>
-              <span class="ranking-pct negative">${sign}${val.toFixed(2)}%</span>
-            </div>
-          `;
-        }).join('');
+        if (fallbackLosers.length === 0) {
+          losersList.innerHTML = `<div style="color:var(--text-muted);font-size:0.8rem;padding:6px 0">No losers found</div>`;
+        } else {
+          losersList.innerHTML = fallbackLosers.map(r => {
+            const sym = r.symbol.replace('.NS', '').replace('.BO', '');
+            const val = r.quote?.changePct ?? 0;
+            const sign = val >= 0 ? '+' : '';
+            return `
+              <div class="ranking-item" onclick="App.selectStock('${r.symbol}')" style="cursor:pointer">
+                <span class="ranking-symbol">${sym}</span>
+                <span class="ranking-name" title="${r.name}">${r.name}</span>
+                <span class="ranking-pct negative">${sign}${val.toFixed(2)}%</span>
+              </div>
+            `;
+          }).join('');
+        }
       }
     }
 
@@ -1284,7 +1419,7 @@ const App = (() => {  // ── State
 
     try {
       // Call sendInvyChatMessage
-      const response = await API.sendInvyChatMessage(chatHistory, msg, currentStockContext);
+      const response = await API.sendInvyChatMessage(chatHistory, msg, currentStockContext, state.marketSummary);
       
       // Remove typing indicator
       typingIndicator.remove();

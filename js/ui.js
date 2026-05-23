@@ -176,25 +176,28 @@ const UI = (() => {
       if (s === 'it' || s.includes('tech') || s.includes('semiconductor') || s.includes('social') || s.includes('streaming') || s.includes('e-commerce') || s.includes('consumer tech')) {
         return 'Technology';
       }
-      if (s.includes('bank') || s.includes('nbfc') || s.includes('financial')) {
+      if (s.includes('bank') || s.includes('nbfc') || s.includes('financial') || s.includes('insurance')) {
         return 'Financials';
       }
-      if (s.includes('pharma') || s.includes('health')) {
+      if (s.includes('pharma') || s.includes('health') || s.includes('hospital')) {
         return 'Healthcare';
       }
-      if (s.includes('renewable') || s.includes('wind') || s.includes('solar') || s.includes('green')) {
+      if (s.includes('renewable') || s.includes('wind') || s.includes('solar') || s.includes('green') || s.includes('clean')) {
         return 'Renewables';
       }
       if (s.includes('energy')) {
         return 'Energy';
       }
-      if (s.includes('telecom') || s.includes('telco')) {
+      if (s.includes('telecom') || s.includes('telco') || s.includes('telecommunications')) {
         return 'Telecom';
       }
-      if (s.includes('auto') || s.includes('engineer') || s.includes('conglomerate') || s.includes('industrial')) {
+      if (s.includes('auto') || s.includes('engineer') || s.includes('conglomerate') || s.includes('industrial') || s.includes('aerospace') || s.includes('defense') || s.includes('defence') || s.includes('electronics') || s.includes('infrastructure')) {
         return 'Industrials';
       }
-      if (s.includes('metal') || s.includes('cement') || s.includes('material') || s.includes('fmcg') || s.includes('consumer')) {
+      if (s.includes('fmcg') || s.includes('consumer') || s.includes('retail')) {
+        return 'Consumer';
+      }
+      if (s.includes('metal') || s.includes('cement') || s.includes('material')) {
         return 'Materials';
       }
       if (s.includes('utility') || s.includes('utilities')) {
@@ -247,8 +250,8 @@ const UI = (() => {
         });
 
         if (sectorStocks.length > 0) {
-          const sortedDesc = [...sectorStocks].sort((a, b) => b.quote.changePct - a.quote.changePct);
-          const sortedAsc = [...sectorStocks].sort((a, b) => a.quote.changePct - b.quote.changePct);
+          const sortedDesc = [...sectorStocks].filter(q => (q.quote?.changePct || 0) > 0).sort((a, b) => b.quote.changePct - a.quote.changePct);
+          const sortedAsc = [...sectorStocks].filter(q => (q.quote?.changePct || 0) < 0).sort((a, b) => a.quote.changePct - b.quote.changePct);
 
           gainersHtml = sortedDesc.slice(0, 5).map(q => {
             const cleanSym = q.symbol.replace('.NS', '').replace('.BO', '');
@@ -295,7 +298,7 @@ const UI = (() => {
       }
 
       return `
-        <div class="sector-tile ${cls}" title="${s.name}" style="margin-bottom:8px;">
+        <div class="sector-tile ${cls}" onclick="App.selectStock('${s.symbol}')" title="Click to view sector details (${s.symbol})" style="margin-bottom:8px; cursor:pointer;">
           <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
             <div class="st-name" style="font-weight:700; font-size:0.78rem">${s.icon} ${s.name}</div>
             <div class="st-change" style="color:${changeColor}; font-weight:700; font-size:0.78rem">${fmtPct(s.change)}</div>
@@ -1272,7 +1275,7 @@ const UI = (() => {
   // ── Render Interactive Live Chart
   function renderLiveChart(result) {
     const tvSymbol = getTradingViewSymbol(result.symbol);
-    const container = document.getElementById('tab-live-chart');
+    const container = document.getElementById('detail-live-chart-container');
     if (!container) return;
 
     const currentLoadedSymbol = container.getAttribute('data-loaded-symbol');
@@ -1304,7 +1307,7 @@ const UI = (() => {
           </div>
         </div>
 
-        <div class="chart-widget-wrap" style="height:650px; border-radius:var(--radius-md); overflow:hidden; border:1px solid var(--border); background:var(--bg-card); position:relative;">
+        <div class="chart-widget-wrap" style="height:720px; border-radius:var(--radius-md); overflow:hidden; border:1px solid var(--border); background:var(--bg-card); position:relative;">
           <div id="tradingview_widget_main" style="width:100%; height:100%; display:flex; align-items:center; justify-content:center; background:#0d1220;">
             <div style="display:flex; flex-direction:column; align-items:center; gap:12px;">
               <div class="spinner"></div>
@@ -1429,6 +1432,10 @@ const UI = (() => {
                   <span style="font-size:0.7rem; color:var(--text-secondary)">Telegram Chat / Channel ID</span>
                   <input type="text" id="sett-tg-chat-id" value="${settings.telegram_chat_id || ''}" placeholder="-100xxxxxxxxx" style="background:var(--bg-body); border:1px solid var(--border); padding:8px; border-radius:4px; font-size:0.8rem; color:var(--text-primary)">
                 </div>
+                <div style="display:flex; flex-direction:column; gap:4px">
+                  <span style="font-size:0.7rem; color:var(--text-secondary)">Telegram Bot Token (for real alerts)</span>
+                  <input type="password" id="sett-tg-bot-token" value="${settings.telegram_bot_token || ''}" placeholder="botTokenxxxxxx:xxxxxx" style="background:var(--bg-body); border:1px solid var(--border); padding:8px; border-radius:4px; font-size:0.8rem; color:var(--text-primary)">
+                </div>
               </div>
 
               <!-- WhatsApp Column -->
@@ -1440,6 +1447,10 @@ const UI = (() => {
                 <div style="display:flex; flex-direction:column; gap:4px">
                   <span style="font-size:0.7rem; color:var(--text-secondary)">Phone Number (with Country Code)</span>
                   <input type="text" id="sett-wa-phone" value="${settings.whatsapp_phone || ''}" placeholder="+919876543210" style="background:var(--bg-body); border:1px solid var(--border); padding:8px; border-radius:4px; font-size:0.8rem; color:var(--text-primary)">
+                </div>
+                <div style="display:flex; flex-direction:column; gap:4px">
+                  <span style="font-size:0.7rem; color:var(--text-secondary)">WhatsApp CallMeBot API Key</span>
+                  <input type="password" id="sett-wa-apikey" value="${settings.whatsapp_apikey || ''}" placeholder="ApiKeyXXXXXX" style="background:var(--bg-body); border:1px solid var(--border); padding:8px; border-radius:4px; font-size:0.8rem; color:var(--text-primary)">
                 </div>
               </div>
             </div>
@@ -1518,14 +1529,18 @@ const UI = (() => {
       document.getElementById('btn-save-perf-settings').addEventListener('click', async () => {
         const tgEnabled = document.getElementById('sett-tg-enabled').checked;
         const tgChatId = document.getElementById('sett-tg-chat-id').value;
+        const tgBotToken = document.getElementById('sett-tg-bot-token').value;
         const waEnabled = document.getElementById('sett-wa-enabled').checked;
         const waPhone = document.getElementById('sett-wa-phone').value;
+        const waApiKey = document.getElementById('sett-wa-apikey').value;
 
         const updatedSettings = await API.saveSettings({
           telegram_enabled: tgEnabled,
           telegram_chat_id: tgChatId,
+          telegram_bot_token: tgBotToken,
           whatsapp_enabled: waEnabled,
-          whatsapp_phone: waPhone
+          whatsapp_phone: waPhone,
+          whatsapp_apikey: waApiKey
         });
 
         UI.toast('Webhook configurations saved successfully!', 'success');
@@ -1535,6 +1550,8 @@ const UI = (() => {
         const testSym = document.getElementById('sim-test-symbol').value;
         const tgChatId = document.getElementById('sett-tg-chat-id').value;
         const waPhone = document.getElementById('sett-wa-phone').value;
+        const tgBotToken = document.getElementById('sett-tg-bot-token').value;
+        const waApiKey = document.getElementById('sett-wa-apikey').value;
 
         const consoleWrap = document.getElementById('sim-console-log-wrap');
         const consoleLog = document.getElementById('sim-console-log');
@@ -1542,10 +1559,10 @@ const UI = (() => {
         consoleWrap.style.display = 'flex';
         consoleLog.innerHTML = 'Connecting to webhook endpoints...';
         
-        const response = await API.sendTestSignal(testSym, tgChatId, waPhone);
+        const response = await API.sendTestSignal(testSym, tgChatId, waPhone, tgBotToken, waApiKey);
         if (response && response.status === 'success') {
           consoleLog.innerHTML = `[SUCCESS] Webhook Dispatched:\n` + JSON.stringify(response.payload, null, 2);
-          UI.toast('Simulated signal dispatched!', 'success');
+          UI.toast('Webhook signal dispatched!', 'success');
         } else {
           consoleLog.innerHTML = `[ERROR] Failed to dispatch webhook signal. Check server logs.`;
           UI.toast('Signal dispatch failed', 'error');

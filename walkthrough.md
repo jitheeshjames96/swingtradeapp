@@ -1,102 +1,62 @@
-# Swing Trading App — Walkthrough & Status
+# Walkthrough & Status - Swing Trading App Upgrades (Phase 3)
 
-## 🟢 Live Production URL
-**[https://swing-trading-app-nine.vercel.app](https://swing-trading-app-nine.vercel.app)**
-
----
-
-## What Was Fixed (This Session)
-
-### 1. NGINX Reverse-Proxy Subpath Stripping Bug — FIXED
-**Root cause**: In `nginx.conf`, the directive `proxy_pass $backend_api_url/api/;` used a variable. Under NGINX's routing rules, when variables are used in `proxy_pass` and a URI prefix is appended, NGINX fails to translate the URI path correctly and instead sends the raw root request (`/api/`) to the backend, completely discarding the subpaths like `/api/health` or `/api/analyze`. This broke all backend calls routed through the frontend NGINX proxy.
-
-**Fix applied:**
-- Changed `proxy_pass $backend_api_url/api/;` to `proxy_pass $backend_api_url;` in `nginx.conf`.
-- Reloaded the NGINX configuration inside the running Docker container (`nginx -s reload`).
-- Verified that all endpoints (e.g. `/api/health`, `/api/analyze`) are now successfully proxied and return correct JSON payloads.
+This walkthrough documents the technical upgrades made to the **Swing Trading App** in Phase 3 across the frontend UI layout, backend APIs, authentication verification bypass, alert dispatch webhooks, and chatbot prompt context.
 
 ---
 
-## 🛠️ Previous Changes Implemented
+## Key Achievements
 
-### 1. Infinite Skeleton Loading Bug — FIXED
-**Root cause**: Invalid ticker `ETERNAL` (without `.NS` suffix) returned a 404 from Yahoo Finance → the entire watchlist would show loading skeletons forever.
+### 1. Always-Visible Stock Detail Chart
+- Relocated the TradingView interactive chart widget from the sub-tabs pane directly below the detail panel header in [index.html](index.html).
+- The interactive chart is now always visible, large, and loaded immediately upon selecting a stock, while sub-tabs below it focus on textual metrics (Overview, Fundamentals, Technical levels, Sentiment, and Institutional).
+- Updated [js/ui.js](js/ui.js) and [js/app.js](js/app.js) to target the new always-visible `#detail-live-chart-container` box, and removed the redundant `Live Chart` button and tab content pane.
 
-**Fix applied:**
-- `loadWatchlist()` now auto-corrects `ETERNAL` → `ETERNAL.NS` from localStorage.
-- `analyzeAndStore()` now stores an **error sentinel** (instead of `undefined`) for failed stocks — the skeleton is replaced by a ⚠️ "Invalid ticker — Remove" badge.
-- `updateWatchlistUI()` only shows skeleton animation when `state.loading.has(symbol)` is `true` AND no result exists.
+### 2. SSO Backend Bypass Token (`DEMO_BYPASS`)
+- Updated the "Continue in Demo Mode" bypass button click handler in [js/app.js](js/app.js) to store `'DEMO_BYPASS'` inside `localStorage` under `google_sso_token`.
+- Configured backend `authMiddleware` in both Vercel [api/index.js](api/index.js) and Node server [server/src/index.js](server/src/index.js) to recognize `Bearer DEMO_BYPASS`, bypassing Google validation and assigning a simulated guest profile (`demo@guest.com`) to allow full stock analysis fetches.
 
-### 2. Recommendations Grid Stuck at "Analysing stocks..." — FIXED
-**Root cause**: Grid only rendered after ALL stocks had results. If one failed, it never showed anything.
+### 3. Header Sign-In Trigger
+- Inserted a `🔑 Sign In` button (`#btn-login`) next to the sign out button in the header in [index.html](index.html).
+- Added click events and implemented `updateAuthButtons()` inside [js/app.js](js/app.js) to toggle display states dynamically:
+  - If authenticated (via Google SSO or Demo Bypass), show `Exit Demo Mode` or `Sign Out` and hide `Sign In`.
+  - If unauthenticated, show `Sign In` and hide the logout button. Clicking `Sign In` opens the Google SSO overlay manually.
 
-**Fix applied:**
-- Filters out `error` states from the recommendations grid.
-- Shows **partial results** immediately as each stock loads (progressive rendering).
-- Loading placeholder skeleton cards shown for still-loading stocks.
-- Proper empty state when all stocks fail.
+### 4. Dynamic Sector averages in Heatmap
+- Modified `/api/market-summary` in [api/index.js](api/index.js) and [server/src/index.js](server/src/index.js) to calculate sector changes as the dynamic average of the change percentage of all catalog stocks mapped to that sector.
+- The index quote change percentage is used as a fallback only when no stock quotes are retrieved.
 
-### 3. analyzeStock Error Propagation — FIXED
-- Backend 500 errors (invalid tickers) now **throw** immediately without retrying through CORS proxy.
-- Client-side fallback validates `quote.price > 0` before proceeding.
-- `fetchFullAnalysisFromBackend` returns the JSON error body instead of throwing, so callers can inspect `data.error`.
+### 5. Expanded Indian Stock Catalog
+- Added missing Nifty 50 and highly active stocks to `STOCK_CATALOG_IN` and `STOCK_CATALOG`: `ITC.NS` (FMCG), `SBILIFE.NS` (Financials), `SHRIRAMFIN.NS` (NBFC), `TATACONSUM.NS` (FMCG), `JIOFIN.NS` (NBFC), `BEL.NS` (Electronics), `HAL.NS` (Aerospace), `IRFC.NS` (NBFC), `TATAMOTORS.NS` (Auto), `RVNL.NS` (Infrastructure), `RECLTD.NS` (NBFC), `PFC.NS` (NBFC), `NHPC.NS` (Utilities), `IREDA.NS` (Renewables), `SJVN.NS` (Utilities).
+- Corrected the typo `MAHINDM.NS` to Yahoo Finance ticker `M&M.NS` across both client and server files.
+- Added the `Consumer` sector mapped to `^CNXFMCG` (India) and `XLY` (US).
+- Updated `getEtfSectorName()` in [api/index.js](api/index.js), [server/src/index.js](server/src/index.js), and [js/ui.js](js/ui.js) to map:
+  - FMCG/Retail/Consumer -> `'Consumer'`
+  - Aerospace/Defense/Electronics/Infrastructure -> `'Industrials'`
 
-### 4. Auto-retry with .NS Suffix — ADDED
-- If a symbol returns price = 0 and has no suffix, auto-retries with `.NS` appended.
-- Updates `localStorage` watchlist to the corrected symbol silently.
+### 6. Settings Save Alert Dispatches
+- Implemented `sendWelcomeActiveRecommendationsAlert()` on the backend. When user settings are saved under `/api/settings` and alerts are enabled, the backend immediately fetches all active recomendation picks and dispatches a welcome alert listing current swing trading setups to Telegram or WhatsApp CallMeBot.
 
-### 5. Real-time Auto-Refresh — ADDED
-- Market indices + Fear & Greed auto-refresh every **5 minutes** silently in background.
-- Live clock `🕐 HH:MM` in topbar showing last data update time (updates every minute).
-
-### 6. Refined Scoring Engine & Chart Aesthetics — ADDED
-- **Tiered Multi-level Valuations**: Replaced single thresholds with tiered valuation mapping (e.g. PE ranges <15, 15-30, 30-45, >=45; PB ranges <3, 3-6, >=6).
-- **Financial Sector Adaptation**: Excluded debt-to-equity threshold checks for Banking/NBFC symbols. Replaced with liquidity health check.
-- **Mega-cap Scaling**: Relaxed ROE requirements (>9% solid, >12% excellent) for mega-caps (>₹1.5 Lakh Cr) to honor stable large-scale compounders like `RELIANCE.NS`.
-- **Chart.js Enhancements**: Added support/resistance lines (S1/R1), semi-transparent Bollinger Bands channel fill, RSI 30-70 channel background, and standard 4-color MACD histogram coloring.
-
-### 7. Year-Based Financials Filter & YoY Correction — ADDED
-- **Financial Year Filter**: Added a dropdown selector `id="quarter-filter-select"` to filter quarterly financials dynamically by year (e.g., FY24, FY23).
-- **YoY quarterly comparison correction**: Updated YoY calculation to compare the current quarter with the quarter 4 positions back (`i + 4`) in the chronologically ordered 12-quarter scraper data.
-
-### 8. Featured News & Chat Fallback Reports — ADDED
-- **Major News Banner**: Featured the top sentiment news item at the top of the sentiment tab using a premium styled badge and gradient.
-- **API-Key Fallback Chat**: Added a server-side and client-side markdown generator that builds a detailed stock trading report when the Gemini API key is missing.
-
-### 9. Side-by-Side Rankings & Market-Wide Sector Heatmap — ADDED
-- **Top Losers / Gainers Side-by-Side**: Re-ordered daily change columns. "Top Losers" is now rendered on the left and "Top Gainers" on the right.
-- **Market-Wide Sector Heatmap**: Computes leaders and laggards dynamically from the full 39-stock catalog instead of the active user watchlist.
-- **Real Estate Representation**: Added DLF.NS and PLD to the catalog so the Real Estate sector shows live, valid leader/laggard quotes instead of null fields.
-- **Backend & Vercel Sync**: Completely synchronized the `/api/market-summary` routes between Docker containers and Vercel production functions.
-
-### 10. Indian Ticker Focus & US Index Cleanup — ADDED
-- **US Indices Removed**: Completely removed S&P 500 and NASDAQ from the top ticker banner, frontend, and backend (`server/src/index.js` & `api/index.js`), leaving only pure Indian market indices: NIFTY 50, SENSEX, and BANK NIFTY.
-- **getTradingViewSymbol Refactor**: Simplified the TradingView widget symbol generator to map only BSE/NSE exchanges and removed US stocks mapping references.
-- **Latency profiling alignment**: Updated `scratch/test_latency.js` to target `TCS.NS` rather than the US-based `AAPL`.
+### 7. AI Chat Context Boost
+- Injected `state.marketSummary` inside chatbot queries in [js/app.js](js/app.js) and [js/api.js](js/api.js).
+- Updated `/api/chat` backend handlers to parse `marketSummary` and append current top gainers/losers and sector performance details to the Gemini prompt context, allowing the bot to respond accurately to general market performance queries.
 
 ---
 
-## Live Data Verification (as of deployment)
+## Files Modified
 
-| Data Point | Value | Source |
-|---|---|---|
-| NIFTY 50 | 23,822 (+0.71%) | Yahoo Finance |
-| SENSEX | 75,790 (+0.81%) | Yahoo Finance |
-| Fear & Greed Index | 28 — Fear | CNN Business / Scraper |
-| Real Estate Leader | PLD | Market Summary |
-| Real Estate Laggard | DLF.NS | Market Summary |
-| Utilities Leader | NTPC.NS | Market Summary |
-| Utilities Laggard | POWERGRID.NS | Market Summary |
+1. **[index.html](index.html)**: Relocated live chart widget box, added Sign-In button markup, and removed redundant tabs.
+2. **[js/api.js](js/api.js)**: Expanded stock catalog, added Consumer sector, and updated client-side chatbot context prompt builder.
+3. **[js/app.js](js/app.js)**: Configured DEMO_BYPASS localStorage token, bound sign-in triggers, called `updateAuthButtons()`, and passed market summary context to the chat API.
+4. **[js/ui.js](js/ui.js)**: Updated `getEtfSectorName` mappings and pointed TradingView chart target to the always-visible header box.
+5. **[api/index.js](api/index.js)**: Implemented token bypass middleware rules, dynamic sector average calculators, welcome alert settings webhook triggers, and backend Gemini prompt contexts.
+6. **[server/src/index.js](server/src/index.js)**: Synced with Vercel backend index.
 
 ---
 
-## What Still Needs Setup (Optional)
+## Verification & Build Status
 
-| Variable | Where | Purpose |
-|---|---|---|
-| `GOOGLE_CLIENT_ID` | Vercel Env Vars | Google SSO login |
-| `AUTHORIZED_EMAIL` | Vercel Env Vars | Restrict dashboard access |
-| `DATABASE_URL` | Vercel Env Vars | PostgreSQL activity logging |
-| `GEMINI_API_KEY` | Vercel Env Vars OR in-app Settings | Invy AI chat with full context |
-
-Without these set, the app works in **open access mode** with rule-based Invy AI responses.
+### 1. Backend Syntax Verification
+```bash
+node -c api/index.js && node -c server/src/index.js
+# Status: SUCCESS (0 compilation or syntax errors detected)
+```

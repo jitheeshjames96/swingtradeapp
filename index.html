@@ -92,6 +92,9 @@
         <button id="btn-settings" class="btn btn-ghost btn-sm" title="AI Settings (Gemini API Key)" aria-label="AI Settings">
           ⚙️ AI Settings
         </button>
+        <button id="btn-login" class="btn btn-ghost btn-sm" style="display:none;" title="Sign In to Google SSO" aria-label="Sign In">
+          🔑 Sign In
+        </button>
         <button id="btn-logout" class="btn btn-ghost btn-sm" style="display:none;" title="Sign Out of Google SSO" aria-label="Sign Out">
           🚪 Sign Out
         </button>
@@ -269,6 +272,14 @@
             <span style="font-size:0.72rem;color:var(--text-muted)">Sorted by composite score ↓</span>
           </div>
           <div class="panel-body">
+            <!-- Market Capitalization Filter Segmented Control -->
+            <div class="cap-filter-container" style="display:flex; justify-content:center; gap:8px; margin-bottom:16px; padding:4px; background:rgba(255,255,255,0.02); border:1px solid var(--border); border-radius:var(--radius-sm);">
+              <button class="cap-btn active" data-cap="all" style="flex:1; background:rgba(99,102,241,0.15); border:1px solid rgba(99,102,241,0.3); color:var(--text-accent); font-size:0.75rem; font-weight:700; padding:6px 12px; border-radius:4px; cursor:pointer; transition:all 0.2s;">All Caps</button>
+              <button class="cap-btn" data-cap="large" style="flex:1; background:none; border:1px solid transparent; color:var(--text-muted); font-size:0.75rem; font-weight:600; padding:6px 12px; border-radius:4px; cursor:pointer; transition:all 0.2s;">Large Cap</button>
+              <button class="cap-btn" data-cap="mid" style="flex:1; background:none; border:1px solid transparent; color:var(--text-muted); font-size:0.75rem; font-weight:600; padding:6px 12px; border-radius:4px; cursor:pointer; transition:all 0.2s;">Mid Cap</button>
+              <button class="cap-btn" data-cap="small" style="flex:1; background:none; border:1px solid transparent; color:var(--text-muted); font-size:0.75rem; font-weight:600; padding:6px 12px; border-radius:4px; cursor:pointer; transition:all 0.2s;">Small Cap</button>
+            </div>
+
             <!-- Rankings Container: side-by-side Top Gainers and Top Losers -->
             <div class="rankings-container">
               <div class="ranking-column">
@@ -403,10 +414,14 @@
           </div>
         </div>
 
+        <!-- Always-Visible Chart Container -->
+        <div id="detail-live-chart-container" style="padding:24px 28px; border-bottom:1px solid var(--border); display:none;">
+          <!-- Filled dynamically by JS -->
+        </div>
+
         <!-- Tabs Navigation -->
         <nav class="tabs-nav" role="tablist" aria-label="Analysis tabs">
           <button class="tab-btn active" data-tab="overview"       role="tab" aria-selected="true"  id="tab-btn-overview"      >📡 Overview</button>
-          <button class="tab-btn"        data-tab="live-chart"     role="tab" aria-selected="false" id="tab-btn-live-chart"    >📈 Live Chart</button>
           <button class="tab-btn"        data-tab="fundamental"    role="tab" aria-selected="false" id="tab-btn-fundamental"   >📊 Fundamental</button>
           <button class="tab-btn"        data-tab="technical"      role="tab" aria-selected="false" id="tab-btn-technical"     >⚙️ Technical</button>
           <button class="tab-btn"        data-tab="sentiment"      role="tab" aria-selected="false" id="tab-btn-sentiment"     >💬 Sentiment</button>
@@ -420,10 +435,6 @@
             <div class="es-title">Select a stock to view analysis</div>
             <div class="es-desc">Click any stock in the watchlist or recommendations above</div>
           </div>
-        </div>
-
-        <div id="tab-live-chart"     class="tab-content" role="tabpanel" aria-labelledby="tab-btn-live-chart">
-          <!-- Filled by JS (TradingView widget) -->
         </div>
 
         <div id="tab-fundamental"    class="tab-content" role="tabpanel" aria-labelledby="tab-btn-fundamental">
@@ -536,6 +547,7 @@
     <h2>Access Restricted</h2>
     <p>Please sign in with your authorized Google Account to unlock the Swing Trading intelligence dashboard.</p>
     <div id="google-signin-btn"></div>
+    <button id="btn-bypass-sso" class="btn btn-secondary" style="margin-top: 12px; width: 250px; display: inline-block; background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.15); color: var(--text-primary); border-radius: 4px; padding: 10px 16px; font-weight: 600; cursor: pointer; transition: all 0.2s;" onmouseover="this.style.background='rgba(255,255,255,0.15)'" onmouseout="this.style.background='rgba(255,255,255,0.08)'">Continue in Demo Mode</button>
     <div id="login-error-msg" class="login-error-msg" style="display: none;"></div>
   </div>
 </div>

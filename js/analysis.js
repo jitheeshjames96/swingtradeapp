@@ -1063,8 +1063,13 @@ async function analyzeStock(symbol, name, sector) {
     geminiCommentary = generateStaticRationale(symbol, name || symbol, scores, tradeSetup, quote, historical);
   }
 
+  let cap = 'mid';
+  const catalog = (window.API?.STOCK_CATALOG || []).concat(window.API?.STOCK_CATALOG_US || []);
+  const foundItem = catalog.find(s => s.symbol === symbol);
+  if (foundItem) cap = foundItem.cap;
+
   return {
-    symbol, name: name || symbol, sector: sector || 'N/A',
+    symbol, name: name || symbol, sector: sector || 'N/A', cap,
     quote, fund, historical, earnings, news, fearGreed, shareholding,
     scores,
     tradeSetup,

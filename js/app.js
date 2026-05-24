@@ -9,6 +9,8 @@ const App = (() => {  // ── State
     results: new Map(),     // symbol → full analysis result
     catalogResults: new Map(), // symbol → analysis result for catalog scan
     activeSymbol: null,
+    drawerActiveSymbol: null,
+    alerts: JSON.parse(localStorage.getItem('stid_alerts') || '[]'),
     activeTab: 'overview',
     loading: new Set(),
     fearGreed: null,
@@ -22,11 +24,39 @@ const App = (() => {  // ── State
     pendingSelectSymbol: null,
     pendingAction: null,
     capFilter: 'all',
+
+    // --- Phase 6 Quant Additions ---
+    weights: JSON.parse(localStorage.getItem('stid_weights') || 'null') || {
+      fundamental: 25,
+      technical: 30,
+      momentum: 20,
+      sentiment: 10,
+      institutional: 15
+    },
+    regime: localStorage.getItem('stid_regime') || 'auto', // 'auto', 'bull', 'bear'
+    activeRegime: 'bull', // Resolved active regime: 'bull' or 'bear'
+    screener: {
+      filters: [],
+      results: []
+    },
+    backtest: {
+      params: {
+        threshold: 80,
+        holdingPeriod: 30,
+        lookback: 365
+      },
+      results: null
+    }
   };
 
   function updateAuthButtons() {
     const btnLogin = document.getElementById('btn-login');
     const btnLogout = document.getElementById('btn-logout');
+    if (!googleClientId) {
+      if (btnLogin) btnLogin.style.display = 'none';
+      if (btnLogout) btnLogout.style.display = 'none';
+      return;
+    }
     if (btnLogin && btnLogout) {
       if (state.isAuthenticated) {
         btnLogin.style.display = 'none';
@@ -252,16 +282,14 @@ const App = (() => {  // ── State
     Charts.initChartDefaults();
     state.watchlist = loadWatchlist();
     bindEvents();
+    initWeightSliders();
     
     // Fetch SSO configuration
     const config = await API.fetchAuthConfig();
     googleClientId = config.googleClientId;
 
-    if (googleClientId) {
-      const token = localStorage.getItem('google_sso_token');
-      
-      // Setup Google Identity Services button
-      if (typeof google !== 'undefined') {
+    const initGoogleSSO = () => {
+      if (typeof google !== 'undefined' && google.accounts && google.accounts.id) {
         google.accounts.id.initialize({
           client_id: googleClientId,
           callback: handleGoogleLoginCallback
@@ -271,9 +299,16 @@ const App = (() => {  // ── State
           document.getElementById('google-signin-btn'),
           { theme: 'filled_blue', size: 'large', text: 'signin_with', width: 250 }
         );
+        console.log('Google Identity Services script loaded and initialized.');
       } else {
-        console.error('Google Identity Services script not loaded');
+        console.log('Google SSO script not ready, retrying in 300ms...');
+        setTimeout(initGoogleSSO, 300);
       }
+    };
+
+    if (googleClientId) {
+      initGoogleSSO();
+      const token = localStorage.getItem('google_sso_token');
 
       if (token) {
         // We have a token saved, let's verify it by hitting /api/auth/login
@@ -318,6 +353,35 @@ const App = (() => {  // ── State
 
   // ── Event Bindings
   function bindEvents() {
+    // Market Regime Status Badge Click
+    const regimeBadge = document.getElementById('regime-status');
+    if (regimeBadge) {
+      regimeBadge.addEventListener('click', () => {
+        if (state.regime === 'auto') {
+          // Switch to manual bull
+          state.regime = 'bull';
+          state.activeRegime = 'bull';
+          UI.toast('Market Regime set to MANUAL: BULL', 'success');
+        } else if (state.regime === 'bull') {
+          // Switch to manual bear
+          state.regime = 'bear';
+          state.activeRegime = 'bear';
+          UI.toast('Market Regime set to MANUAL: BEAR', 'warning');
+        } else {
+          // Switch back to auto
+          state.regime = 'auto';
+          const savedRegime = state.indicesRegime?.regime || 'bull';
+          state.activeRegime = savedRegime;
+          UI.toast('Market Regime set to AUTO-DETECTION', 'info');
+        }
+        localStorage.setItem('stid_regime', state.regime);
+        
+        // Refresh UI & Recalculate
+        updateRegimeUI(state.indicesRegime);
+        recalculateAllScores();
+      });
+    }
+
     // Market Switcher buttons
     const btnIn = document.getElementById('btn-market-in');
     const btnUs = document.getElementById('btn-market-us');
@@ -378,6 +442,10 @@ const App = (() => {  // ── State
       if (!e.target.closest('#btn-settings') && !e.target.closest('#settings-dropdown')) {
         const dd = document.getElementById('settings-dropdown');
         if (dd) dd.style.display = 'none';
+      }
+      if (!e.target.closest('#btn-nexus') && !e.target.closest('#nexus-dropdown')) {
+        const nd = document.getElementById('nexus-dropdown');
+        if (nd) nd.style.display = 'none';
       }
     });
 
@@ -490,6 +558,215 @@ const App = (() => {  // ── State
       });
     }
 
+    // Nexus Toggle & Wizard Wiring
+    const btnNexus = document.getElementById('btn-nexus');
+    const nexusDropdown = document.getElementById('nexus-dropdown');
+    
+    if (btnNexus && nexusDropdown) {
+      btnNexus.addEventListener('click', e => {
+        e.stopPropagation();
+        const isShown = nexusDropdown.style.display === 'block';
+        nexusDropdown.style.display = isShown ? 'none' : 'block';
+        
+        // Auto-close settings when opening Nexus
+        const sd = document.getElementById('settings-dropdown');
+        if (sd) sd.style.display = 'none';
+
+        if (!isShown) {
+          const ssoToken = localStorage.getItem('google_sso_token');
+          const isBypassed = ssoToken === 'DEMO_BYPASS';
+          
+          if (!state.isAuthenticated || isBypassed) {
+            // Locked preview mode
+            document.getElementById('nexus-form-view').style.display = 'none';
+            document.getElementById('nexus-results-view').style.display = 'none';
+            document.getElementById('nexus-locked-view').style.display = 'flex';
+          } else {
+            // Premium access
+            document.getElementById('nexus-locked-view').style.display = 'none';
+            const profStr = localStorage.getItem('nexus_profile');
+            if (profStr) {
+              try {
+                const prof = JSON.parse(profStr);
+                document.getElementById('nx-age').value = prof.age || 30;
+                document.getElementById('nx-profession').value = prof.profession || 'Engineer';
+                document.getElementById('nx-income-stability').value = prof.incomeStability || 'High';
+                document.getElementById('nx-dependents').value = prof.dependents || 0;
+                document.getElementById('nx-net-income').value = prof.netIncome || 100000;
+                document.getElementById('nx-capital').value = prof.capitalAllocation || 500000;
+                document.getElementById('nx-risk').value = prof.riskAppetite || 'Moderate';
+                document.getElementById('nx-stress').value = prof.behavioralStressResponse || 'Do Nothing';
+                
+                document.getElementById('nexus-form-view').style.display = 'none';
+                document.getElementById('nexus-results-view').style.display = 'flex';
+                updateNexusPieChart(prof);
+              } catch (err) {
+                document.getElementById('nexus-form-view').style.display = 'block';
+                document.getElementById('nexus-results-view').style.display = 'none';
+              }
+            } else {
+              document.getElementById('nexus-form-view').style.display = 'block';
+              document.getElementById('nexus-results-view').style.display = 'none';
+            }
+          }
+        }
+      });
+    }
+
+    const btnNexusCloseX = document.getElementById('btn-nexus-close-x');
+    if (btnNexusCloseX && nexusDropdown) btnNexusCloseX.addEventListener('click', () => nexusDropdown.style.display = 'none');
+    const btnNexusCancel = document.getElementById('btn-nexus-cancel');
+    if (btnNexusCancel && nexusDropdown) btnNexusCancel.addEventListener('click', () => nexusDropdown.style.display = 'none');
+    const btnNexusClose = document.getElementById('btn-nexus-close');
+    if (btnNexusClose && nexusDropdown) btnNexusClose.addEventListener('click', () => nexusDropdown.style.display = 'none');
+
+    // Unlock login trigger
+    const btnUnlockLogin = document.getElementById('btn-nexus-unlock-login');
+    if (btnUnlockLogin) {
+      btnUnlockLogin.addEventListener('click', () => {
+        nexusDropdown.style.display = 'none';
+        const overlay = document.getElementById('login-overlay');
+        if (overlay) overlay.style.display = 'flex';
+      });
+    }
+
+    // Rebalancing alerts toggle
+    const nxAlertToggle = document.getElementById('nx-alert-toggle');
+    if (nxAlertToggle) {
+      nxAlertToggle.checked = localStorage.getItem('nexus_rebalancing_alerts') !== 'false';
+      nxAlertToggle.addEventListener('change', e => {
+        localStorage.setItem('nexus_rebalancing_alerts', e.target.checked ? 'true' : 'false');
+        UI.toast(`Rebalancing alerts ${e.target.checked ? 'enabled' : 'disabled'}!`, 'info');
+      });
+    }
+
+    const btnNexusEdit = document.getElementById('btn-nexus-edit');
+    if (btnNexusEdit) {
+      btnNexusEdit.addEventListener('click', () => {
+        document.getElementById('nexus-form-view').style.display = 'block';
+        document.getElementById('nexus-results-view').style.display = 'none';
+      });
+    }
+
+    const nexusForm = document.getElementById('nexus-profile-form');
+    if (nexusForm) {
+      nexusForm.addEventListener('submit', e => {
+        e.preventDefault();
+        const userProfile = {
+          age: parseInt(document.getElementById('nx-age').value),
+          profession: document.getElementById('nx-profession').value.trim(),
+          incomeStability: document.getElementById('nx-income-stability').value,
+          dependents: parseInt(document.getElementById('nx-dependents').value),
+          netIncome: parseFloat(document.getElementById('nx-net-income').value),
+          capitalAllocation: parseFloat(document.getElementById('nx-capital').value),
+          riskAppetite: document.getElementById('nx-risk').value,
+          behavioralStressResponse: document.getElementById('nx-stress').value
+        };
+
+        localStorage.setItem('nexus_profile', JSON.stringify(userProfile));
+        UI.toast('Nexus Robo-Advisory Profile saved!', 'success');
+        
+        document.getElementById('nexus-form-view').style.display = 'none';
+        document.getElementById('nexus-results-view').style.display = 'flex';
+        updateNexusPieChart(userProfile);
+
+        // Update UI
+        updateWatchlistUI();
+        updateRecommendations();
+        if (state.activeSymbol) {
+          const res = state.results.get(state.activeSymbol);
+          if (res) {
+            UI.renderDetailHeader(res);
+            UI.renderTechnicals(res);
+          }
+        }
+      });
+    }
+
+    // Sector Grid event delegation -> Opens right side drawer instead of main panel
+    const sectorGrid = document.getElementById('sector-grid');
+    if (sectorGrid) {
+      sectorGrid.addEventListener('click', e => {
+        const badge = e.target.closest('.sector-stock-badge, .sector-stock-tag');
+        if (badge) {
+          const sym = badge.getAttribute('data-symbol');
+          if (sym) {
+            e.preventDefault();
+            e.stopPropagation();
+            openMiniAnalysisDrawer(sym);
+          }
+        }
+      });
+    }
+
+    // Mini-Analysis Drawer Event Bindings
+    const miniDrawer = document.getElementById('mini-analysis-drawer');
+    const miniDrawerClose = document.getElementById('mini-analysis-close');
+    if (miniDrawerClose && miniDrawer) {
+      miniDrawerClose.addEventListener('click', () => {
+        miniDrawer.classList.remove('show');
+        miniDrawer.setAttribute('aria-hidden', 'true');
+        document.getElementById('drawer-alert-setup').style.display = 'none';
+      });
+    }
+
+    const btnDrawerAlert = document.getElementById('btn-drawer-alert');
+    const drawerAlertSetup = document.getElementById('drawer-alert-setup');
+    if (btnDrawerAlert && drawerAlertSetup) {
+      btnDrawerAlert.addEventListener('click', () => {
+        const isShown = drawerAlertSetup.style.display === 'flex';
+        drawerAlertSetup.style.display = isShown ? 'none' : 'flex';
+        if (!isShown) {
+          // prefill current price
+          const activeSym = state.drawerActiveSymbol;
+          if (activeSym) {
+            const res = state.results.get(activeSym) || state.catalogResults.get(activeSym);
+            const priceValInput = document.getElementById('alert-setup-price');
+            if (res && priceValInput) {
+              priceValInput.value = res.quote.price.toFixed(2);
+            }
+          }
+        }
+      });
+    }
+
+    const btnDrawerAlertClose = document.getElementById('btn-drawer-alert-close');
+    if (btnDrawerAlertClose && drawerAlertSetup) {
+      btnDrawerAlertClose.addEventListener('click', () => {
+        drawerAlertSetup.style.display = 'none';
+      });
+    }
+
+    const btnDrawerAlertSave = document.getElementById('btn-drawer-alert-save');
+    if (btnDrawerAlertSave) {
+      btnDrawerAlertSave.addEventListener('click', () => {
+        const symbol = state.drawerActiveSymbol;
+        if (!symbol) return;
+        
+        const priceInput = document.getElementById('alert-setup-price');
+        const condSelect = document.getElementById('alert-setup-cond');
+        const rsiSelect = document.getElementById('alert-setup-rsi-cond');
+        
+        const price = parseFloat(priceInput?.value || '');
+        if (isNaN(price) || price <= 0) {
+          UI.toast('Please enter a valid target price', 'error');
+          return;
+        }
+        
+        const condition = condSelect?.value || 'below';
+        const rsiCondition = rsiSelect?.value || 'any';
+        
+        state.alerts = state.alerts || [];
+        state.alerts.push({ symbol, price, condition, rsiCondition, active: true });
+        localStorage.setItem('stid_alerts', JSON.stringify(state.alerts));
+        
+        UI.toast(`Alert signal configured for ${symbol.replace('.NS','')}`, 'success');
+        
+        if (priceInput) priceInput.value = '';
+        if (drawerAlertSetup) drawerAlertSetup.style.display = 'none';
+      });
+    }
+
     // Invy Chat Toggle
     const invyChatToggle = document.getElementById('invy-chat-toggle');
     const invyChatDrawer = document.getElementById('invy-chat-drawer');
@@ -526,33 +803,553 @@ const App = (() => {  // ── State
       });
     }
 
-    // Toggle Picks and Performance Report
-    const btnShowPicks = document.getElementById('btn-show-picks');
-    const btnShowPerformance = document.getElementById('btn-show-performance');
-    const picksSection = document.getElementById('picks-section-container');
-    const performanceSection = document.getElementById('performance-section-container');
+    // --- Portfolio & Auth Bindings ---
+    const brokerSelect = document.getElementById('portfolio-broker-select');
+    const apiKeyGroup = document.getElementById('portfolio-api-key-group');
+    if (brokerSelect && apiKeyGroup) {
+      brokerSelect.addEventListener('change', () => {
+        apiKeyGroup.style.display = brokerSelect.value === 'ZERODHA' ? 'block' : 'none';
+      });
+    }
 
-    if (btnShowPicks && btnShowPerformance && picksSection && performanceSection) {
-      btnShowPicks.addEventListener('click', () => {
-        btnShowPicks.classList.add('active');
-        btnShowPerformance.classList.remove('active');
-        picksSection.style.display = 'block';
-        performanceSection.style.display = 'none';
+    const demoBypassChk = document.getElementById('portfolio-demo-bypass-chk');
+    if (demoBypassChk) {
+      demoBypassChk.addEventListener('change', () => {
+        if (demoBypassChk.checked) {
+          const apiField = document.getElementById('portfolio-api-key-input');
+          const tokField = document.getElementById('portfolio-access-token-input');
+          if (apiField) apiField.value = 'MOCK_KEY';
+          if (tokField) tokField.value = 'DEMO_BYPASS';
+        } else {
+          const apiField = document.getElementById('portfolio-api-key-input');
+          const tokField = document.getElementById('portfolio-access-token-input');
+          if (apiField) apiField.value = '';
+          if (tokField) tokField.value = '';
+        }
+      });
+    }
+
+    const btnConnect = document.getElementById('btn-portfolio-connect');
+    if (btnConnect) {
+      btnConnect.addEventListener('click', async () => {
+        const brokerName = document.getElementById('portfolio-broker-select').value;
+        const apiKey = document.getElementById('portfolio-api-key-input')?.value.trim() || '';
+        const accessToken = document.getElementById('portfolio-access-token-input')?.value.trim() || '';
+        
+        if (!accessToken) {
+          UI.toast('Access token is required', 'error');
+          return;
+        }
+        
+        try {
+          btnConnect.disabled = true;
+          btnConnect.innerText = '🔐 Connecting...';
+          await API.connectBroker(brokerName, apiKey, accessToken);
+          UI.toast(`Successfully connected to ${brokerName}!`, 'success');
+          await loadAndRenderPortfolio();
+        } catch (err) {
+          UI.toast(err.message, 'error');
+        } finally {
+          btnConnect.disabled = false;
+          btnConnect.innerText = '🔐 Save & Authorize';
+        }
+      });
+    }
+
+    const btnDisconnect = document.getElementById('btn-portfolio-disconnect');
+    if (btnDisconnect) {
+      btnDisconnect.addEventListener('click', async () => {
+        if (!confirm('Are you sure you want to disconnect your broker account? This will clear synced holdings.')) return;
+        try {
+          const brokerBadge = document.getElementById('portfolio-connected-broker')?.innerText || 'ZERODHA';
+          await API.disconnectBroker(brokerBadge);
+          UI.toast('Disconnected successfully', 'success');
+          UI.renderPortfolioSection({ connected: false });
+        } catch (err) {
+          UI.toast(err.message, 'error');
+        }
+      });
+    }
+
+    const btnSync = document.getElementById('btn-portfolio-sync');
+    if (btnSync) {
+      btnSync.addEventListener('click', async () => {
+        await loadAndRenderPortfolio();
+      });
+    }
+
+    const btnAuthLogin = document.getElementById('btn-auth-login');
+    const btnAuthRegister = document.getElementById('btn-auth-register');
+    if (btnAuthLogin && btnAuthRegister) {
+      btnAuthLogin.addEventListener('click', async () => {
+        const email = document.getElementById('auth-email-input')?.value.trim() || '';
+        const password = document.getElementById('auth-password-input')?.value.trim() || '';
+        if (!email || !password) {
+          UI.toast('Email and Password are required', 'error');
+          return;
+        }
+        try {
+          btnAuthLogin.disabled = true;
+          const res = await API.loginUser(email, password);
+          localStorage.setItem('google_sso_token', res.token);
+          state.isAuthenticated = true;
+          document.getElementById('login-overlay').style.display = 'none';
+          UI.toast('Signed in successfully!', 'success');
+          updateAuthButtons();
+          await loadAllWatchlistStocks();
+          if (state.pendingAction === 'showPortfolio') {
+            state.pendingAction = null;
+            switchRecTab('portfolio');
+          }
+        } catch (err) {
+          UI.toast(err.message, 'error');
+        } finally {
+          btnAuthLogin.disabled = false;
+        }
       });
 
+      btnAuthRegister.addEventListener('click', async () => {
+        const email = document.getElementById('auth-email-input')?.value.trim() || '';
+        const password = document.getElementById('auth-password-input')?.value.trim() || '';
+        if (!email || !password) {
+          UI.toast('Email and Password are required', 'error');
+          return;
+        }
+        try {
+          btnAuthRegister.disabled = true;
+          const res = await API.registerUser(email, password);
+          localStorage.setItem('google_sso_token', res.token);
+          state.isAuthenticated = true;
+          document.getElementById('login-overlay').style.display = 'none';
+          UI.toast('Account registered and signed in!', 'success');
+          updateAuthButtons();
+          await loadAllWatchlistStocks();
+          if (state.pendingAction === 'showPortfolio') {
+            state.pendingAction = null;
+            switchRecTab('portfolio');
+          }
+        } catch (err) {
+          UI.toast(err.message, 'error');
+        } finally {
+          btnAuthRegister.disabled = false;
+        }
+      });
+    }
+
+    // Toggle Picks, Portfolio, Screener, Backtester and Performance Report
+    const btnShowPicks = document.getElementById('btn-show-picks');
+    const btnShowPortfolio = document.getElementById('btn-show-portfolio');
+    const btnShowScreener = document.getElementById('btn-show-screener');
+    const btnShowBacktester = document.getElementById('btn-show-backtester');
+    const btnShowPerformance = document.getElementById('btn-show-performance');
+
+    const picksSection = document.getElementById('picks-section-container');
+    const portfolioSection = document.getElementById('portfolio-section-container');
+    const screenerSection = document.getElementById('screener-section-container');
+    const backtesterSection = document.getElementById('backtester-section-container');
+    const performanceSection = document.getElementById('performance-section-container');
+
+    window.switchRecTab = function(tabName) {
+      const tabs = [
+        { name: 'picks', btn: btnShowPicks, sect: picksSection },
+        { name: 'portfolio', btn: btnShowPortfolio, sect: portfolioSection },
+        { name: 'screener', btn: btnShowScreener, sect: screenerSection },
+        { name: 'backtester', btn: btnShowBacktester, sect: backtesterSection },
+        { name: 'performance', btn: btnShowPerformance, sect: performanceSection }
+      ];
+
+      tabs.forEach(t => {
+        if (t.btn && t.sect) {
+          t.btn.classList.toggle('active', t.name === tabName);
+          t.sect.style.display = t.name === tabName ? 'block' : 'none';
+          if (t.name === tabName) {
+            t.btn.style.color = 'var(--text-primary)';
+            t.btn.style.borderBottom = '2px solid var(--text-accent)';
+            t.btn.style.fontWeight = '700';
+          } else {
+            t.btn.style.color = 'var(--text-muted)';
+            t.btn.style.borderBottom = 'none';
+            t.btn.style.fontWeight = '600';
+          }
+        }
+      });
+
+      if (tabName === 'performance') {
+        UI.renderPerformanceDashboard();
+      } else if (tabName === 'backtester') {
+        updateBacktestTargetStock();
+      } else if (tabName === 'portfolio') {
+        loadAndRenderPortfolio();
+      }
+    };
+
+    async function loadAndRenderPortfolio() {
+      if (!state.isAuthenticated) {
+        state.pendingAction = 'showPortfolio';
+        document.getElementById('login-overlay').style.display = 'flex';
+        return;
+      }
+      
+      const tbody = document.getElementById('portfolio-holdings-tbody');
+      if (tbody) {
+        tbody.innerHTML = `<tr><td colspan="10" style="text-align:center; padding:20px; color:var(--text-muted);">🔄 Syncing holdings with broker & running AI Robo-Models...</td></tr>`;
+      }
+      
+      try {
+        const res = await API.analyzePortfolio();
+        UI.renderPortfolioSection(res);
+      } catch (err) {
+        console.error("Failed to load portfolio:", err.message);
+        UI.renderPortfolioSection({ connected: false });
+        UI.toast("Sync failed: " + err.message, "error");
+      }
+    }
+
+    if (btnShowPicks) btnShowPicks.addEventListener('click', () => switchRecTab('picks'));
+    
+    if (btnShowPortfolio) {
+      btnShowPortfolio.addEventListener('click', () => {
+        if (!state.isAuthenticated) {
+          state.pendingAction = 'showPortfolio';
+          document.getElementById('login-overlay').style.display = 'flex';
+          return;
+        }
+        switchRecTab('portfolio');
+      });
+    }
+    
+    if (btnShowScreener) {
+      btnShowScreener.addEventListener('click', () => {
+        if (!state.isAuthenticated) {
+          state.pendingAction = 'showScreener';
+          document.getElementById('login-overlay').style.display = 'flex';
+          return;
+        }
+        switchRecTab('screener');
+      });
+    }
+
+    if (btnShowBacktester) {
+      btnShowBacktester.addEventListener('click', () => {
+        if (!state.isAuthenticated) {
+          state.pendingAction = 'showBacktester';
+          document.getElementById('login-overlay').style.display = 'flex';
+          return;
+        }
+        switchRecTab('backtester');
+      });
+    }
+
+    if (btnShowPerformance) {
       btnShowPerformance.addEventListener('click', () => {
         if (!state.isAuthenticated) {
           state.pendingAction = 'showPerformance';
           document.getElementById('login-overlay').style.display = 'flex';
           return;
         }
-        btnShowPicks.classList.remove('active');
-        btnShowPerformance.classList.add('active');
-        picksSection.style.display = 'none';
-        performanceSection.style.display = 'block';
-        UI.renderPerformanceDashboard();
+        switchRecTab('performance');
       });
     }
+
+
+    // --- Screener Component UI Logic ---
+    const btnScreenerAddFilter = document.getElementById('btn-screener-add-filter');
+    const btnScreenerRun = document.getElementById('btn-screener-run');
+    const btnScreenerClear = document.getElementById('btn-screener-clear');
+
+    function addScreenerRow(metric = 'pe', operator = '<', value = '20') {
+      const container = document.getElementById('screener-filter-list');
+      if (!container) return;
+
+      const row = document.createElement('div');
+      row.className = 'screener-row';
+      
+      const metrics = [
+        { value: 'pe', label: 'P/E Ratio' },
+        { value: 'pb', label: 'Price / Book (P/B)' },
+        { value: 'rsi', label: 'RSI (14)' },
+        { value: 'volumeRatio', label: 'Volume / 20-Day Avg' },
+        { value: 'roe', label: 'Return on Equity (ROE %)' },
+        { value: 'marketCap', label: 'Market Cap (Cr / M$)' },
+        { value: 'price', label: 'Stock Price' },
+        { value: 'changePct', label: 'Daily Change %' },
+        { value: 'score', label: 'Composite Score (0-100)' }
+      ];
+
+      const metricSelect = `<select class="screener-select metric-select" style="width:100%;">
+        ${metrics.map(m => `<option value="${m.value}" ${m.value === metric ? 'selected' : ''}>${m.label}</option>`).join('')}
+      </select>`;
+
+      const operatorSelect = `<select class="screener-select operator-select" style="width:100%;">
+        <option value="<" ${operator === '<' ? 'selected' : ''}>&lt; Less Than</option>
+        <option value=">" ${operator === '>' ? 'selected' : ''}>&gt; Greater Than</option>
+        <option value="=" ${operator === '=' ? 'selected' : ''}>= Equals</option>
+      </select>`;
+
+      const valueInput = `<input type="number" class="screener-input value-input" value="${value}" style="width:100%;" step="any">`;
+      const deleteBtn = `<button type="button" class="screener-btn-delete" title="Delete filter">🗑️</button>`;
+
+      row.innerHTML = metricSelect + operatorSelect + valueInput + deleteBtn;
+
+      row.querySelector('.screener-btn-delete').addEventListener('click', () => {
+        row.remove();
+        if (container.children.length === 0) {
+          addScreenerRow();
+        }
+      });
+
+      container.appendChild(row);
+    }
+
+    function resetScreenerFilters() {
+      const container = document.getElementById('screener-filter-list');
+      if (container) {
+        container.innerHTML = '';
+        addScreenerRow('rsi', '<', '40');
+        addScreenerRow('score', '>', '70');
+      }
+      const tbody = document.getElementById('screener-results-tbody');
+      if (tbody) {
+        tbody.innerHTML = `
+          <tr>
+            <td colspan="7" style="text-align:center; padding:32px 0; color:var(--text-muted); font-size:0.8rem;">
+              No query run yet. Add conditions and click "Run Query" to search.
+            </td>
+          </tr>`;
+      }
+      const countEl = document.getElementById('screener-result-count');
+      if (countEl) countEl.textContent = '0 stocks matched';
+    }
+
+    async function runScreenerQuery() {
+      if (btnScreenerRun) {
+        btnScreenerRun.disabled = true;
+        btnScreenerRun.textContent = 'Scanning...';
+      }
+
+      try {
+        const filterRows = document.querySelectorAll('.screener-row');
+        const filters = [];
+
+        filterRows.forEach(row => {
+          const metric = row.querySelector('.metric-select').value;
+          const operator = row.querySelector('.operator-select').value;
+          const valueVal = row.querySelector('.value-input').value;
+          
+          if (valueVal !== '') {
+            filters.push({ metric, operator, value: parseFloat(valueVal) });
+          }
+        });
+
+        const weights = state.weights;
+        const activeRegime = state.activeRegime;
+        const market = state.marketMode || 'IN';
+
+        const results = await API.runScreener(filters, weights, activeRegime, market);
+        
+        const tbody = document.getElementById('screener-results-tbody');
+        const countEl = document.getElementById('screener-result-count');
+
+        if (countEl) {
+          countEl.textContent = `${results?.length || 0} stocks matched`;
+        }
+
+        if (!tbody) return;
+
+        if (!results || results.length === 0) {
+          tbody.innerHTML = `
+            <tr>
+              <td colspan="7" style="text-align:center; padding:32px 0; color:var(--text-muted); font-size:0.8rem;">
+                No stocks matched the specified filter conditions.
+              </td>
+            </tr>`;
+          return;
+        }
+
+        const mode = localStorage.getItem('stid_market_mode') || 'IN';
+        const isUS = mode === 'US';
+        const cSym = isUS ? '$' : '₹';
+
+        tbody.innerHTML = results.map(r => {
+          const changeClass = r.changePct >= 0 ? 'text-success' : 'text-danger';
+          const scoreColor = Analysis.scoreColor(r.score);
+          const scoreBadge = Analysis.scoreBadgeClass(r.score);
+          
+          return `
+            <tr>
+              <td>
+                <strong style="color:var(--text-primary); cursor:pointer;" onclick="App.selectStock('${r.symbol}')">${r.symbol.replace('.NS','').replace('.BO','')}</strong>
+              </td>
+              <td>${r.name}</td>
+              <td style="font-family:'JetBrains Mono', monospace; font-weight:600;">${cSym}${r.price?.toFixed(2)}</td>
+              <td class="${changeClass}" style="font-weight:600;">${r.changePct >= 0 ? '+' : ''}${r.changePct?.toFixed(2)}%</td>
+              <td>
+                <span class="badge ${scoreBadge}" style="background:${scoreColor}20; color:${scoreColor}; border:1px solid ${scoreColor}40;">
+                  ${r.score}
+                </span>
+              </td>
+              <td>${r.marketCapCr ? r.marketCapCr.toFixed(0) + (isUS ? ' M' : ' Cr') : 'N/A'}</td>
+              <td>
+                <button type="button" class="btn" style="padding:4px 8px; font-size:0.7rem; background:rgba(59,130,246,0.1); color:#3b82f6; border:1px solid rgba(59,130,246,0.2);" onclick="App.selectStock('${r.symbol}')">Analyze</button>
+                <button type="button" class="btn" style="padding:4px 8px; font-size:0.7rem; background:rgba(16,185,129,0.1); color:#10b981; border:1px solid rgba(16,185,129,0.2);" onclick="App.addStock('${r.symbol}', '${r.name}')">Watch</button>
+              </td>
+            </tr>
+          `;
+        }).join('');
+
+      } catch (err) {
+        UI.toast('Screener run failed: ' + err.message, 'error');
+      } finally {
+        if (btnScreenerRun) {
+          btnScreenerRun.disabled = false;
+          btnScreenerRun.textContent = '🚀 Run Query';
+        }
+      }
+    }
+
+    if (btnScreenerAddFilter) btnScreenerAddFilter.addEventListener('click', () => addScreenerRow());
+    if (btnScreenerClear) btnScreenerClear.addEventListener('click', resetScreenerFilters);
+    if (btnScreenerRun) btnScreenerRun.addEventListener('click', runScreenerQuery);
+
+    // Initialize with default filters
+    resetScreenerFilters();
+
+    // --- Backtester Component UI Logic ---
+    const btnBacktestRun = document.getElementById('btn-backtest-run');
+
+    window.updateBacktestTargetStock = function() {
+      const el = document.getElementById('backtest-target-stock');
+      if (el) {
+        if (state.activeSymbol) {
+          const res = state.results.get(state.activeSymbol);
+          el.textContent = `${res?.name || state.activeSymbol} (${state.activeSymbol.replace('.NS','').replace('.BO','')})`;
+        } else {
+          el.textContent = 'Select stock from Watchlist';
+        }
+      }
+    };
+
+    async function runBacktestSimulation() {
+      if (!state.activeSymbol) {
+        UI.toast('Please select a stock from the watchlist first to backtest.', 'warning');
+        return;
+      }
+
+      const tbody = document.getElementById('backtest-ledger-tbody');
+      const statsContainer = document.getElementById('backtest-stats-container');
+
+      if (btnBacktestRun) {
+        btnBacktestRun.disabled = true;
+        btnBacktestRun.textContent = 'Simulating...';
+      }
+
+      if (tbody) {
+        tbody.innerHTML = `
+          <tr>
+            <td colspan="6" style="text-align:center; padding:32px 0; color:var(--text-muted); font-size:0.8rem;">
+              <div class="spinner" style="margin: 0 auto 8px auto;"></div>
+              Executing trade simulations across historical price bars...
+            </td>
+          </tr>`;
+      }
+
+      try {
+        const threshold = parseFloat(document.getElementById('backtest-param-threshold').value || '80');
+        const holdingPeriod = parseInt(document.getElementById('backtest-param-holding').value || '30');
+        const lookback = parseInt(document.getElementById('backtest-param-lookback').value || '365');
+        const weights = state.weights;
+        const activeRegime = state.activeRegime;
+
+        const res = await API.runBacktest(state.activeSymbol, {
+          threshold,
+          holdingPeriod,
+          lookback,
+          weights,
+          activeRegime
+        });
+
+        if (!res) {
+          throw new Error('No simulation results returned');
+        }
+
+        if (statsContainer) {
+          statsContainer.style.display = 'grid';
+          
+          const wrEl = document.getElementById('backtest-stat-winrate');
+          const retEl = document.getElementById('backtest-stat-avgreturn');
+          const tradesEl = document.getElementById('backtest-stat-trades');
+          const alphaEl = document.getElementById('backtest-stat-alpha');
+
+          if (wrEl) {
+            wrEl.textContent = `${res.winRate.toFixed(1)}%`;
+            wrEl.style.color = res.winRate >= 50 ? 'var(--green)' : 'var(--red)';
+          }
+          if (retEl) {
+            retEl.textContent = `${res.avgReturn >= 0 ? '+' : ''}${res.avgReturn.toFixed(2)}%`;
+            retEl.style.color = res.avgReturn >= 0 ? 'var(--green)' : 'var(--red)';
+          }
+          if (tradesEl) {
+            tradesEl.textContent = res.totalTrades;
+          }
+          if (alphaEl) {
+            alphaEl.textContent = `${res.alpha >= 0 ? '+' : ''}${res.alpha.toFixed(1)}%`;
+            alphaEl.style.color = res.alpha >= 0 ? 'var(--green)' : 'var(--red)';
+          }
+        }
+
+        if (!tbody) return;
+
+        if (res.trades.length === 0) {
+          tbody.innerHTML = `
+            <tr>
+              <td colspan="6" style="text-align:center; padding:32px 0; color:var(--text-muted); font-size:0.8rem;">
+                No trade signals generated with the current threshold score.
+              </td>
+            </tr>`;
+          return;
+        }
+
+        const mode = localStorage.getItem('stid_market_mode') || 'IN';
+        const cSym = mode === 'US' ? '$' : '₹';
+
+        tbody.innerHTML = res.trades.map(t => {
+          const retClass = t.returnPct >= 0 ? 'text-success' : 'text-danger';
+          const entDateStr = new Date(t.entryDate).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
+          const extDateStr = new Date(t.exitDate).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
+
+          return `
+            <tr>
+              <td>${entDateStr}</td>
+              <td style="font-family:'JetBrains Mono', monospace;">${cSym}${t.entryPrice.toFixed(2)}</td>
+              <td>${extDateStr}</td>
+              <td style="font-family:'JetBrains Mono', monospace;">${cSym}${t.exitPrice.toFixed(2)}</td>
+              <td>${t.holdDays} days</td>
+              <td class="${retClass}" style="font-family:'JetBrains Mono', monospace; font-weight:700;">
+                ${t.returnPct >= 0 ? '+' : ''}${t.returnPct.toFixed(2)}%
+              </td>
+            </tr>
+          `;
+        }).join('');
+
+      } catch (err) {
+        UI.toast('Backtest run failed: ' + err.message, 'error');
+        if (tbody) {
+          tbody.innerHTML = `
+            <tr>
+              <td colspan="6" style="text-align:center; padding:32px 0; color:var(--red); font-size:0.8rem;">
+                ⚠️ Error: ${err.message}
+              </td>
+            </tr>`;
+        }
+      } finally {
+        if (btnBacktestRun) {
+          btnBacktestRun.disabled = false;
+          btnBacktestRun.textContent = '🚀 Run Simulation';
+        }
+      }
+    }
+
+    if (btnBacktestRun) btnBacktestRun.addEventListener('click', runBacktestSimulation);
 
     // Invy Chat Submit
     const invyChatSend = document.getElementById('invy-chat-send');
@@ -650,6 +1447,210 @@ const App = (() => {  // ── State
     });
   }
 
+  function initWeightSliders() {
+    const keys = ['fundamental', 'technical', 'momentum', 'sentiment', 'institutional'];
+    
+    // Update labels and values initially
+    keys.forEach(k => {
+      const slider = document.getElementById(`weight-slider-${k}`);
+      const label = document.getElementById(`weight-lbl-${k}`);
+      if (slider && label) {
+        slider.value = state.weights[k];
+        label.textContent = `${state.weights[k]}%`;
+      }
+    });
+
+    // Reset button click
+    const btnReset = document.getElementById('btn-weights-reset');
+    if (btnReset) {
+      btnReset.addEventListener('click', () => {
+        state.weights = {
+          fundamental: 25,
+          technical: 30,
+          momentum: 20,
+          sentiment: 10,
+          institutional: 15
+        };
+        localStorage.setItem('stid_weights', JSON.stringify(state.weights));
+        keys.forEach(k => {
+          const slider = document.getElementById(`weight-slider-${k}`);
+          const label = document.getElementById(`weight-lbl-${k}`);
+          if (slider && label) {
+            slider.value = state.weights[k];
+            label.textContent = `${state.weights[k]}%`;
+          }
+        });
+        recalculateAllScores();
+        UI.toast('Sliders reset to default weights', 'info');
+      });
+    }
+
+    // Auto-proportional slider logic
+    keys.forEach(changedKey => {
+      const slider = document.getElementById(`weight-slider-${changedKey}`);
+      if (slider) {
+        slider.addEventListener('input', (e) => {
+          const newValue = parseInt(e.target.value);
+          const oldValue = state.weights[changedKey];
+          const diff = newValue - oldValue;
+          
+          if (diff === 0) return;
+
+          const otherKeys = keys.filter(k => k !== changedKey);
+          const sumOthers = otherKeys.reduce((acc, k) => acc + state.weights[k], 0);
+
+          if (sumOthers > 0) {
+            let tempSum = 0;
+            otherKeys.forEach(k => {
+              const proportion = state.weights[k] / sumOthers;
+              const adjustment = diff * proportion;
+              state.weights[k] = Math.max(0, Math.round(state.weights[k] - adjustment));
+              tempSum += state.weights[k];
+            });
+            
+            state.weights[changedKey] = newValue;
+
+            // Resolve rounding adjustments to enforce exact 100% total
+            let total = state.weights[changedKey] + tempSum;
+            if (total !== 100) {
+              const error = 100 - total;
+              let largestKey = otherKeys[0];
+              let maxVal = state.weights[largestKey];
+              otherKeys.forEach(k => {
+                if (state.weights[k] > maxVal) {
+                  maxVal = state.weights[k];
+                  largestKey = k;
+                }
+              });
+              state.weights[largestKey] = Math.max(0, state.weights[largestKey] + error);
+            }
+          } else {
+            // Split remaining weight evenly if other fields are 0
+            const remaining = 100 - newValue;
+            const split = Math.floor(remaining / otherKeys.length);
+            otherKeys.forEach(k => {
+              state.weights[k] = split;
+            });
+            state.weights[changedKey] = newValue;
+            
+            let total = newValue + (split * otherKeys.length);
+            if (total !== 100) {
+              state.weights[otherKeys[0]] += (100 - total);
+            }
+          }
+
+          // Sync label strings and values
+          keys.forEach(k => {
+            const s = document.getElementById(`weight-slider-${k}`);
+            const l = document.getElementById(`weight-lbl-${k}`);
+            if (s && l) {
+              s.value = state.weights[k];
+              l.textContent = `${state.weights[k]}%`;
+            }
+          });
+
+          localStorage.setItem('stid_weights', JSON.stringify(state.weights));
+          recalculateAllScores();
+        });
+      }
+    });
+  }
+
+  function updateRegimeUI(regimeData) {
+    const badge = document.getElementById('regime-status');
+    const textSpan = document.getElementById('regime-text');
+    if (!badge || !textSpan) return;
+
+    const currentRegime = state.activeRegime;
+    const isAuto = state.regime === 'auto';
+    
+    badge.className = 'regime-badge';
+    
+    if (isAuto) {
+      if (currentRegime === 'bull') {
+        badge.classList.add('regime-badge-auto-bull');
+        textSpan.textContent = '🐂 AUTO: BULL';
+        badge.title = `Auto-detected Bull Regime (200 SMA: ${regimeData?.sma200?.toFixed(1) || 'N/A'}). Click to cycle manual overrides.`;
+      } else {
+        badge.classList.add('regime-badge-auto-bear');
+        textSpan.textContent = '🐻 AUTO: BEAR';
+        badge.title = `Auto-detected Bear Regime (200 SMA: ${regimeData?.sma200?.toFixed(1) || 'N/A'}). Click to cycle manual overrides.`;
+      }
+    } else {
+      if (currentRegime === 'bull') {
+        badge.classList.add('regime-badge-bull');
+        textSpan.textContent = '🐂 MANUAL: BULL';
+        badge.title = 'Manual Bull Regime active. Click to switch to Manual Bear.';
+      } else {
+        badge.classList.add('regime-badge-bear');
+        textSpan.textContent = '🐻 MANUAL: BEAR';
+        badge.title = 'Manual Bear Regime active. Click to switch to Auto.';
+      }
+    }
+  }
+
+  function recalculateAllScores() {
+    // 1. Detailed analysis results
+    for (const [symbol, result] of state.results.entries()) {
+      if (result && !result.error && result.scores) {
+        const s = result.scores;
+        const newComposite = Analysis.compositeScore(
+          s.fundamental.score,
+          s.technicalSetup.score,
+          s.momentum.score,
+          s.sentiment.score,
+          s.institutional.score,
+          result.quote.price,
+          s.technicalSetup.indicators?.sma200,
+          state.weights,
+          state.activeRegime
+        );
+        result.scores.composite = newComposite;
+        result.tradeSetup = Analysis.calcTradeSetup(result.quote.price, s.technicalSetup.indicators, s.momentum.indicators);
+      }
+    }
+
+    // 2. Background catalog quotes
+    for (const [symbol, result] of state.catalogResults.entries()) {
+      if (result && !result.error && result.scores) {
+        const s = result.scores;
+        const newComposite = Analysis.compositeScore(
+          s.fundamental.score,
+          s.technicalSetup.score,
+          s.momentum.score,
+          s.sentiment.score,
+          s.institutional.score,
+          result.quote.price,
+          s.technicalSetup.indicators?.sma200,
+          state.weights,
+          state.activeRegime
+        );
+        result.scores.composite = newComposite;
+        result.tradeSetup = Analysis.calcTradeSetup(result.quote.price, s.technicalSetup.indicators, s.momentum.indicators);
+      }
+    }
+
+    // 3. Update UI
+    updateWatchlistUI();
+    updateRecommendations();
+
+    if (state.activeSymbol) {
+      const activeRes = state.results.get(state.activeSymbol);
+      if (activeRes) {
+        UI.renderAnalysisResult(activeRes, state.watchlist);
+        Charts.renderRadarChart(activeRes.scores);
+        if (typeof renderHistoricalScoreChart === 'function') {
+          renderHistoricalScoreChart(state.activeSymbol);
+        }
+      }
+    }
+
+    if (state.drawerActiveSymbol) {
+      // Re-populate drawer dynamically
+      openMiniAnalysisDrawer(state.drawerActiveSymbol);
+    }
+  }
+
   async function loadMarketData() {
     try {
       let indices, fearGreed, sectors;
@@ -666,6 +1667,17 @@ const App = (() => {  // ── State
           const pulse = await API.fetchMarketPulseFromBackend();
           indices = pulse.indices;
           fearGreed = pulse.fearGreed;
+          
+          // Extract and store market regime
+          if (pulse.regime) {
+            state.indicesRegime = pulse.regime;
+            if (state.regime === 'auto') {
+              state.activeRegime = pulse.regime.regime || 'bull';
+            } else {
+              state.activeRegime = state.regime;
+            }
+          }
+          updateRegimeUI(pulse.regime);
         } catch (e) {
           console.warn('Backend pulse fetch failed, using fallback', e.message);
           backendActive = false;
@@ -675,6 +1687,9 @@ const App = (() => {  // ── State
       if (!backendActive) {
         indices = await API.fetchMarketIndices();
         fearGreed = await API.fetchFearGreed();
+        state.indicesRegime = { price: 0, sma200: 0, regime: 'bull' };
+        state.activeRegime = state.regime === 'auto' ? 'bull' : state.regime;
+        updateRegimeUI(null);
       }
 
       // Fetch market summary (which contains sectors with leaders/laggards, gainers, losers)
@@ -849,9 +1864,29 @@ const App = (() => {  // ── State
     } finally {
       state.loading.delete(symbol);
     }
+
+    const finalResult = state.results.get(symbol);
+    if (finalResult && !finalResult.error && finalResult.scores?.composite) {
+      const profStr = localStorage.getItem('nexus_profile');
+      if (profStr) {
+        try {
+          const prof = JSON.parse(profStr);
+          if (prof.riskAppetite === 'Conservative') {
+            const tag = Analysis.getAssetRiskTag(finalResult);
+            if (tag === 'Core Portfolio Anchor' && finalResult.scores?.institutional?.score < 10) {
+              UI.toast(`Portfolio Drift Alert: ${finalResult.symbol.replace('.NS','')} has lost institutional momentum. Rebalancing suggested to protect your conservative profile.`, 'warning', 8000);
+            }
+          }
+        } catch (driftErr) {
+          console.warn('Drift check failed:', driftErr);
+        }
+      }
+    }
+
     updateWatchlistUI();
     updateRecommendations();
-    return state.results.get(symbol);
+    checkPriceAlerts();
+    return finalResult;
   }
 
   // ── Add stock to watchlist
@@ -894,6 +1929,283 @@ const App = (() => {  // ── State
     updateWatchlistUI();
     updateRecommendations();
     UI.toast(`Removed ${symbol}`, 'info');
+  }
+
+  // ── Price Alerts Checker
+  function checkPriceAlerts() {
+    if (!state.alerts || state.alerts.length === 0) return;
+    
+    let triggeredAlerts = [];
+    let updatedAlerts = [...state.alerts];
+    
+    updatedAlerts.forEach((alert, index) => {
+      const result = state.results.get(alert.symbol) || state.catalogResults.get(alert.symbol);
+      if (!result || result.error) return;
+      
+      const currentPrice = result.quote.price;
+      const currentRsi = result.scores.momentum?.indicators?.rsi;
+      if (typeof currentPrice !== 'number') return;
+      
+      let priceTriggered = false;
+      if (alert.condition === 'above' && currentPrice >= alert.price) {
+        priceTriggered = true;
+      } else if (alert.condition === 'below' && currentPrice <= alert.price) {
+        priceTriggered = true;
+      }
+      
+      let rsiTriggered = true;
+      if (alert.rsiCondition === 'oversold' && typeof currentRsi === 'number' && currentRsi >= 35) {
+        rsiTriggered = false;
+      } else if (alert.rsiCondition === 'overbought' && typeof currentRsi === 'number' && currentRsi <= 65) {
+        rsiTriggered = false;
+      }
+      
+      if (priceTriggered && rsiTriggered) {
+        const ticker = alert.symbol.replace('.NS', '').replace('.BO', '');
+        const rsiText = typeof currentRsi === 'number' ? ` | RSI: ${currentRsi.toFixed(1)}` : '';
+        const alertMsg = `🚨 ALERT: ${ticker} hit ${currentPrice.toFixed(2)} (Target: ${alert.price})${rsiText}!`;
+        UI.toast(alertMsg, 'warning', 10000);
+        console.log(`[ALERT SIGNAL TRIGGERED]`, alertMsg);
+        triggeredAlerts.push(index);
+      }
+    });
+    
+    if (triggeredAlerts.length > 0) {
+      state.alerts = updatedAlerts.filter((_, idx) => !triggeredAlerts.includes(idx));
+      localStorage.setItem('stid_alerts', JSON.stringify(state.alerts));
+    }
+  }
+
+  // ── Open Mini Analysis Side Drawer
+  async function openMiniAnalysisDrawer(symbol) {
+    if (!state.isAuthenticated) {
+      state.pendingSelectSymbol = symbol;
+      document.getElementById('login-overlay').style.display = 'flex';
+      return;
+    }
+    
+    const drawer = document.getElementById('mini-analysis-drawer');
+    if (!drawer) return;
+
+    // Close chat drawer to avoid overlay clutter
+    const chatDrawer = document.getElementById('invy-chat-drawer');
+    if (chatDrawer && chatDrawer.classList.contains('show')) {
+      chatDrawer.classList.remove('show');
+      chatDrawer.setAttribute('aria-hidden', 'true');
+      document.body.classList.remove('chat-open');
+    }
+
+    // Set active symbol of the drawer
+    state.drawerActiveSymbol = symbol;
+
+    // Slide drawer in
+    drawer.classList.add('show');
+    drawer.setAttribute('aria-hidden', 'false');
+
+    // Setup initial loading text
+    const cleanSym = symbol.replace('.NS', '').replace('.BO', '');
+    document.getElementById('drawer-ticker-name').textContent = cleanSym;
+    const initialScoreBadge = document.getElementById('drawer-score-badge');
+    if (initialScoreBadge) {
+      initialScoreBadge.textContent = '--';
+      initialScoreBadge.style.borderColor = 'var(--border)';
+      initialScoreBadge.style.color = 'var(--text-muted)';
+    }
+    document.getElementById('drawer-company-name').textContent = 'Fetching quantitative analysis...';
+    document.getElementById('drawer-price').textContent = '—';
+    document.getElementById('drawer-change').textContent = '—';
+    document.getElementById('drawer-change').className = '';
+    document.getElementById('drawer-trend-strength').textContent = 'Loading...';
+    document.getElementById('drawer-trend-strength').style.color = 'var(--text-secondary)';
+    document.getElementById('drawer-rsi-val').textContent = '—';
+    document.getElementById('drawer-rsi-bar').style.width = '0%';
+    document.getElementById('drawer-macd-details').textContent = '—';
+    document.getElementById('drawer-macd-badge').textContent = '—';
+    document.getElementById('drawer-macd-badge').className = 'badge';
+    document.getElementById('drawer-vol-ratio').textContent = '—';
+    document.getElementById('drawer-bb-status').textContent = '—';
+    document.getElementById('drawer-pivot').textContent = '—';
+    document.getElementById('drawer-news-title').textContent = 'Loading catalysts...';
+    document.getElementById('drawer-news-summary').textContent = '—';
+    document.getElementById('drawer-news-source').textContent = '';
+    document.getElementById('drawer-news-link').style.display = 'none';
+
+    // Hide any previous open alert forms
+    document.getElementById('drawer-alert-setup').style.display = 'none';
+
+    let result = state.results.get(symbol);
+    if (!result) {
+      let wl = state.watchlist.find(w => w.symbol === symbol);
+      if (!wl && window.API && window.API.STOCK_CATALOG) {
+        wl = window.API.STOCK_CATALOG.find(w => w.symbol === symbol);
+      }
+      result = await analyzeAndStore(symbol, wl?.name || symbol, wl?.sector || 'N/A');
+    }
+
+    if (!result || result.error) {
+      document.getElementById('drawer-company-name').textContent = 'Error loading stock analysis.';
+      document.getElementById('drawer-news-title').textContent = 'Quantitative scraping failed for ' + cleanSym;
+      return;
+    }
+
+    // Double check that user hasn't switched tickers while fetching
+    if (state.drawerActiveSymbol !== symbol) return;
+
+    // Populate drawer elements
+    const riskTag = Analysis.getAssetRiskTag(result);
+    let tagColor = 'var(--text-accent)';
+    let tagBg = 'rgba(99,102,241,0.12)';
+    if (riskTag === 'Core Portfolio Anchor') {
+      tagColor = '#10b981';
+      tagBg = 'rgba(16,185,129,0.12)';
+    } else if (riskTag === 'High-Risk Speculative') {
+      tagColor = '#ec4899';
+      tagBg = 'rgba(236,72,153,0.12)';
+    }
+
+    document.getElementById('drawer-ticker-name').innerHTML = `
+      ${cleanSym}
+      <span class="badge" style="font-size:0.65rem; padding:2px 5px; border-radius:4px; font-weight:700; color:${tagColor}; background:${tagBg}; border:1px solid ${tagColor}33; margin-left:6px; display:inline-block; vertical-align:middle;">
+        ${riskTag}
+      </span>
+    `;
+    document.getElementById('drawer-company-name').textContent = result.name;
+    const scoreVal = result.scores.composite.total;
+    const scoreCol = Analysis.scoreColor(scoreVal, 100);
+    const scoreBadge = document.getElementById('drawer-score-badge');
+    if (scoreBadge) {
+      scoreBadge.textContent = scoreVal;
+      scoreBadge.style.borderColor = scoreCol;
+      scoreBadge.style.color = scoreCol;
+    }
+
+    const mode = localStorage.getItem('stid_market_mode') || 'IN';
+    const cSym = mode === 'US' ? '$' : '₹';
+    document.getElementById('drawer-price').textContent = `${cSym}${result.quote.price.toFixed(2)}`;
+    
+    const change = result.quote.changePct;
+    document.getElementById('drawer-change').textContent = `${change >= 0 ? '+' : ''}${change.toFixed(2)}%`;
+    document.getElementById('drawer-change').className = `wi-change ${change >= 0 ? 'positive' : 'negative'}`;
+    document.getElementById('drawer-change').style.color = change >= 0 ? 'var(--green)' : 'var(--red)';
+
+    const tech = result.scores.technicalSetup?.indicators || {};
+    const pivots = tech.pivots || {};
+    const trendText = tech.trend === 'uptrend' ? 'Bullish Uptrend' : tech.trend === 'downtrend' ? 'Bearish Downtrend' : 'Sideways Consolidation';
+    const trendColor = tech.trend === 'uptrend' ? 'var(--green)' : tech.trend === 'downtrend' ? 'var(--red)' : 'var(--yellow)';
+    
+    document.getElementById('drawer-trend-strength').textContent = trendText;
+    document.getElementById('drawer-trend-strength').style.color = trendColor;
+    document.getElementById('drawer-pivot').textContent = pivots.pivot ? `${cSym}${pivots.pivot.toFixed(2)}` : 'N/A';
+
+    // RSI
+    const mom = result.scores.momentum?.indicators || {};
+    const rsi = mom.rsi || 50;
+    let rsiLabel = 'Neutral';
+    let rsiColor = 'var(--text-primary)';
+    if (rsi < 30) {
+      rsiLabel = 'Oversold (Buy Zone)';
+      rsiColor = 'var(--green)';
+    } else if (rsi > 70) {
+      rsiLabel = 'Overbought (Sell Zone)';
+      rsiColor = 'var(--red)';
+    } else if (rsi < 45) {
+      rsiLabel = 'Weak Momentum';
+      rsiColor = 'var(--yellow)';
+    } else if (rsi > 55) {
+      rsiLabel = 'Strong Momentum';
+      rsiColor = 'var(--text-accent)';
+    }
+    
+    document.getElementById('drawer-rsi-val').textContent = `${rsi.toFixed(1)} (${rsiLabel})`;
+    document.getElementById('drawer-rsi-val').style.color = rsiColor;
+    document.getElementById('drawer-rsi-bar').style.width = `${Math.min(100, Math.max(0, rsi))}%`;
+    document.getElementById('drawer-rsi-bar').style.background = rsiColor;
+
+    // MACD
+    const crossover = mom.macdCrossover;
+    document.getElementById('drawer-macd-details').textContent = crossover ? 'Fresh Bullish Cross Detected' : 'MACD Trend Bearish/Neutral';
+    const macdBadge = document.getElementById('drawer-macd-badge');
+    macdBadge.textContent = crossover ? 'Bullish' : 'Bearish';
+    macdBadge.style.color = crossover ? '#10b981' : '#f59e0b';
+    macdBadge.style.background = crossover ? 'rgba(16,185,129,0.12)' : 'rgba(245,158,11,0.12)';
+    macdBadge.style.border = `1px solid ${crossover ? '#10b98133' : '#f59e0b33'}`;
+
+    // Volume Ratio
+    const volData = tech.volData || {};
+    const ratio = volData.latestRatio || (result.quote.volume / (result.quote.avgVolume || 1)) || 1.0;
+    document.getElementById('drawer-vol-ratio').textContent = `${ratio.toFixed(2)}x`;
+    document.getElementById('drawer-vol-ratio').style.color = ratio >= 1.5 ? 'var(--green)' : 'var(--text-primary)';
+
+    // Bollinger Squeeze
+    const bb = tech.bollinger || {};
+    const isSqueeze = bb.bandwidth < 0.1;
+    const squeezeText = bb.bandwidth ? `${(bb.bandwidth * 100).toFixed(1)}% ${isSqueeze ? '(Squeeze)' : '(Normal)'}` : 'N/A';
+    document.getElementById('drawer-bb-status').textContent = squeezeText;
+    document.getElementById('drawer-bb-status').style.color = isSqueeze ? 'var(--yellow)' : 'var(--text-primary)';
+
+    // News
+    const news = result.news || [];
+    if (news.length > 0) {
+      const n = news[0];
+      document.getElementById('drawer-news-title').textContent = n.title;
+      document.getElementById('drawer-news-summary').textContent = n.summary ? n.summary.substring(0, 150) + '...' : 'Click below to read article details.';
+      document.getElementById('drawer-news-source').textContent = `Source: ${n.source || 'Finance Catalyst'}`;
+      const link = document.getElementById('drawer-news-link');
+      if (n.link) {
+        link.href = n.link;
+        link.style.display = 'inline-block';
+      } else {
+        link.style.display = 'none';
+      }
+    } else {
+      document.getElementById('drawer-news-title').textContent = 'No recent news catalyst found.';
+      document.getElementById('drawer-news-summary').textContent = 'This asset has no recent news events logged.';
+      document.getElementById('drawer-news-source').textContent = 'Source: N/A';
+      document.getElementById('drawer-news-link').style.display = 'none';
+    }
+
+    // Watchlist Add/Remove wiring
+    const wlBtn = document.getElementById('btn-drawer-watchlist');
+    if (wlBtn) {
+      const inWatchlist = state.watchlist.some(w => w.symbol === symbol);
+      wlBtn.textContent = inWatchlist ? '➖ Watchlist' : '➕ Watchlist';
+      wlBtn.onclick = () => {
+        if (inWatchlist) {
+          removeStock(symbol);
+          wlBtn.textContent = '➕ Watchlist';
+        } else {
+          addStock(symbol, result.name, result.sector);
+          wlBtn.textContent = '➖ Watchlist';
+        }
+        drawer.classList.remove('show');
+        drawer.setAttribute('aria-hidden', 'true');
+      };
+    }
+
+    // Full dashboard view click handler
+    document.getElementById('btn-drawer-full-analysis').onclick = () => {
+      drawer.classList.remove('show');
+      drawer.setAttribute('aria-hidden', 'true');
+      selectStock(symbol);
+    };
+
+    // WhatsApp Signal Sharing Format: [TICKER] | [ACTION] | [ENTRY/EXIT] | [STOP LOSS] | [REASONING]
+    document.getElementById('btn-drawer-share-wa').onclick = () => {
+      const score = result.scores.composite.total;
+      let action = 'WATCH/HOLD';
+      if (score >= 80) action = 'STRONG BUY';
+      else if (score >= 65) action = 'BUY';
+      else if (score < 50) action = 'AVOID/SELL';
+      
+      const entry = `${cSym}${result.quote.price.toFixed(2)}`;
+      const sl = result.tradeSetup?.stopLoss ? `${cSym}${result.tradeSetup.stopLoss}` : 'N/A';
+      const target = result.tradeSetup?.target1 ? `${cSym}${result.tradeSetup.target1}` : 'N/A';
+      const reasoning = `Score: ${score}/100 | RSI: ${rsi.toFixed(1)} (${tech.trend || 'Sideways'})`;
+      
+      const waMsg = `[${cleanSym}] | [${action}] | [Entry ${entry} / Target ${target}] | [Stop Loss ${sl}] | [${reasoning}]`;
+      const waUrl = `https://api.whatsapp.com/send?text=${encodeURIComponent(waMsg)}`;
+      window.open(waUrl, '_blank');
+    };
   }
 
   // ── Select stock to show in detail panel
@@ -1166,6 +2478,7 @@ const App = (() => {  // ── State
     const countBuy = validResults.filter(r => r.scores?.composite?.total >= 65 && r.scores?.composite?.total < 80).length;
     const countWatch = validResults.filter(r => r.scores?.composite?.total >= 50 && r.scores?.composite?.total < 65).length;
     const countAvoid = validResults.filter(r => r.scores?.composite?.total < 50).length;
+    const countConfluence = validResults.filter(Analysis.isConfluence).length;
 
     // Update Counts in UI
     const elAll = document.getElementById('count-all');
@@ -1173,12 +2486,14 @@ const App = (() => {  // ── State
     const elBuy = document.getElementById('count-buy');
     const elWatch = document.getElementById('count-watch');
     const elAvoid = document.getElementById('count-avoid');
+    const elConfluence = document.getElementById('count-confluence');
 
     if (elAll) elAll.textContent = countAll;
     if (elStrongBuy) elStrongBuy.textContent = countStrongBuy;
     if (elBuy) elBuy.textContent = countBuy;
     if (elWatch) elWatch.textContent = countWatch;
     if (elAvoid) elAvoid.textContent = countAvoid;
+    if (elConfluence) elConfluence.textContent = countConfluence;
 
     // Update Active Filter Class in UI
     document.querySelectorAll('.rec-filters .filter-btn').forEach(btn => {
@@ -1195,17 +2510,28 @@ const App = (() => {  // ── State
       const catalogValid = Array.from(state.catalogResults.values())
         .filter(r => !r.error && r.scores && r.scores.composite && r.quote && r.quote.price > 0);
 
-      let globalFiltered;
+      const profStr = localStorage.getItem('nexus_profile');
+      let globalFiltered = [...catalogValid];
+      
+      if (profStr) {
+        try {
+          const prof = JSON.parse(profStr);
+          if (prof.riskAppetite === 'Conservative') {
+            globalFiltered = globalFiltered.filter(r => Analysis.getAssetRiskTag(r) !== 'High-Risk Speculative');
+          }
+        } catch (e) {}
+      }
+
       if (activeFilter === 'strong-buy') {
-        globalFiltered = catalogValid.filter(r => r.scores.composite.total >= 80);
+        globalFiltered = globalFiltered.filter(r => r.scores.composite.total >= 80);
       } else if (activeFilter === 'buy') {
-        globalFiltered = catalogValid.filter(r => r.scores.composite.total >= 65 && r.scores.composite.total < 80);
+        globalFiltered = globalFiltered.filter(r => r.scores.composite.total >= 65 && r.scores.composite.total < 80);
       } else if (activeFilter === 'watch') {
-        globalFiltered = catalogValid.filter(r => r.scores.composite.total >= 50 && r.scores.composite.total < 65);
+        globalFiltered = globalFiltered.filter(r => r.scores.composite.total >= 50 && r.scores.composite.total < 65);
       } else if (activeFilter === 'avoid') {
-        globalFiltered = catalogValid.filter(r => r.scores.composite.total < 50);
-      } else {
-        globalFiltered = catalogValid;
+        globalFiltered = globalFiltered.filter(r => r.scores.composite.total < 50);
+      } else if (activeFilter === 'confluence') {
+        globalFiltered = globalFiltered.filter(Analysis.isConfluence);
       }
 
       // Sort by score descending, take top 10
@@ -1221,6 +2547,7 @@ const App = (() => {  // ── State
         'buy': '🟡 Buy',
         'watch': '🟠 Hold/Watch',
         'avoid': '🔴 Avoid/Ignore',
+        'confluence': '⚡ Confluence'
       };
       const filterLabel = filterLabelMap[activeFilter] || activeFilter;
 
@@ -1286,8 +2613,57 @@ const App = (() => {  // ── State
       return;
     }
 
-    // Sort by composite score descending
-    const sorted = [...validResults].sort((a, b) => b.scores.composite.total - a.scores.composite.total);
+    let watchlistResults = [...validResults];
+    let sortFn = (a, b) => b.scores.composite.total - a.scores.composite.total;
+
+    const profStr = localStorage.getItem('nexus_profile');
+    if (profStr) {
+      try {
+        const prof = JSON.parse(profStr);
+        const isConservative = prof.age > 45 || prof.dependents > 2 || prof.riskAppetite === 'Conservative' || prof.incomeStability === 'Low';
+        const isAggressive = prof.age < 30 && prof.incomeStability === 'High' && prof.riskAppetite === 'Aggressive';
+
+        if (isConservative) {
+          watchlistResults = watchlistResults.filter(r => {
+            const riskTag = Analysis.getAssetRiskTag(r);
+            return riskTag !== 'High-Risk Speculative';
+          });
+          const priority = { 'Core Portfolio Anchor': 0, 'Alpha Generator': 1 };
+          sortFn = (a, b) => {
+            const tagA = Analysis.getAssetRiskTag(a);
+            const tagB = Analysis.getAssetRiskTag(b);
+            const pA = priority[tagA] ?? 99;
+            const pB = priority[tagB] ?? 99;
+            if (pA !== pB) return pA - pB;
+            return b.scores.composite.total - a.scores.composite.total;
+          };
+        } else if (isAggressive) {
+          const priority = { 'Alpha Generator': 0, 'High-Risk Speculative': 1, 'Core Portfolio Anchor': 2 };
+          sortFn = (a, b) => {
+            const tagA = Analysis.getAssetRiskTag(a);
+            const tagB = Analysis.getAssetRiskTag(b);
+            const pA = priority[tagA] ?? 99;
+            const pB = priority[tagB] ?? 99;
+            if (pA !== pB) return pA - pB;
+            return b.scores.composite.total - a.scores.composite.total;
+          };
+        } else {
+          const priority = { 'Core Portfolio Anchor': 0, 'Alpha Generator': 1, 'High-Risk Speculative': 2 };
+          sortFn = (a, b) => {
+            const tagA = Analysis.getAssetRiskTag(a);
+            const tagB = Analysis.getAssetRiskTag(b);
+            const pA = priority[tagA] ?? 99;
+            const pB = priority[tagB] ?? 99;
+            if (pA !== pB) return pA - pB;
+            return b.scores.composite.total - a.scores.composite.total;
+          };
+        }
+      } catch (e) {
+        console.warn('Failed to apply profile sort/filter to watchlist', e);
+      }
+    }
+
+    const sorted = [...watchlistResults].sort(sortFn);
     let html = sorted.map(r => UI.renderRecCard(r)).join('');
     
     // Append loading placeholder cards for any still-loading stocks
@@ -1447,6 +2823,108 @@ const App = (() => {  // ── State
     }
   }
 
+  function updateNexusPieChart(prof) {
+    const canvas = document.getElementById('nexus-pie-chart');
+    if (!canvas) return;
+
+    let corePct = 50;
+    let alphaPct = 35;
+    let specPct = 0;
+    let cashPct = 15;
+    let tierName = 'Moderate Balanced';
+
+    const isConservative = prof.age > 45 || prof.dependents > 2 || prof.riskAppetite === 'Conservative' || prof.incomeStability === 'Low';
+    const isAggressive = prof.age < 30 && prof.incomeStability === 'High' && prof.riskAppetite === 'Aggressive';
+
+    if (isConservative) {
+      corePct = 70;
+      cashPct = 20;
+      alphaPct = 10;
+      specPct = 0;
+      tierName = 'Conservative Legacy Protection';
+    } else if (isAggressive) {
+      corePct = 40;
+      alphaPct = 50;
+      specPct = 10;
+      cashPct = 0;
+      tierName = 'Aggressive Alpha Velocity';
+    }
+
+    document.getElementById('nx-assigned-tier').textContent = tierName;
+
+    let detailsHtml = `
+      <div style="display:flex; justify-content:space-between; margin-bottom:4px;">
+        <span>🏦 Core Anchors:</span>
+        <strong>${corePct}%</strong>
+      </div>
+      <div style="display:flex; justify-content:space-between; margin-bottom:4px;">
+        <span>⚡ Alpha Generators:</span>
+        <strong>${alphaPct}%</strong>
+      </div>
+      ${specPct > 0 ? `
+      <div style="display:flex; justify-content:space-between; margin-bottom:4px;">
+        <span>🔥 High-Risk Speculative:</span>
+        <strong>${specPct}%</strong>
+      </div>
+      ` : ''}
+      ${cashPct > 0 ? `
+      <div style="display:flex; justify-content:space-between; margin-bottom:4px;">
+        <span>💵 Cash / Liquid Hedge:</span>
+        <strong>${cashPct}%</strong>
+      </div>
+      ` : ''}
+    `;
+    document.getElementById('nx-allocation-details').innerHTML = detailsHtml;
+
+    const ctx = canvas.getContext('2d');
+    if (window._nexusChartInstance) {
+      window._nexusChartInstance.destroy();
+    }
+
+    const chartLabels = ['Core Anchors', 'Alpha Generators'];
+    const chartData = [corePct, alphaPct];
+    const chartColors = ['#10b981', '#3b82f6'];
+
+    if (specPct > 0) {
+      chartLabels.push('Speculative');
+      chartData.push(specPct);
+      chartColors.push('#ec4899');
+    }
+    if (cashPct > 0) {
+      chartLabels.push('Cash/Hedge');
+      chartData.push(cashPct);
+      chartColors.push('#f59e0b');
+    }
+
+    if (typeof Chart !== 'undefined') {
+      window._nexusChartInstance = new Chart(ctx, {
+        type: 'doughnut',
+        data: {
+          labels: chartLabels,
+          datasets: [{
+            data: chartData,
+            backgroundColor: chartColors,
+            borderColor: '#111827',
+            borderWidth: 1
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: { display: false },
+            tooltip: {
+              callbacks: {
+                label: ctx => ` ${ctx.label}: ${ctx.parsed}%`
+              }
+            }
+          },
+          cutout: '60%'
+        }
+      });
+    }
+  }
+
   function setRecFilter(filterValue) {
     state.recFilter = filterValue;
     updateRecommendations();
@@ -1457,7 +2935,7 @@ const App = (() => {  // ── State
   }
 
   // Expose public API
-  return { init, addStock, removeStock, selectStock, switchTab, setRecFilter, setMarketMode };
+  return { init, addStock, removeStock, selectStock, switchTab, setRecFilter, setMarketMode, state, recalculateAllScores };
 })();
 
 window.App = App;

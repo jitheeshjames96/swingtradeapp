@@ -223,7 +223,7 @@ const UI = (() => {
             const color = (q.quote?.changePct || 0) >= 0 ? 'var(--green)' : 'var(--red)';
             const val = q.quote?.changePct || 0;
             return `
-              <div class="sector-stock-badge" onclick="event.preventDefault(); event.stopPropagation(); App.selectStock('${q.symbol}')" title="${q.name}" style="cursor:pointer; display:flex; justify-content:space-between; font-size:0.68rem; padding:2px 4px; border-radius:3px; background:rgba(255,255,255,0.04); margin-bottom:2px; transition: background 0.2s;" onmouseover="this.style.background='rgba(255,255,255,0.08)'" onmouseout="this.style.background='rgba(255,255,255,0.04)'">
+              <div class="sector-stock-badge" data-symbol="${q.symbol}" title="${q.name}" style="cursor:pointer; display:flex; justify-content:space-between; font-size:0.68rem; padding:2px 4px; border-radius:3px; background:rgba(255,255,255,0.04); margin-bottom:2px; transition: background 0.2s;" onmouseover="this.style.background='rgba(255,255,255,0.08)'" onmouseout="this.style.background='rgba(255,255,255,0.04)'">
                 <span style="font-weight:700; text-decoration:underline;">${cleanSym}</span>
                 <span style="color:${color}; font-weight:600;">${val >= 0 ? '+' : ''}${val.toFixed(1)}%</span>
               </div>
@@ -236,7 +236,7 @@ const UI = (() => {
             const color = (q.quote?.changePct || 0) >= 0 ? 'var(--green)' : 'var(--red)';
             const val = q.quote?.changePct || 0;
             return `
-              <div class="sector-stock-badge" onclick="event.preventDefault(); event.stopPropagation(); App.selectStock('${q.symbol}')" title="${q.name}" style="cursor:pointer; display:flex; justify-content:space-between; font-size:0.68rem; padding:2px 4px; border-radius:3px; background:rgba(255,255,255,0.04); margin-bottom:2px; transition: background 0.2s;" onmouseover="this.style.background='rgba(255,255,255,0.08)'" onmouseout="this.style.background='rgba(255,255,255,0.04)'">
+              <div class="sector-stock-badge" data-symbol="${q.symbol}" title="${q.name}" style="cursor:pointer; display:flex; justify-content:space-between; font-size:0.68rem; padding:2px 4px; border-radius:3px; background:rgba(255,255,255,0.04); margin-bottom:2px; transition: background 0.2s;" onmouseover="this.style.background='rgba(255,255,255,0.08)'" onmouseout="this.style.background='rgba(255,255,255,0.04)'">
                 <span style="font-weight:700; text-decoration:underline;">${cleanSym}</span>
                 <span style="color:${color}; font-weight:600;">${val >= 0 ? '+' : ''}${val.toFixed(1)}%</span>
               </div>
@@ -258,7 +258,7 @@ const UI = (() => {
             const color = q.quote.changePct >= 0 ? 'var(--green)' : 'var(--red)';
             const val = q.quote.changePct || 0;
             return `
-              <div class="sector-stock-badge" onclick="event.preventDefault(); event.stopPropagation(); App.selectStock('${q.symbol}')" title="${q.name}" style="cursor:pointer; display:flex; justify-content:space-between; font-size:0.68rem; padding:2px 4px; border-radius:3px; background:rgba(255,255,255,0.04); margin-bottom:2px; transition: background 0.2s;" onmouseover="this.style.background='rgba(255,255,255,0.08)'" onmouseout="this.style.background='rgba(255,255,255,0.04)'">
+              <div class="sector-stock-badge" data-symbol="${q.symbol}" title="${q.name}" style="cursor:pointer; display:flex; justify-content:space-between; font-size:0.68rem; padding:2px 4px; border-radius:3px; background:rgba(255,255,255,0.04); margin-bottom:2px; transition: background 0.2s;" onmouseover="this.style.background='rgba(255,255,255,0.08)'" onmouseout="this.style.background='rgba(255,255,255,0.04)'">
                 <span style="font-weight:700; text-decoration:underline;">${cleanSym}</span>
                 <span style="color:${color}; font-weight:600;">${val >= 0 ? '+' : ''}${val.toFixed(1)}%</span>
               </div>
@@ -270,7 +270,7 @@ const UI = (() => {
             const color = q.quote.changePct >= 0 ? 'var(--green)' : 'var(--red)';
             const val = q.quote.changePct || 0;
             return `
-              <div class="sector-stock-badge" onclick="event.preventDefault(); event.stopPropagation(); App.selectStock('${q.symbol}')" title="${q.name}" style="cursor:pointer; display:flex; justify-content:space-between; font-size:0.68rem; padding:2px 4px; border-radius:3px; background:rgba(255,255,255,0.04); margin-bottom:2px; transition: background 0.2s;" onmouseover="this.style.background='rgba(255,255,255,0.08)'" onmouseout="this.style.background='rgba(255,255,255,0.04)'">
+              <div class="sector-stock-badge" data-symbol="${q.symbol}" title="${q.name}" style="cursor:pointer; display:flex; justify-content:space-between; font-size:0.68rem; padding:2px 4px; border-radius:3px; background:rgba(255,255,255,0.04); margin-bottom:2px; transition: background 0.2s;" onmouseover="this.style.background='rgba(255,255,255,0.08)'" onmouseout="this.style.background='rgba(255,255,255,0.04)'">
                 <span style="font-weight:700; text-decoration:underline;">${cleanSym}</span>
                 <span style="color:${color}; font-weight:600;">${val >= 0 ? '+' : ''}${val.toFixed(1)}%</span>
               </div>
@@ -289,7 +289,7 @@ const UI = (() => {
               <div style="display:flex; flex-wrap:wrap; gap:4px;">
                 ${allSectorStocks.map(item => {
                   const cleanSym = item.symbol.replace('.NS', '').replace('.BO', '');
-                  return `<span class="sector-stock-tag" onclick="event.preventDefault(); event.stopPropagation(); App.selectStock('${item.symbol}')" title="${item.name}" style="cursor:pointer; font-size:0.62rem; font-weight:700; color:var(--text-muted); background:rgba(255,255,255,0.04); padding:2px 5px; border-radius:3px; border:1px solid rgba(255,255,255,0.04); transition:all 0.15s ease;" onmouseover="this.style.color='var(--text-accent, #6366f1)'; this.style.background='rgba(99,102,241,0.08)'; this.style.borderColor='rgba(99,102,241,0.2)';" onmouseout="this.style.color='var(--text-muted)'; this.style.background='rgba(255,255,255,0.04)'; this.style.borderColor='rgba(255,255,255,0.04)';">${cleanSym}</span>`;
+                  return `<span class="sector-stock-tag" data-symbol="${item.symbol}" title="${item.name}" style="cursor:pointer; font-size:0.62rem; font-weight:700; color:var(--text-muted); background:rgba(255,255,255,0.04); padding:2px 5px; border-radius:3px; border:1px solid rgba(255,255,255,0.04); transition:all 0.15s ease;" onmouseover="this.style.color='var(--text-accent, #6366f1)'; this.style.background='rgba(99,102,241,0.08)'; this.style.borderColor='rgba(99,102,241,0.2)';" onmouseout="this.style.color='var(--text-muted)'; this.style.background='rgba(255,255,255,0.04)'; this.style.borderColor='rgba(255,255,255,0.04)';">${cleanSym}</span>`;
                 }).join('')}
               </div>
             </div>
@@ -298,7 +298,7 @@ const UI = (() => {
       }
 
       return `
-        <div class="sector-tile ${cls}" onclick="App.selectStock('${s.symbol}')" title="Click to view sector details (${s.symbol})" style="margin-bottom:8px; cursor:pointer;">
+        <div class="sector-tile ${cls}" title="${s.name} Sector Heatmap" style="margin-bottom:8px;">
           <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
             <div class="st-name" style="font-weight:700; font-size:0.78rem">${s.icon} ${s.name}</div>
             <div class="st-change" style="color:${changeColor}; font-weight:700; font-size:0.78rem">${fmtPct(s.change)}</div>
@@ -327,11 +327,19 @@ const UI = (() => {
     const initials = symbol.replace('.NS','').replace('.BO','').slice(0, 3);
     const mode = localStorage.getItem('stid_market_mode') || 'IN';
     const cSym = mode === 'US' ? '$' : '₹';
+
+    let nexusBadge = '';
+    const prof = localStorage.getItem('nexus_profile');
+    if (prof && !result.error && scores?.composite) {
+      const riskTag = Analysis.getAssetRiskTag(result);
+      nexusBadge = `<span class="nexus-badge" style="font-size:0.62rem; padding:1.5px 5px; border-radius:3px; font-weight:700; margin-left:6px; background:rgba(59,130,246,0.12); color:#60a5fa; border:1px solid rgba(59,130,246,0.2);">${riskTag}</span>`;
+    }
+
     return `
       <div class="watchlist-item ${isActive ? 'active' : ''} fade-in" data-symbol="${symbol}" onclick="App.selectStock('${symbol}')">
         <div class="wi-avatar">${initials}</div>
         <div class="wi-info">
-          <div class="wi-symbol">${symbol.replace('.NS','').replace('.BO','')}</div>
+          <div class="wi-symbol">${symbol.replace('.NS','').replace('.BO','')}${nexusBadge}</div>
           <div class="wi-name">${name}</div>
           <div class="wi-score-bar">
             <div class="wi-score-fill" style="width:${score}%;background:${fillColor}"></div>
@@ -349,17 +357,24 @@ const UI = (() => {
   // ── Recommendation Card
   function renderRecCard(result) {
     const { symbol, name, quote, scores } = result;
-    const { composite, fundamental, technicalSetup, momentum, sentimentFlow } = scores;
+    const { composite, fundamental, technicalSetup, momentum, sentiment, institutional } = scores;
     const fillClass = Analysis.scoreFillClass(composite.total);
     const badgeClass = Analysis.scoreBadgeClass(composite.ratingClass);
     const mode = localStorage.getItem('stid_market_mode') || 'IN';
     const cSym = mode === 'US' ? '$' : '₹';
 
+    let nexusBadge = '';
+    const prof = localStorage.getItem('nexus_profile');
+    if (prof && !result.error && scores?.composite) {
+      const riskTag = Analysis.getAssetRiskTag(result);
+      nexusBadge = `<span style="font-size:0.65rem; padding:2px 6px; border-radius:4px; font-weight:700; background:rgba(59,130,246,0.15); color:#60a5fa; border:1px solid rgba(59,130,246,0.3); margin-top:4px; display:inline-block;">🔮 ${riskTag}</span>`;
+    }
+
     return `
       <div class="rec-card ${composite.ratingClass} fade-in" onclick="App.selectStock('${symbol}')">
         <div class="rc-top">
           <div class="rc-symbol-wrap">
-            <div class="rc-symbol">${symbol.replace('.NS','').replace('.BO','')}</div>
+            <div class="rc-symbol">${symbol.replace('.NS','').replace('.BO','')}${nexusBadge ? ' ' + nexusBadge : ''}</div>
             <div class="rc-name">${name}</div>
           </div>
           <div class="rating-badge ${badgeClass}">${composite.emoji} ${composite.rating}</div>
@@ -377,22 +392,26 @@ const UI = (() => {
             <div class="score-fill ${fillClass}" style="width:${composite.total}%"></div>
           </div>
         </div>
-        <div class="rc-mini-stats" style="grid-template-columns: repeat(4, 1fr);">
+        <div class="rc-mini-stats" style="grid-template-columns: repeat(5, 1fr);">
           <div class="rc-mini-stat">
-            <div class="rcms-label">Fund.</div>
+            <div class="rcms-label">Fund</div>
             <div class="rcms-val" style="color:${Analysis.scoreColor(fundamental.score,25)}">${fundamental.score}/25</div>
           </div>
           <div class="rc-mini-stat">
             <div class="rcms-label">Setup</div>
-            <div class="rcms-val" style="color:${Analysis.scoreColor(technicalSetup.score,25)}">${technicalSetup.score}/25</div>
+            <div class="rcms-val" style="color:${Analysis.scoreColor(technicalSetup.score,20)}">${technicalSetup.score}/20</div>
           </div>
           <div class="rc-mini-stat">
-            <div class="rcms-label">Mom.</div>
-            <div class="rcms-val" style="color:${Analysis.scoreColor(momentum.score,25)}">${momentum.score}/25</div>
+            <div class="rcms-label">Mom</div>
+            <div class="rcms-val" style="color:${Analysis.scoreColor(momentum.score,20)}">${momentum.score}/20</div>
+          </div>
+          <div class="rc-mini-stat">
+            <div class="rcms-label">Sent</div>
+            <div class="rcms-val" style="color:${Analysis.scoreColor(sentiment.score,15)}">${sentiment.score}/15</div>
           </div>
           <div class="rc-mini-stat">
             <div class="rcms-label">Flows</div>
-            <div class="rcms-val" style="color:${Analysis.scoreColor(sentimentFlow.score,25)}">${sentimentFlow.score}/25</div>
+            <div class="rcms-val" style="color:${Analysis.scoreColor(institutional.score,20)}">${institutional.score}/20</div>
           </div>
         </div>
       </div>
@@ -402,14 +421,21 @@ const UI = (() => {
   // ── Detail Header
   function renderDetailHeader(result) {
     const { symbol, name, sector, quote, scores, tradeSetup } = result;
-    const { composite, fundamental, technicalSetup, momentum, sentimentFlow } = scores;
+    const { composite, fundamental, technicalSetup, momentum, sentiment, institutional } = scores;
     const badgeClass = Analysis.scoreBadgeClass(composite.ratingClass);
     const mode = localStorage.getItem('stid_market_mode') || 'IN';
     const cSym = mode === 'US' ? '$' : '₹';
 
+    let sectorText = sector;
+    const prof = localStorage.getItem('nexus_profile');
+    if (prof && !result.error && scores?.composite) {
+      const riskTag = Analysis.getAssetRiskTag(result);
+      sectorText += ` | 🔮 ${riskTag}`;
+    }
+
     document.getElementById('dh-symbol').textContent = symbol.replace('.NS','').replace('.BO','');
     document.getElementById('dh-name').textContent = name;
-    document.getElementById('dh-sector').textContent = sector;
+    document.getElementById('dh-sector').textContent = sectorText;
     document.getElementById('dh-price').textContent = `${cSym}${fmt(quote.price, 2)}`;
     document.getElementById('dh-change').textContent = fmtPct(quote.changePct);
     document.getElementById('dh-change').className = `dh-change ${colorClass(quote.changePct)}`;
@@ -421,9 +447,10 @@ const UI = (() => {
     document.getElementById('dh-rating').textContent = `${composite.emoji} ${composite.rating}`;
     document.getElementById('dh-rating').className = `rating-badge ${badgeClass}`;
     document.getElementById('dh-fund-score').textContent = fundamental.score + '/25';
-    document.getElementById('dh-tech-score').textContent = technicalSetup.score + '/25';
-    document.getElementById('dh-sent-score').textContent = momentum.score + '/25';
-    document.getElementById('dh-inst-score').textContent = sentimentFlow.score + '/25';
+    document.getElementById('dh-tech-score').textContent = technicalSetup.score + '/20';
+    document.getElementById('dh-mom-score').textContent = momentum.score + '/20';
+    document.getElementById('dh-sent-score').textContent = sentiment.score + '/15';
+    document.getElementById('dh-inst-score').textContent = institutional.score + '/20';
   }
 
   // ── Fundamental Tab
@@ -645,6 +672,73 @@ const UI = (() => {
       `;
     };
 
+    let hideTargets = false;
+    const profStr = localStorage.getItem('nexus_profile');
+    if (profStr) {
+      try {
+        const prof = JSON.parse(profStr);
+        const riskTag = Analysis.getAssetRiskTag(result);
+        if (prof.riskAppetite === 'Aggressive' && riskTag === 'Core Portfolio Anchor') {
+          hideTargets = true;
+        }
+      } catch (e) {}
+    }
+
+    let tradeSetupHtml = '';
+    if (result.scores.composite.total >= 65 && !hideTargets) {
+      tradeSetupHtml = `
+        <div class="section-title" style="margin-bottom:12px">💰 Trade Setup (ATR-Based)</div>
+        <div class="levels-grid" style="margin-bottom:20px">
+          ${levelItem('Entry', currentPrice, 'Current Price', 'var(--text-accent)')}
+          ${levelItem('Stop Loss', result.tradeSetup.stopLoss, '1.5× ATR below', 'var(--red)')}
+          ${levelItem('Target 1', result.tradeSetup.target1, '2× ATR (quick)', '#22c55e')}
+          ${levelItem('Target 2', result.tradeSetup.target2, '4× ATR (swing)', 'var(--green)')}
+          ${levelItem('Target 3', result.tradeSetup.target3, 'R2 / Extension', '#06b6d4')}
+          ${levelItem('R/R Ratio', result.tradeSetup.riskReward + 'x', 'Risk:Reward', result.tradeSetup.riskReward >= 2 ? 'var(--green)' : 'var(--yellow)')}
+        </div>
+      `;
+    } else {
+      const reclaimVal = techInds.sma20 ? cSym + parseFloat(techInds.sma20).toFixed(2) : '20 SMA';
+      const supportValStr = sr.s1 ? cSym + parseFloat(sr.s1).toFixed(2) : 'major support';
+      
+      const bullishTrigger = `Reclaim ${reclaimVal} on > 1.5x average volume or a decisive Daily close above the Pivot range.`;
+      const bearishRisk = `Breaching ${supportValStr} risks structural failure and triggers systemic freefall down to S2 or SMA200.`;
+      
+      let catalyst = '';
+      if (scores.fundamental.score < 15) {
+        catalyst += 'requires fundamental turnaround, YoY earnings margin recovery, or sector tailwinds to lift valuation metrics. ';
+      }
+      if (scores.institutional.score < 10) {
+        catalyst += 'requires institutional FII/DII block purchase inflows to rebuild volume support. ';
+      }
+      if (scores.momentum.score < 10) {
+        catalyst += 'requires RSI bullish divergence or MACD crossover to confirm momentum shift. ';
+      }
+      if (!catalyst) {
+        catalyst = 'awaits breakout confirmation with volume surge before allocation.';
+      }
+      
+      const strategicView = `Asset is currently in a defensive/consolidation phase. Scaling in is architecturally unjustified until catalysts trigger: ${catalyst}`;
+      
+      tradeSetupHtml = `
+        <div class="section-title" style="margin-bottom:12px">🧬 Conditional Scenario Matrix (Non-Execution Watch Profile)</div>
+        <div style="display:flex; flex-direction:column; gap:12px; margin-bottom:20px; background:var(--bg-elevated); padding:16px; border-radius:var(--radius-md); border:1px solid var(--border);">
+          <div style="border-left:4px solid var(--yellow); padding-left:12px;">
+            <div style="font-weight:700; font-size:0.8rem; color:var(--yellow); text-transform:uppercase; letter-spacing:0.5px; margin-bottom:4px;">🐂 Bullish Activation Trigger</div>
+            <div style="font-size:0.82rem; color:var(--text-primary); line-height:1.4;">${bullishTrigger}</div>
+          </div>
+          <div style="border-left:4px solid var(--red); padding-left:12px;">
+            <div style="font-weight:700; font-size:0.8rem; color:var(--red); text-transform:uppercase; letter-spacing:0.5px; margin-bottom:4px;">🐻 Bearish Breakdown Risk</div>
+            <div style="font-size:0.82rem; color:var(--text-primary); line-height:1.4;">${bearishRisk}</div>
+          </div>
+          <div style="border-left:4px solid var(--blue); padding-left:12px;">
+            <div style="font-weight:700; font-size:0.8rem; color:var(--blue); text-transform:uppercase; letter-spacing:0.5px; margin-bottom:4px;">🧠 Strategic Architect View</div>
+            <div style="font-size:0.82rem; color:var(--text-secondary); line-height:1.5; font-style:italic;">${strategicView}</div>
+          </div>
+        </div>
+      `;
+    }
+
     document.getElementById('tab-technical').innerHTML = `
       <div class="technical-grid">
         ${techIndicator('RSI (14)', fmt(momInds.rsi, 1), momInds.rsiSignal, rsiSignalClass(momInds.rsi))}
@@ -698,15 +792,7 @@ const UI = (() => {
 
       </div>
 
-      <div class="section-title" style="margin-bottom:12px">💰 Trade Setup (ATR-Based)</div>
-      <div class="levels-grid" style="margin-bottom:20px">
-        ${levelItem('Entry', currentPrice, 'Current Price', 'var(--text-accent)')}
-        ${levelItem('Stop Loss', result.tradeSetup.stopLoss, '1.5× ATR below', 'var(--red)')}
-        ${levelItem('Target 1', result.tradeSetup.target1, '2× ATR (quick)', '#22c55e')}
-        ${levelItem('Target 2', result.tradeSetup.target2, '4× ATR (swing)', 'var(--green)')}
-        ${levelItem('Target 3', result.tradeSetup.target3, 'R2 / Extension', '#06b6d4')}
-        ${levelItem('R/R Ratio', result.tradeSetup.riskReward + 'x', 'Risk:Reward', result.tradeSetup.riskReward >= 2 ? 'var(--green)' : 'var(--yellow)')}
-      </div>
+      ${tradeSetupHtml}
 
       <div class="section-title" style="margin-bottom:12px; display:flex; justify-content:space-between; align-items:center;">
         <span>📈 TradingView Interactive Chart</span>
@@ -909,9 +995,9 @@ const UI = (() => {
         </div>
         <div class="sentiment-card">
           <div class="sc-icon">🎯</div>
-          <div class="sc-title">Sentiment & Flows Score</div>
-          <div class="sc-value" style="color:${Analysis.scoreColor(scores.sentimentFlow.score, 25)}">${scores.sentimentFlow.score} / 25</div>
-          <div class="sc-desc">Combined sentiment signal for swing trade entry.</div>
+          <div class="sc-title">News & Sentiment Score</div>
+          <div class="sc-value" style="color:${Analysis.scoreColor(scores.sentiment.score, 15)}">${scores.sentiment.score} / 15</div>
+          <div class="sc-desc">NLP-derived sentiment plus Fear & Greed indexing.</div>
         </div>
       </div>
 
@@ -922,8 +1008,8 @@ const UI = (() => {
         ${recentNewsHtml}
       </div>
 
-      <div class="section-title" style="margin-top:20px; margin-bottom:12px">🎯 Score Breakdown — Sentiment & Flows</div>
-      ${renderScoreBreakdown(scores.sentimentFlow.checklist)}
+      <div class="section-title" style="margin-top:20px; margin-bottom:12px">🎯 Score Breakdown — News & Sentiment</div>
+      ${renderScoreBreakdown(scores.sentiment.checklist)}
     `;
   }
 
@@ -998,8 +1084,8 @@ const UI = (() => {
         </div>
       `}
 
-      <div class="section-title" style="margin-top:20px; margin-bottom:12px">🎯 Score Breakdown — Sentiment & Flows</div>
-      ${renderScoreBreakdown(scores.sentimentFlow.checklist)}
+      <div class="section-title" style="margin-top:20px; margin-bottom:12px">🎯 Score Breakdown — Institutional Flows</div>
+      ${renderScoreBreakdown(scores.institutional.checklist)}
     `;
 
     if (hasRealShareholding) {
@@ -1042,6 +1128,37 @@ const UI = (() => {
     const fillClass = Analysis.scoreFillClass(composite.total);
     const badgeClass = Analysis.scoreBadgeClass(composite.ratingClass);
 
+    // Compute keyless WhatsApp share link
+    const cleanSymForWa = result.symbol.replace('.NS', '').replace('.BO', '');
+    const isUsForWa = (localStorage.getItem('stid_market_mode') || 'IN') === 'US';
+    const currencySym = isUsForWa ? '$' : '₹';
+    const compScoreVal = composite.total;
+    const rsi = scores.momentum?.indicators?.rsi || 50;
+    const trend = scores.technicalSetup?.indicators?.trend || 'Sideways';
+
+    let action = 'WATCH/HOLD';
+    if (compScoreVal >= 80) action = 'STRONG BUY';
+    else if (compScoreVal >= 65) action = 'BUY';
+    else if (compScoreVal < 50) action = 'AVOID/SELL';
+
+    const entry = `${currencySym}${quote.price.toFixed(2)}`;
+    const sl = tradeSetup.stopLoss ? `${currencySym}${tradeSetup.stopLoss}` : 'N/A';
+    const target1 = tradeSetup.target1 ? `${currencySym}${tradeSetup.target1}` : 'N/A';
+    const targets = target1;
+
+    const reasoning = `Score: ${compScoreVal}/100 | RSI: ${rsi.toFixed(1)} (${trend})`;
+    
+    // Strict Format: [TICKER] | [ACTION] | [ENTRY/EXIT] | [STOP LOSS] | [REASONING]
+    let waMessage = `[${cleanSymForWa}] | [${action}] | [Entry ${entry} / Target ${targets}] | [Stop Loss ${sl}] | [${reasoning}]`;
+
+    if (result.geminiCommentary) {
+      const cleanCommentary = result.geminiCommentary.replace(/<[^>]*>/g, '').substring(0, 300);
+      waMessage += `\n*AI Commentary Snippet:*\n_${cleanCommentary}..._\n`;
+    }
+
+    waMessage += `\n_Sent from SwingTrader Intelligence Dashboard_`;
+    const waShareUrl = `https://api.whatsapp.com/send?text=${encodeURIComponent(waMessage)}`;
+
     document.getElementById('tab-overview').innerHTML = `
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:24px;align-items:start;flex-wrap:wrap">
         <div>
@@ -1071,21 +1188,27 @@ const UI = (() => {
             </div>
             <div class="sbd-row">
               <div class="sbd-label">📊 Technical Setup</div>
-              <div class="sbd-bar-wrap"><div class="sbd-bar" style="width:${(scores.technicalSetup.score/25)*100}%;background:#3b82f6"></div></div>
-              <div class="sbd-score" style="color:${Analysis.scoreColor(scores.technicalSetup.score,25)}">${scores.technicalSetup.score}</div>
-              <div class="sbd-max">/25</div>
+              <div class="sbd-bar-wrap"><div class="sbd-bar" style="width:${(scores.technicalSetup.score/20)*100}%;background:#3b82f6"></div></div>
+              <div class="sbd-score" style="color:${Analysis.scoreColor(scores.technicalSetup.score,20)}">${scores.technicalSetup.score}</div>
+              <div class="sbd-max">/20</div>
             </div>
             <div class="sbd-row">
               <div class="sbd-label">⚡ Momentum</div>
-              <div class="sbd-bar-wrap"><div class="sbd-bar" style="width:${(scores.momentum.score/25)*100}%;background:#f59e0b"></div></div>
-              <div class="sbd-score" style="color:${Analysis.scoreColor(scores.momentum.score,25)}">${scores.momentum.score}</div>
-              <div class="sbd-max">/25</div>
+              <div class="sbd-bar-wrap"><div class="sbd-bar" style="width:${(scores.momentum.score/20)*100}%;background:#f59e0b"></div></div>
+              <div class="sbd-score" style="color:${Analysis.scoreColor(scores.momentum.score,20)}">${scores.momentum.score}</div>
+              <div class="sbd-max">/20</div>
             </div>
             <div class="sbd-row">
-              <div class="sbd-label">🧠 Sentiment &amp; Flows</div>
-              <div class="sbd-bar-wrap"><div class="sbd-bar" style="width:${(scores.sentimentFlow.score/25)*100}%;background:#8b5cf6"></div></div>
-              <div class="sbd-score" style="color:${Analysis.scoreColor(scores.sentimentFlow.score,25)}">${scores.sentimentFlow.score}</div>
-              <div class="sbd-max">/25</div>
+              <div class="sbd-label">🧠 News &amp; Sentiment</div>
+              <div class="sbd-bar-wrap"><div class="sbd-bar" style="width:${(scores.sentiment.score/15)*100}%;background:#ec4899"></div></div>
+              <div class="sbd-score" style="color:${Analysis.scoreColor(scores.sentiment.score,15)}">${scores.sentiment.score}</div>
+              <div class="sbd-max">/15</div>
+            </div>
+            <div class="sbd-row">
+              <div class="sbd-label">🏢 Institutional Flows</div>
+              <div class="sbd-bar-wrap"><div class="sbd-bar" style="width:${(scores.institutional.score/20)*100}%;background:#8b5cf6"></div></div>
+              <div class="sbd-score" style="color:${Analysis.scoreColor(scores.institutional.score,20)}">${scores.institutional.score}</div>
+              <div class="sbd-max">/20</div>
             </div>
           </div>
         </div>
@@ -1121,6 +1244,12 @@ const UI = (() => {
             <span>⚙️</span> <span>Tip: Paste your free Gemini API Key under <strong>AI Settings</strong> in the top header for customized swing analysis!</span>
           </div>
         `}
+        <div style="margin-top:16px; padding-top:12px; border-top:1px solid var(--border); display:flex; justify-content:flex-end;">
+          <a href="${waShareUrl}" target="_blank" rel="noopener noreferrer" style="background:#25d366; color:#fff; border:none; padding:6px 12px; border-radius:6px; font-weight:700; font-size:0.75rem; text-decoration:none; display:inline-flex; align-items:center; gap:6px; transition:opacity 0.2s;" onmouseover="this.style.opacity=0.9" onmouseout="this.style.opacity=1">
+            <svg style="width:14px; height:14px; fill:currentColor;" viewBox="0 0 24 24"><path d="M.057 24l1.687-6.163c-1.041-1.804-1.588-3.849-1.587-5.946C.06 5.348 5.397.01 12.008.01c3.202.001 6.212 1.246 8.477 3.514 2.266 2.268 3.507 5.28 3.505 8.484-.004 6.657-5.34 11.997-11.953 11.997-2.005-.001-3.973-.502-5.724-1.455L0 24zm6.59-11.585c-.124-.207-.46-.331-.967-.584s-2.99-1.474-3.454-1.643c-.464-.17-.803-.255-1.142.254-.339.51-.1.171.1.254.2.083.568.203.8.318.232.116.331.066.43-.133.1-.2.43-1.705.529-1.904.1-.2.2-.413.066-.665-.133-.252-.43-1.606-.8-1.955-.36-.34-.73-.292-.967-.306-.21-.013-.453-.016-.696-.016-.243 0-.64.091-.974.453-.334.362-1.272 1.243-1.272 3.033s1.302 3.516 1.485 3.76c.182.243 2.562 3.912 6.208 5.485.867.374 1.545.597 2.072.764.87.276 1.663.237 2.29.144.7-.104 2.152-.88 2.455-1.73.303-.85.303-1.58.212-1.73-.09-.15-.33-.24-.813-.492z"/></svg>
+            Share via WhatsApp
+          </a>
+        </div>
       </div>
 
       <div class="section-title" style="margin:20px 0 12px">⚠️ Disclaimer</div>
@@ -1133,31 +1262,50 @@ const UI = (() => {
 
   function generateRecommendationText(result) {
     const { symbol, name, scores, tradeSetup, quote } = result;
-    const { composite, fundamental, technicalSetup, momentum, sentimentFlow } = scores;
+    const { composite, fundamental, technicalSetup, momentum, sentiment, institutional } = scores;
     const sym = symbol.replace('.NS','').replace('.BO','');
 
     let text = `<strong style="color:var(--text-accent)">📊 Analysis for ${sym} (${name}):</strong><br><br>`;
     text += `Based on our multi-factor scoring model, <strong>${sym}</strong> received a composite score of <strong style="color:${Analysis.scoreColor(composite.total,100)}">${composite.total}/100</strong>, placing it in the <strong>${composite.emoji} ${composite.rating}</strong> category.<br><br>`;
 
-    if (fundamental.score >= 18) text += `      ✅ <strong>Fundamentally Strong:</strong> The stock shows excellent financials with a high fundamental score of ${fundamental.score}/25. Revenue and earnings growth are supporting the bull case.<br>`;
-    else if (fundamental.score >= 12) text += `      🟡 <strong>Decent Fundamentals:</strong> Fundamental score of ${fundamental.score}/25 is average. Watch for upcoming quarterly results.<br>`;
+    if (fundamental.score >= 18) text += `      ✅ <strong>Fundamentally Strong:</strong> The stock shows excellent financials with a high fundamental score of ${fundamental.score}/25. Top-line/bottom-line growth support the thesis.<br>`;
+    else if (fundamental.score >= 12) text += `      🟡 <strong>Decent Fundamentals:</strong> Fundamental score of ${fundamental.score}/25 is average. Watch for quarterly catalyst shifts.<br>`;
     else text += `      🔴 <strong>Weak Fundamentals:</strong> Fundamental score of ${fundamental.score}/25 raises concerns. Exercise caution.<br>`;
 
     const techInds = technicalSetup.indicators;
     const momInds = momentum.indicators;
-    if (momInds.macdCrossover) text += `      🔥 <strong>MACD Crossover:</strong> Fresh bullish MACD crossover detected — a strong technical entry signal for swing trades.<br>`;
-    if (momInds.rsi < 35) text += `      ⚡ <strong>Oversold RSI (${momInds.rsi.toFixed(1)}):</strong> RSI in oversold zone — potential bounce play. Look for confirmation candle.<br>`;
-    else if (momInds.rsi > 65) text += `      ⚠️ <strong>RSI Elevated (${momInds.rsi.toFixed(1)}):</strong> RSI approaching overbought. Better to wait for a pullback before entering.<br>`;
-    if (techInds.trend === 'uptrend') text += `      📈 <strong>Uptrend Intact:</strong> Price is above SMA20 & SMA50. Trend alignment is bullish — dips are buying opportunities.<br>`;
-    if (sentimentFlow.score >= 18) text += `      🏦 <strong>Institutional &amp; Flows:</strong> High institutional holding or accumulation volume suggests strong smart money backing.<br>`;
+    if (momInds.macdCrossover) text += `      🔥 <strong>MACD Crossover:</strong> Fresh bullish MACD crossover detected — momentum is accelerating.<br>`;
+    if (momInds.rsi < 35) text += `      ⚡ <strong>Oversold RSI (${momInds.rsi.toFixed(1)}):</strong> RSI in oversold zone — potential mean-reversion bounce.<br>`;
+    else if (momInds.rsi > 65) text += `      ⚠️ <strong>RSI Elevated (${momInds.rsi.toFixed(1)}):</strong> RSI approaching overbought territory.<br>`;
+    if (techInds.trend === 'uptrend') text += `      📈 <strong>Uptrend Intact:</strong> Price is above SMA20 & SMA50. Primary trend is bullish.<br>`;
+    if (institutional.score >= 15) text += `      🏦 <strong>Institutional Flows:</strong> Strong FII/DII positioning or volume accumulation patterns detected.<br>`;
 
     const isUS = (localStorage.getItem('stid_market_mode') || 'IN') === 'US';
     const cSym = isUS ? '$' : '₹';
-    text += `<br><strong style="color:var(--text-accent)">🎯 Swing Trade Setup:</strong><br>`;
-    text += `• Entry: <strong>${cSym}${quote.price.toFixed(2)}</strong> (current market price)<br>`;
-    text += `• Stop Loss: <strong style="color:var(--red)">${cSym}${tradeSetup.stopLoss}</strong><br>`;
-    text += `• Target 1: <strong style="color:#22c55e">${cSym}${tradeSetup.target1}</strong> | Target 2: <strong style="color:var(--green)">${cSym}${tradeSetup.target2}</strong> | Target 3: <strong style="color:var(--cyan)">${cSym}${tradeSetup.target3}</strong><br>`;
-    text += `• Risk/Reward Ratio: <strong style="color:${tradeSetup.riskReward >= 2 ? 'var(--green)' : 'var(--yellow)'}">${tradeSetup.riskReward}:1</strong><br>`;
+
+    let hideTargets = false;
+    const profStr = localStorage.getItem('nexus_profile');
+    if (profStr) {
+      try {
+        const prof = JSON.parse(profStr);
+        const riskTag = Analysis.getAssetRiskTag(result);
+        if (prof.riskAppetite === 'Aggressive' && riskTag === 'Core Portfolio Anchor') {
+          hideTargets = true;
+        }
+      } catch (e) {}
+    }
+
+    if (composite.total >= 65 && !hideTargets) {
+      text += `<br><strong style="color:var(--text-accent)">🎯 Swing Trade Setup:</strong><br>`;
+      text += `• Entry: <strong>${cSym}${quote.price.toFixed(2)}</strong><br>`;
+      text += `• Stop Loss: <strong style="color:var(--red)">${cSym}${tradeSetup.stopLoss}</strong><br>`;
+      text += `• Target 1: <strong style="color:#22c55e">${cSym}${tradeSetup.target1}</strong> | Target 2: <strong style="color:var(--green)">${cSym}${tradeSetup.target2}</strong> | Target 3: <strong style="color:var(--cyan)">${cSym}${tradeSetup.target3}</strong><br>`;
+      text += `• Risk/Reward Ratio: <strong style="color:${tradeSetup.riskReward >= 2 ? 'var(--green)' : 'var(--yellow)'}">${tradeSetup.riskReward}:1</strong><br>`;
+    } else {
+      text += `<br><strong style="color:var(--text-accent)">🧬 Watch Status Matrix:</strong><br>`;
+      text += `• Activation Trigger: Reclaim SMA20 on high volume.<br>`;
+      text += `• Execution Guidance: Target panels are hidden to prevent trend-fighting or premature execution. Watch for structure consolidation.<br>`;
+    }
 
     return text;
   }
@@ -1307,12 +1455,23 @@ const UI = (() => {
           </div>
         </div>
 
-        <div class="chart-widget-wrap" style="height:720px; border-radius:var(--radius-md); overflow:hidden; border:1px solid var(--border); background:var(--bg-card); position:relative;">
+        <div class="chart-widget-wrap" style="height:480px; border-radius:var(--radius-md); overflow:hidden; border:1px solid var(--border); background:var(--bg-card); position:relative;">
           <div id="tradingview_widget_main" style="width:100%; height:100%; display:flex; align-items:center; justify-content:center; background:#0d1220;">
             <div style="display:flex; flex-direction:column; align-items:center; gap:12px;">
               <div class="spinner"></div>
               <span style="font-size:0.75rem; color:var(--text-muted)">Loading interactive TradingView terminal...</span>
             </div>
+          </div>
+        </div>
+
+        <!-- Koyfin Historical Score Chart -->
+        <div class="score-timeline-wrap" style="height:220px; border-radius:var(--radius-md); border:1px solid var(--border); background:rgba(13, 18, 32, 0.5); padding:12px; position:relative; display:flex; flex-direction:column; gap:6px;">
+          <div style="font-size:0.7rem; color:var(--text-secondary); font-weight:700; text-transform:uppercase; letter-spacing:0.05em; display:flex; justify-content:space-between; align-items:center;">
+            <span>⏱️ HISTORICAL COMPOSITE SCORE (LOOKBACK TRAJECTORY)</span>
+            <span id="score-regime-hint" style="font-size:0.65rem; color:var(--text-accent); font-weight:700;">Bull Regime Multipliers Active</span>
+          </div>
+          <div style="flex:1; position:relative; min-height: 160px;">
+            <canvas id="chart-historical-score" style="width:100%; height:100%;"></canvas>
           </div>
         </div>
 
@@ -1376,10 +1535,11 @@ const UI = (() => {
     `;
 
     try {
-      // Fetch recommendations and settings in parallel
-      const [recs, settings] = await Promise.all([
+      // Fetch recommendations, settings, and performance statistics in parallel
+      const [recs, settings, stats] = await Promise.all([
         API.fetchRecommendations(mode),
-        API.fetchSettings()
+        API.fetchSettings(),
+        API.fetchPerformanceStats()
       ]);
 
       const totalPicks = recs.length;
@@ -1396,22 +1556,53 @@ const UI = (() => {
       container.innerHTML = `
         <div class="performance-dashboard-wrap" style="display:flex; flex-direction:column; gap:24px; color:var(--text-primary)">
           
-          <!-- Stats Cards Grid -->
-          <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(180px, 1fr)); gap:16px;">
-            <div style="background:var(--bg-card); border:1px solid var(--border); padding:16px; border-radius:var(--radius-md); text-align:center;">
-              <div style="font-size:0.75rem; color:var(--text-muted); text-transform:uppercase; font-weight:600; margin-bottom:8px">📊 Total Picks</div>
-              <div style="font-size:1.8rem; font-weight:800; color:var(--text-accent)">${totalPicks}</div>
-              <div style="font-size:0.7rem; color:var(--text-secondary); margin-top:4px">${activePicks} Active | ${completedPicks} Settled</div>
+          <!-- Immutable Signal Log Section -->
+          <div style="background:var(--bg-card); border:1px solid var(--border); padding:20px; border-radius:var(--radius-md); display:flex; flex-direction:column; gap:16px;">
+            <div style="font-weight:700; font-size:1rem; color:var(--text-accent); border-bottom:1px solid var(--border); padding-bottom:8px; display:flex; align-items:center; gap:8px;">
+              <span>🛡️ Institutional Signal Log Statistics (Immutable Strong Buy Signals)</span>
             </div>
-            <div style="background:var(--bg-card); border:1px solid var(--border); padding:16px; border-radius:var(--radius-md); text-align:center;">
-              <div style="font-size:0.75rem; color:var(--text-muted); text-transform:uppercase; font-weight:600; margin-bottom:8px">🎯 Win Rate</div>
-              <div style="font-size:1.8rem; font-weight:800; color:#10b981">${winRate}%</div>
-              <div style="font-size:0.7rem; color:var(--text-secondary); margin-top:4px">${winPicks} Wins | ${lossPicks} Losses</div>
+            
+            <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(180px, 1fr)); gap:16px;">
+              <div style="background:rgba(255,255,255,0.02); border:1px solid var(--border); padding:16px; border-radius:var(--radius-md); text-align:center;">
+                <div style="font-size:0.75rem; color:var(--text-muted); text-transform:uppercase; font-weight:600; margin-bottom:8px">📊 Active Signals</div>
+                <div style="font-size:1.8rem; font-weight:800; color:var(--text-accent)">${stats.active_count}</div>
+                <div style="font-size:0.7rem; color:var(--text-secondary); margin-top:4px">Monitoring targets/stops</div>
+              </div>
+              <div style="background:rgba(255,255,255,0.02); border:1px solid var(--border); padding:16px; border-radius:var(--radius-md); text-align:center;">
+                <div style="font-size:0.75rem; color:var(--text-muted); text-transform:uppercase; font-weight:600; margin-bottom:8px">📉 Settled Signals</div>
+                <div style="font-size:1.8rem; font-weight:800; color:var(--text-accent)">${stats.settled_count}</div>
+                <div style="font-size:0.7rem; color:var(--text-secondary); margin-top:4px">Resolved signal history</div>
+              </div>
+              <div style="background:rgba(255,255,255,0.02); border:1px solid var(--border); padding:16px; border-radius:var(--radius-md); text-align:center;">
+                <div style="font-size:0.75rem; color:var(--text-muted); text-transform:uppercase; font-weight:600; margin-bottom:8px">🎯 Signal Win Rate</div>
+                <div style="font-size:1.8rem; font-weight:800; color:#10b981">${stats.win_rate}%</div>
+                <div style="font-size:0.7rem; color:var(--text-secondary); margin-top:4px">${stats.target_hit_count} Targets | ${stats.stop_loss_hit_count} Stops Hit</div>
+              </div>
             </div>
-            <div style="background:var(--bg-card); border:1px solid var(--border); padding:16px; border-radius:var(--radius-md); text-align:center;">
-              <div style="font-size:0.75rem; color:var(--text-muted); text-transform:uppercase; font-weight:600; margin-bottom:8px">📈 Simulated ROI</div>
-              <div style="font-size:1.8rem; font-weight:800; color:${simulatedROI >= 0 ? '#10b981' : '#ef4444'}">${roiSign}${simulatedROI.toFixed(1)}%</div>
-              <div style="font-size:0.7rem; color:var(--text-secondary); margin-top:4px">Based on target hits vs SL triggers</div>
+          </div>
+
+          <!-- Recommendations Performance Section -->
+          <div style="background:var(--bg-card); border:1px solid var(--border); padding:20px; border-radius:var(--radius-md); display:flex; flex-direction:column; gap:16px;">
+            <div style="font-weight:700; font-size:1rem; color:var(--text-accent); border-bottom:1px solid var(--border); padding-bottom:8px; display:flex; align-items:center; gap:8px;">
+              <span>📈 Simulated Picks Performance (Recommendations)</span>
+            </div>
+            
+            <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(180px, 1fr)); gap:16px;">
+              <div style="background:rgba(255,255,255,0.02); border:1px solid var(--border); padding:16px; border-radius:var(--radius-md); text-align:center;">
+                <div style="font-size:0.75rem; color:var(--text-muted); text-transform:uppercase; font-weight:600; margin-bottom:8px">📊 Total Picks</div>
+                <div style="font-size:1.8rem; font-weight:800; color:var(--text-accent)">${totalPicks}</div>
+                <div style="font-size:0.7rem; color:var(--text-secondary); margin-top:4px">${activePicks} Active | ${completedPicks} Settled</div>
+              </div>
+              <div style="background:rgba(255,255,255,0.02); border:1px solid var(--border); padding:16px; border-radius:var(--radius-md); text-align:center;">
+                <div style="font-size:0.75rem; color:var(--text-muted); text-transform:uppercase; font-weight:600; margin-bottom:8px">🎯 Win Rate</div>
+                <div style="font-size:1.8rem; font-weight:800; color:#10b981">${winRate}%</div>
+                <div style="font-size:0.7rem; color:var(--text-secondary); margin-top:4px">${winPicks} Wins | ${lossPicks} Losses</div>
+              </div>
+              <div style="background:rgba(255,255,255,0.02); border:1px solid var(--border); padding:16px; border-radius:var(--radius-md); text-align:center;">
+                <div style="font-size:0.75rem; color:var(--text-muted); text-transform:uppercase; font-weight:600; margin-bottom:8px">📈 Simulated ROI</div>
+                <div style="font-size:1.8rem; font-weight:800; color:${simulatedROI >= 0 ? '#10b981' : '#ef4444'}">${roiSign}${simulatedROI.toFixed(1)}%</div>
+                <div style="font-size:0.7rem; color:var(--text-secondary); margin-top:4px">Based on target hits vs SL triggers</div>
+              </div>
             </div>
           </div>
 
@@ -1601,14 +1792,126 @@ const UI = (() => {
     if (spinner) spinner.style.display = loading ? 'flex' : 'none';
   }
 
+  function renderPortfolioSection(data) {
+    const disconnectedPane = document.getElementById('portfolio-disconnected-pane');
+    const connectedPane = document.getElementById('portfolio-connected-pane');
+    if (!disconnectedPane || !connectedPane) return;
+
+    if (!data || !data.connected) {
+      disconnectedPane.style.display = 'block';
+      connectedPane.style.display = 'none';
+      return;
+    }
+
+    disconnectedPane.style.display = 'none';
+    connectedPane.style.display = 'block';
+
+    const brokerBadge = document.getElementById('portfolio-connected-broker');
+    if (brokerBadge) brokerBadge.innerText = data.brokerName || 'BROKER';
+
+    const costEl = document.getElementById('portfolio-total-cost');
+    const valEl = document.getElementById('portfolio-total-value');
+    if (costEl) costEl.innerText = '₹' + fmt(data.summary.totalCost);
+    if (valEl) valEl.innerText = '₹' + fmt(data.summary.totalValue);
+
+    const pnlEl = document.getElementById('portfolio-total-pnl');
+    if (pnlEl) {
+      const pnlSign = data.summary.totalPnl >= 0 ? '+' : '';
+      pnlEl.innerText = `${pnlSign}₹${fmt(data.summary.totalPnl)} (${pnlSign}${data.summary.totalPnlPercent.toFixed(2)}%)`;
+      pnlEl.style.color = data.summary.totalPnl >= 0 ? '#34d399' : '#f87171';
+    }
+
+    const scoreEl = document.getElementById('portfolio-health-score');
+    if (scoreEl) {
+      scoreEl.innerText = data.summary.portfolioScore;
+      if (data.summary.portfolioScore >= 75) scoreEl.style.color = '#34d399';
+      else if (data.summary.portfolioScore >= 50) scoreEl.style.color = '#fbbf24';
+      else scoreEl.style.color = '#f87171';
+    }
+
+    const alertBox = document.getElementById('portfolio-alert-box');
+    const alertText = document.getElementById('portfolio-alert-text');
+    if (alertBox && alertText) {
+      if (data.summary.exitAlertCount > 0) {
+        alertBox.style.background = 'rgba(248,113,113,0.1)';
+        alertBox.style.borderColor = 'rgba(248,113,113,0.2)';
+        alertBox.style.color = '#f87171';
+        alertBox.querySelector('span').innerText = '⚠️';
+        alertText.innerText = `${data.summary.exitAlertCount} stock(s) breached stop-loss or are weak. Action recommended!`;
+      } else {
+        alertBox.style.background = 'rgba(52,211,153,0.1)';
+        alertBox.style.borderColor = 'rgba(52,211,153,0.2)';
+        alertBox.style.color = '#34d399';
+        alertBox.querySelector('span').innerText = '✅';
+        alertText.innerText = 'All setups healthy. No urgent action required.';
+      }
+    }
+
+    const tbody = document.getElementById('portfolio-holdings-tbody');
+    if (tbody) {
+      if (!data.holdings || data.holdings.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="10" style="text-align:center; padding:20px; color:var(--text-muted);">No holdings synced. Add stocks to your broker account first!</td></tr>`;
+        return;
+      }
+
+      tbody.innerHTML = data.holdings.map(h => {
+        const pnlSign = h.pnl >= 0 ? '+' : '';
+        const pnlColor = h.pnl >= 0 ? '#34d399' : '#f87171';
+        
+        let verdictColor = '#94a3b8';
+        let verdictBg = 'rgba(148,163,184,0.15)';
+        if (h.verdict === 'ADD / BUY') {
+          verdictColor = '#34d399';
+          verdictBg = 'rgba(52,211,153,0.15)';
+        } else if (h.verdict === 'HOLD') {
+          verdictColor = '#fbbf24';
+          verdictBg = 'rgba(251,191,36,0.15)';
+        } else if (h.verdict.startsWith('EXIT')) {
+          verdictColor = '#f87171';
+          verdictBg = 'rgba(248,113,113,0.15)';
+        }
+        
+        let scoreColor = '#34d399';
+        if (h.score < 50) scoreColor = '#f87171';
+        else if (h.score < 75) scoreColor = '#fbbf24';
+
+        return `
+          <tr style="border-bottom:1px solid rgba(255,255,255,0.03);">
+            <td style="font-weight:700; color:var(--text-primary); cursor:pointer;" onclick="App.selectStock('${h.symbol}')">
+              ${h.symbol.replace('.NS', '').replace('.BO', '')}
+            </td>
+            <td>${h.quantity}</td>
+            <td>₹${fmt(h.averageBuyPrice)}</td>
+            <td>₹${fmt(h.currentPrice)}</td>
+            <td>₹${fmt(h.cost)}</td>
+            <td>₹${fmt(h.value)}</td>
+            <td style="color:${pnlColor}; font-weight:700;">
+              ${pnlSign}₹${fmt(h.pnl)} (${pnlSign}${h.pnlPercent.toFixed(2)}%)
+            </td>
+            <td style="font-weight:700; color:${scoreColor}">${h.score}</td>
+            <td>
+              <span style="display:inline-block; padding:3px 8px; border-radius:12px; font-size:0.7rem; font-weight:800; color:${verdictColor}; background:${verdictBg};">
+                ${h.verdict}
+              </span>
+            </td>
+            <td style="font-size:0.75rem; color:var(--text-muted); text-align:left; max-width:240px; white-space:normal; line-height:1.3;">
+              ${h.verdictDetails}
+            </td>
+          </tr>
+        `;
+      }).join('');
+    }
+  }
+
   return {
     toast, renderMarketTickers, renderMarketIndicesPanel, renderFearGreed, renderSectorHeatmap,
     renderWatchlistItem, renderRecCard, renderDetailHeader,
     renderFundamentals, renderTechnicals, renderSentiment,
     renderInstitutional, renderOverview, renderSearchResults, renderInvyMessage,
     renderLiveChart, setDetailLoading, fmt, fmtCr, fmtVol, fmtPct, colorClass,
-    renderPerformanceDashboard
+    renderPerformanceDashboard, renderPortfolioSection
   };
 })();
+
 
 window.UI = UI;

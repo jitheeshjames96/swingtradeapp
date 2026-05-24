@@ -474,9 +474,9 @@ function scoreTechnicalSetup(data, quote) {
     return {
       score: 0,
       checklist: [
-        { label: 'Trend Structure (SMA)', passed: false, value: 'N/A', desc: 'Price > SMA20 > SMA50 > SMA200', score: 0, max: 9 },
-        { label: 'Support Zone Proximity', passed: false, value: 'N/A', desc: 'Price within 3% of support (S1/S2 or SMA200)', score: 0, max: 8 },
-        { label: 'Volatility Squeeze/Breakout', passed: false, value: 'N/A', desc: 'Bollinger Band squeeze or upper band breakout', score: 0, max: 8 }
+        { label: 'Trend Structure (SMA)', passed: false, value: 'N/A', desc: 'Price > SMA20 > SMA50 > SMA200', score: 0, max: 8 },
+        { label: 'Support Zone Proximity', passed: false, value: 'N/A', desc: 'Price within 3% of support (S1/S2 or SMA200)', score: 0, max: 6 },
+        { label: 'Volatility Squeeze/Breakout', passed: false, value: 'N/A', desc: 'Bollinger Band squeeze or upper band breakout', score: 0, max: 6 }
       ],
       indicators: {}
     };
@@ -499,7 +499,7 @@ function scoreTechnicalSetup(data, quote) {
   const checklist = [];
   let score = 0;
 
-  // 1. SMA Trend Structure (9 pts)
+  // 1. SMA Trend Structure (8 pts max)
   let smaPassed = false;
   let smaText = [];
   if (currentPrice > lastSma20) smaText.push('Price > SMA20');
@@ -509,7 +509,7 @@ function scoreTechnicalSetup(data, quote) {
   if (currentPrice > lastSma20 && lastSma20 > lastSma50) {
     smaPassed = true;
   }
-  const smaScore = smaPassed ? (lastSma50 > lastSma200 ? 9 : 7) : 3;
+  const smaScore = smaPassed ? (lastSma50 > lastSma200 ? 8 : 6) : 2;
   score += smaScore;
   checklist.push({
     label: 'Trend Structure (SMA)',
@@ -517,10 +517,10 @@ function scoreTechnicalSetup(data, quote) {
     value: smaText.length > 0 ? smaText.join(', ') : 'Downtrend alignment',
     desc: 'Aligning with SMA20, 50, and 200 ensures trading in the direction of the primary market trend.',
     score: smaScore,
-    max: 9
+    max: 8
   });
 
-  // 2. Support Zone Proximity (8 pts)
+  // 2. Support Zone Proximity (6 pts max)
   let supportPassed = false;
   let supportVal = 'Far from support';
   const distS1 = sr.s1 ? Math.abs(currentPrice - sr.s1) / currentPrice : 99;
@@ -541,18 +541,18 @@ function scoreTechnicalSetup(data, quote) {
     supportVal = `Near SMA200 (${cSym}${lastSma200.toFixed(1)})`;
   }
 
-  const supportScore = supportPassed ? 8 : 3;
+  const supportScore = supportPassed ? 6 : 2;
   score += supportScore;
   checklist.push({
     label: 'Support Zone Proximity',
     passed: supportPassed,
     value: supportPassed ? supportVal : `S1: ${cSym}${sr.s1?.toFixed(1) || 'N/A'}`,
-    desc: 'Entering trades near key supports provides optimal risk-to-reward setup and invalidation levels.',
+    desc: 'Entering trades near key supports provides optimal risk-to-reward setup.',
     score: supportScore,
-    max: 8
+    max: 6
   });
 
-  // 3. Volatility Squeeze/Breakout (8 pts)
+  // 3. Volatility Squeeze/Breakout (6 pts max)
   let bbPassed = false;
   let bbVal = 'Normal Bandwidth';
   const bbBandwidth = lastBB.mid ? (lastBB.upper - lastBB.lower) / lastBB.mid : 99;
@@ -563,7 +563,7 @@ function scoreTechnicalSetup(data, quote) {
     bbPassed = true;
     bbVal = 'Upper Band Breakout';
   }
-  const bbScore = bbPassed ? 8 : 4;
+  const bbScore = bbPassed ? 6 : 3;
   score += bbScore;
   checklist.push({
     label: 'Volatility Squeeze/Breakout',
@@ -571,14 +571,14 @@ function scoreTechnicalSetup(data, quote) {
     value: bbVal,
     desc: 'Bollinger Band Squeeze hints at imminent expansion. Breakout above upper band indicates strong momentum.',
     score: bbScore,
-    max: 8
+    max: 6
   });
 
   const volData = detectVolumeSpikes(data);
   const trend = detectTrend(data);
 
   return {
-    score: Math.min(25, score),
+    score: Math.min(20, score),
     checklist,
     indicators: {
       sma20: lastSma20,
@@ -598,9 +598,8 @@ function scoreMomentum(data) {
     return {
       score: 0,
       checklist: [
-        { label: 'RSI Momentum Zone', passed: false, value: 'N/A', desc: 'RSI between 40 and 65 (bull phase)', score: 0, max: 9 },
-        { label: 'MACD Trend Confirmation', passed: false, value: 'N/A', desc: 'MACD Line > Signal Line', score: 0, max: 8 },
-        { label: 'Volume Confirmation', passed: false, value: 'N/A', desc: 'Current volume > 1.5x of 20-day average', score: 0, max: 8 }
+        { label: 'RSI Momentum Zone', passed: false, value: 'N/A', desc: 'RSI between 40 and 65 (bull phase)', score: 0, max: 10 },
+        { label: 'MACD Trend Confirmation', passed: false, value: 'N/A', desc: 'MACD Line > Signal Line', score: 0, max: 10 }
       ],
       indicators: {}
     };
@@ -628,7 +627,7 @@ function scoreMomentum(data) {
   const checklist = [];
   let score = 0;
 
-  // 1. RSI Zone Check (9 pts)
+  // 1. RSI Zone Check (10 pts max)
   let rsiPassed = false;
   let rsiVal = `RSI: ${rsi.toFixed(1)}`;
   if (rsi >= 40 && rsi <= 65) {
@@ -639,7 +638,7 @@ function scoreMomentum(data) {
   } else {
     rsiVal += ' (Overbought Alert)';
   }
-  const rsiScore = rsi >= 40 && rsi <= 65 ? 9 : rsi >= 30 && rsi < 40 ? 6 : rsi > 65 && rsi <= 75 ? 5 : 2;
+  const rsiScore = rsi >= 40 && rsi <= 65 ? 10 : rsi >= 30 && rsi < 40 ? 6 : rsi > 65 && rsi <= 75 ? 5 : 2;
   score += rsiScore;
   checklist.push({
     label: 'RSI Momentum Zone',
@@ -647,10 +646,10 @@ function scoreMomentum(data) {
     value: rsiVal,
     desc: 'RSI between 40 and 65 signals healthy trend momentum. Avoid entry when RSI is > 75 (overbought).',
     score: rsiScore,
-    max: 9
+    max: 10
   });
 
-  // 2. MACD Trend Check (8 pts)
+  // 2. MACD Trend Check (10 pts max)
   let macdPassed = false;
   let macdVal = 'Bearish';
   if (macdCrossover) {
@@ -660,7 +659,7 @@ function scoreMomentum(data) {
     macdPassed = true;
     macdVal = 'Bullish Alignment';
   }
-  const macdScore = macdCrossover ? 8 : macdBullish ? 6 : 2;
+  const macdScore = macdCrossover ? 10 : macdBullish ? 7 : 2;
   score += macdScore;
   checklist.push({
     label: 'MACD Trend Confirmation',
@@ -668,29 +667,11 @@ function scoreMomentum(data) {
     value: macdVal,
     desc: 'Bullish MACD line crossing above the signal line indicates positive momentum acceleration.',
     score: macdScore,
-    max: 8
-  });
-
-  // 3. Volume Confirmation (8 pts)
-  let volPassed = false;
-  let volVal = `${volData.latestRatio}x avg`;
-  if (volData.latestRatio >= 1.5) {
-    volPassed = true;
-    volVal += ' (Surge)';
-  }
-  const volScore = volData.latestRatio >= 2.0 ? 8 : volData.latestRatio >= 1.4 ? 6 : volData.latestRatio >= 1.0 ? 4 : 1;
-  score += volScore;
-  checklist.push({
-    label: 'Volume Confirmation',
-    passed: volPassed,
-    value: volVal,
-    desc: 'Volume expansion confirms the price move is backed by institutional buying, not noise.',
-    score: volScore,
-    max: 8
+    max: 10
   });
 
   return {
-    score: Math.min(25, score),
+    score: Math.min(20, score),
     checklist,
     indicators: {
       rsi,
@@ -705,44 +686,11 @@ function scoreMomentum(data) {
   };
 }
 
-function scoreSentimentFlows(fearGreed, news, volData, fund) {
+function scoreSentiment(fearGreed, news) {
   const checklist = [];
   let score = 0;
 
-  // 1. Institutional Flows (9 pts)
-  let flowPassed = false;
-  let flowVal = 'Neutral Flows';
-  let sh = fund?.shareholding || {};
-
-  let instPercentage = null;
-  if (sh.fii && sh.fii.length > 0 && sh.dii && sh.dii.length > 0) {
-    instPercentage = (sh.fii[sh.fii.length - 1] || 0) + (sh.dii[sh.dii.length - 1] || 0);
-  } else if (sh.institutions !== undefined && sh.institutions !== null) {
-    instPercentage = sh.institutions;
-  }
-
-  if (instPercentage !== null && instPercentage > 25) {
-    flowPassed = true;
-    flowVal = `High FII/DII (${instPercentage.toFixed(1)}%)`;
-  } else if (volData?.accumulation) {
-    flowPassed = true;
-    flowVal = 'Accumulation Spike (Est)';
-  } else if (instPercentage !== null) {
-    flowVal = `FII/DII: ${instPercentage.toFixed(1)}%`;
-  }
-
-  const instScore = instPercentage > 35 ? 9 : volData?.accumulation ? 8 : volData?.institutionalSignal === 'moderate' ? 6 : 3;
-  score += instScore;
-  checklist.push({
-    label: 'Institutional Flows (FII/DII)',
-    passed: flowPassed || instScore >= 6,
-    value: flowVal,
-    desc: 'Tracking promoter holding and institutional accumulation reveals smart money actions.',
-    score: instScore,
-    max: 9
-  });
-
-  // 2. Fear & Greed Index (8 pts)
+  // 1. Fear & Greed Index (8 pts max)
   const fgVal = fearGreed?.value || 50;
   let fgPassed = false;
   let fgValText = `${fgVal} - ${fearGreed?.text || 'Neutral'}`;
@@ -766,7 +714,7 @@ function scoreSentimentFlows(fearGreed, news, volData, fund) {
     max: 8
   });
 
-  // 3. News Sentiment Bias (8 pts)
+  // 2. News Sentiment Bias (7 pts max)
   let newsPassed = false;
   let newsVal = 'No News Sentiment';
   let newsScore = 4;
@@ -780,7 +728,7 @@ function scoreSentimentFlows(fearGreed, news, volData, fund) {
     if (ratio > 0.1) {
       newsPassed = true;
       newsVal = `Positive bias (+${Math.round(ratio * 100)}%)`;
-      newsScore = ratio > 0.4 ? 8 : 6;
+      newsScore = ratio > 0.4 ? 7 : 5;
     } else if (ratio < -0.1) {
       newsVal = `Negative bias (${Math.round(ratio * 100)}%)`;
       newsScore = ratio < -0.4 ? 1 : 2;
@@ -796,37 +744,178 @@ function scoreSentimentFlows(fearGreed, news, volData, fund) {
     value: newsVal,
     desc: 'Monitors the ratio of positive to negative press and research reports on the stock.',
     score: newsScore,
-    max: 8
+    max: 7
   });
 
-  return { score: Math.min(25, score), checklist };
+  return { score: Math.min(15, score), checklist };
 }
 
-function compositeScore(fundScore, setupScore, momScore, flowScore) {
-  const total = fundScore + setupScore + momScore + flowScore;
-  let rating, ratingClass, emoji;
-  if (total >= 80)      { rating = 'Strong Buy';    ratingClass = 'strong-buy';    emoji = '🟢'; }
-  else if (total >= 65) { rating = 'Buy';            ratingClass = 'buy';           emoji = '🟡'; }
-  else if (total >= 50) { rating = 'Watch';          ratingClass = 'watch';         emoji = '🟠'; }
-  else if (total >= 35) { rating = 'Avoid';          ratingClass = 'avoid';         emoji = '🔴'; }
-  else                  { rating = 'Strong Avoid';   ratingClass = 'strong-avoid';  emoji = '⛔'; }
+function scoreInstitutional(fund, volData) {
+  const checklist = [];
+  let score = 0;
 
-  return { total, rating, ratingClass, emoji };
+  // 1. Shareholding & FII/DII positioning (10 pts max)
+  let flowPassed = false;
+  let flowVal = 'Neutral Flows';
+  let sh = fund?.shareholding || {};
+
+  let instPercentage = null;
+  if (sh.fii && sh.fii.length > 0 && sh.dii && sh.dii.length > 0) {
+    instPercentage = (sh.fii[sh.fii.length - 1] || 0) + (sh.dii[sh.dii.length - 1] || 0);
+  } else if (sh.institutions !== undefined && sh.institutions !== null) {
+    instPercentage = sh.institutions;
+  }
+
+  if (instPercentage !== null && instPercentage > 25) {
+    flowPassed = true;
+    flowVal = `High FII/DII (${instPercentage.toFixed(1)}%)`;
+  } else if (volData?.accumulation) {
+    flowPassed = true;
+    flowVal = 'Accumulation Spike (Est)';
+  } else if (instPercentage !== null) {
+    flowVal = `FII/DII: ${instPercentage.toFixed(1)}%`;
+  }
+
+  const instScore = instPercentage > 35 ? 10 : instPercentage > 25 ? 8 : volData?.accumulation ? 8 : volData?.institutionalSignal === 'moderate' ? 6 : 4;
+  score += instScore;
+  checklist.push({
+    label: 'Institutional Holdings (FII/DII)',
+    passed: flowPassed || instScore >= 6,
+    value: flowVal,
+    desc: 'Tracking promoter holding and institutional accumulation reveals smart money actions.',
+    score: instScore,
+    max: 10
+  });
+
+  // 2. Volume & Delivery/Block deals indicators (10 pts max)
+  let volPassed = false;
+  let volVal = `${volData?.latestRatio || 1.0}x avg`;
+  if (volData?.latestRatio >= 1.5) {
+    volPassed = true;
+    volVal += ' (Surge)';
+  }
+  const volScore = volData?.latestRatio >= 2.0 ? 10 : volData?.latestRatio >= 1.5 ? 8 : volData?.latestRatio >= 1.0 ? 6 : 2;
+  score += volScore;
+  checklist.push({
+    label: 'Volume Flow & Block Indicators',
+    passed: volPassed,
+    value: volVal,
+    desc: 'Volume expansion confirms the price move is backed by institutional buying, not noise.',
+    score: volScore,
+    max: 10
+  });
+
+  return { score: Math.min(20, score), checklist };
+}
+
+function compositeScore(fundScore, setupScore, momScore, sentScore, instScore, price, sma200, customWeights, activeRegime) {
+  // Use passed parameters or fall back to window.App.state or default weights
+  const w = customWeights || window.App?.state?.weights || {
+    fundamental: 25,
+    technical: 30,
+    momentum: 20,
+    sentiment: 10,
+    institutional: 15
+  };
+  const reg = activeRegime || window.App?.state?.activeRegime || 'bull';
+
+  let wFund = w.fundamental;
+  let wSetup = w.technical; // 'technical' maps to setupScore
+  let wMom = w.momentum;
+  let wSent = w.sentiment;
+  let wInst = w.institutional;
+
+  // Apply Bear market regime adjustments: penalize momentum, boost value, then normalize
+  if (reg === 'bear') {
+    wMom = wMom * 0.7;
+    wSetup = wSetup * 0.7;
+    wFund = wFund * 1.3;
+    
+    const sum = wFund + wSetup + wMom + wSent + wInst;
+    if (sum > 0) {
+      wFund = (wFund / sum) * 100;
+      wSetup = (wSetup / sum) * 100;
+      wMom = (wMom / sum) * 100;
+      wSent = (wSent / sum) * 100;
+      wInst = (wInst / sum) * 100;
+    }
+  }
+
+  // Standardize raw scores to 0-1 range based on their maximum values
+  const pFund = fundScore / 25;
+  const pSetup = setupScore / 20;
+  const pMom = momScore / 20;
+  const pSent = sentScore / 15;
+  const pInst = instScore / 20;
+
+  // Calculate dynamic weighted composite score
+  let total = (pFund * wFund) + (pSetup * wSetup) + (pMom * wMom) + (pSent * wSent) + (pInst * wInst);
+  total = Math.round(Math.min(100, Math.max(0, total)));
+
+  let isInvalidated = false;
+
+  if (sma200 && price < sma200) {
+    isInvalidated = true;
+    if (total >= 65) {
+      total = 64; // strictly cap below 65
+    }
+  }
+
+  let rating, ratingClass, emoji;
+  if (isInvalidated && total >= 50) {
+    rating = 'High-Risk Contrarian Mean-Reversion Play';
+    ratingClass = 'watch';
+    emoji = '⚠️';
+  } else if (total >= 80) {
+    rating = 'Strong Buy';
+    ratingClass = 'strong-buy';
+    emoji = '🟢';
+  } else if (total >= 65) {
+    rating = 'Buy';
+    ratingClass = 'buy';
+    emoji = '🟡';
+  } else if (total >= 50) {
+    rating = 'Watch';
+    ratingClass = 'watch';
+    emoji = '🟠';
+  } else if (total >= 35) {
+    rating = 'Avoid';
+    ratingClass = 'avoid';
+    emoji = '🔴';
+  } else {
+    rating = 'Strong Avoid';
+    ratingClass = 'strong-avoid';
+    emoji = '⛔';
+  }
+
+  return { total, rating, ratingClass, emoji, isInvalidated };
 }
 
 function calcTradeSetup(currentPrice, setupInds, momInds) {
   const atr = momInds?.atr || currentPrice * 0.02;
   const sr = setupInds?.sr || {};
 
-  let stopLoss = currentPrice - 2.0 * atr;
-  if (sr.s1 && sr.s1 < currentPrice && sr.s1 > currentPrice - 3.5 * atr) {
-    stopLoss = sr.s1 * 0.99;
-  }
-  stopLoss = parseFloat(stopLoss.toFixed(2));
+  let stopLoss = parseFloat((currentPrice - 1.5 * atr).toFixed(2));
 
-  const target1 = parseFloat((currentPrice + 1.5 * (currentPrice - stopLoss)).toFixed(2));
-  const target2 = parseFloat((currentPrice + 2.5 * (currentPrice - stopLoss)).toFixed(2));
-  const target3 = sr.r2 && sr.r2 > currentPrice ? parseFloat(sr.r2.toFixed(2)) : parseFloat((currentPrice + 4.0 * (currentPrice - stopLoss)).toFixed(2));
+  let t1 = sr.r1 && sr.r1 > currentPrice ? sr.r1 : currentPrice + 1.5 * atr;
+  let t2 = sr.r2 && sr.r2 > t1 ? sr.r2 : t1 + 1.5 * atr;
+  let t3 = sr.r3 && sr.r3 > t2 ? sr.r3 : t2 + 1.5 * atr;
+
+  let target1 = parseFloat(t1.toFixed(2));
+  if (target1 <= currentPrice) {
+    target1 = parseFloat((currentPrice + 1.5 * atr).toFixed(2));
+  }
+
+  let target2 = parseFloat(t2.toFixed(2));
+  if (target2 <= target1) {
+    target2 = parseFloat((target1 + 1.5 * atr).toFixed(2));
+  }
+
+  let target3 = parseFloat(t3.toFixed(2));
+  if (target3 <= target2) {
+    target3 = parseFloat((target2 + 1.5 * atr).toFixed(2));
+  }
+
   const riskReward = parseFloat(((target2 - currentPrice) / (currentPrice - stopLoss)).toFixed(2));
 
   return { stopLoss, target1, target2, target3, riskReward, indicators: setupInds };
@@ -1007,21 +1096,24 @@ async function analyzeStock(symbol, name, sector) {
   const fundResult  = scoreFundamentals(fund, symbol, sector);
   const setupResult = scoreTechnicalSetup(historical, quote);
   const momResult   = scoreMomentum(historical);
-  const flowResult  = scoreSentimentFlows(fearGreed, news, setupResult.indicators?.volData, fund);
-  const composite   = compositeScore(fundResult.score, setupResult.score, momResult.score, flowResult.score);
+  const sentResult  = scoreSentiment(fearGreed, news);
+  const instResult  = scoreInstitutional(fund, setupResult.indicators?.volData);
+  const composite   = compositeScore(fundResult.score, setupResult.score, momResult.score, sentResult.score, instResult.score, quote.price, setupResult.indicators?.sma200);
 
   const checklist = [
     ...fundResult.checklist,
     ...setupResult.checklist,
     ...momResult.checklist,
-    ...flowResult.checklist
+    ...sentResult.checklist,
+    ...instResult.checklist
   ];
 
   const scores = {
     fundamental: fundResult,
     technicalSetup: setupResult,
     momentum: momResult,
-    sentimentFlow: flowResult,
+    sentiment: sentResult,
+    institutional: instResult,
     composite,
     checklist
   };
@@ -1100,11 +1192,106 @@ function scoreBadgeClass(ratingClass) {
   return `badge-${ratingClass}`;
 }
 
+function getAssetRiskTag(stockResult) {
+  if (!stockResult || !stockResult.scores) return 'Alpha Generator';
+  
+  const scores = stockResult.scores;
+  const fund = stockResult.fund || {};
+  const beta = fund.beta || 1.0;
+  
+  const fundScore = scores.fundamental?.score || 0;
+  const instScore = scores.institutional?.score || 0;
+  const techScore = scores.technicalSetup?.score || 0;
+  const momScore = scores.momentum?.score || 0;
+
+  if (fundScore >= 16 && instScore >= 12 && beta < 1.1) {
+    return 'Core Portfolio Anchor';
+  }
+  if (techScore >= 12 && momScore >= 12) {
+    return 'Alpha Generator';
+  }
+  if (beta > 1.3 || fundScore < 10) {
+    return 'High-Risk Speculative';
+  }
+  return 'Alpha Generator';
+}
+
+function isConfluence(r) {
+  if (!r || !r.scores) return false;
+  const tech = r.scores.technicalSetup;
+  const mom = r.scores.momentum;
+  if (!tech || !mom) return false;
+
+  const rsi = mom.indicators?.rsi ?? 50;
+  const volRatio = tech.indicators?.volData?.latestRatio ?? 1.0;
+
+  const supportItem = tech.checklist?.find(c => c.label === 'Support Zone Proximity');
+  const nearSupport = supportItem ? supportItem.passed : false;
+
+  const rsiOk = rsi >= 30 && rsi <= 70;
+  const volOk = volRatio >= 1.3;
+
+  return nearSupport && rsiOk && volOk;
+}
+
+function getHistoricalScoreSeries(result, customWeights, activeRegime) {
+  const historical = result.historical || [];
+  if (historical.length < 30) return []; // need enough data
+
+  const fundScore = result.scores.fundamental?.score || 0;
+  const sentScore = result.scores.sentiment?.score || 0;
+  const instScore = result.scores.institutional?.score || 0;
+
+  const series = [];
+
+  // Start calculating scores from index 30 to ensure valid moving averages
+  for (let i = 30; i < historical.length; i++) {
+    const subHist = historical.slice(0, i + 1);
+    const lastBar = subHist[subHist.length - 1];
+    
+    // Create simulated quote object for calculation
+    const simulatedQuote = {
+      price: lastBar.close,
+      volume: lastBar.volume || 0,
+      open: lastBar.open || lastBar.close,
+      high: lastBar.high || lastBar.close,
+      low: lastBar.low || lastBar.close
+    };
+
+    const setupResult = scoreTechnicalSetup(subHist, simulatedQuote);
+    const momResult = scoreMomentum(subHist);
+    
+    const comp = compositeScore(
+      fundScore,
+      setupResult.score,
+      momResult.score,
+      sentScore,
+      instScore,
+      lastBar.close,
+      setupResult.indicators?.sma200,
+      customWeights,
+      activeRegime
+    );
+
+    series.push({
+      date: lastBar.date,
+      score: comp.total,
+      price: lastBar.close
+    });
+  }
+
+  return series;
+}
+
 window.Analysis = {
   analyzeStock,
   calcRSI, calcMACD, calcSMA, calcEMA, calcBollingerBands,
   calcATR, calcSupportResistance, detectVolumeSpikes, detectTrend,
-  scoreFundamentals, scoreTechnicalSetup, scoreMomentum, scoreSentimentFlows,
+  scoreFundamentals, scoreTechnicalSetup, scoreMomentum, scoreSentiment, scoreInstitutional,
   compositeScore, calcTradeSetup,
   scoreColor, scoreFillClass, scoreBadgeClass,
+  getAssetRiskTag,
+  isConfluence,
+  getHistoricalScoreSeries
 };
+

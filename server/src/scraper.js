@@ -22,6 +22,44 @@ const YAHOO_HEADERS = {
   'Accept': 'application/json',
 };
 
+function getEtfSectorName(stockSector) {
+  const s = (stockSector || '').toLowerCase();
+  if (s === 'it' || s === 'information technology' || s.includes('tech') || s.includes('semiconductor') || s.includes('social') || s.includes('streaming') || s.includes('e-commerce') || s.includes('consumer tech') || s.includes('computers')) {
+    return 'Technology';
+  }
+  if (s.includes('bank') || s.includes('nbfc') || s.includes('financial') || s.includes('insurance') || s.includes('finance') || s.includes('capital') || s.includes('holding') || s.includes('investment')) {
+    return 'Financials';
+  }
+  if (s.includes('pharma') || s.includes('health') || s.includes('hospital') || s.includes('clinical') || s.includes('biotech') || s.includes('medicine') || s.includes('medical') || s.includes('life sciences')) {
+    return 'Healthcare';
+  }
+  if (s.includes('renewable') || s.includes('wind') || s.includes('solar') || s.includes('green') || s.includes('clean')) {
+    return 'Renewables';
+  }
+  if (s.includes('energy') || s.includes('refiner') || s.includes('oil') || s.includes('gas') || s.includes('fuel') || s.includes('coal')) {
+    return 'Energy';
+  }
+  if (s.includes('telecom') || s.includes('telco') || s.includes('telecommunications') || s.includes('communication')) {
+    return 'Telecom';
+  }
+  if (s.includes('auto') || s.includes('engineer') || s.includes('conglomerate') || s.includes('industrial') || s.includes('aerospace') || s.includes('defense') || s.includes('defence') || s.includes('electronics') || s.includes('infrastructure') || s.includes('construction') || s.includes('machinery') || s.includes('rail') || s.includes('passenger') || s.includes('vehicle')) {
+    return 'Industrials';
+  }
+  if (s.includes('fmcg') || s.includes('consumer') || s.includes('retail') || s.includes('food') || s.includes('beverage') || s.includes('textile') || s.includes('hotel') || s.includes('tourism') || s.includes('entertainment') || s.includes('jeweller') || s.includes('apparel')) {
+    return 'Consumer';
+  }
+  if (s.includes('metal') || s.includes('cement') || s.includes('material') || s.includes('steel') || s.includes('mining') || s.includes('iron') || s.includes('chemical') || s.includes('paper') || s.includes('paint') || s.includes('glass')) {
+    return 'Materials';
+  }
+  if (s.includes('utility') || s.includes('utilities') || s.includes('power') || s.includes('electricity') || s.includes('water')) {
+    return 'Utilities';
+  }
+  if (s.includes('real estate') || s.includes('realty') || s.includes('property') || s.includes('properties') || s.includes('developer')) {
+    return 'Real Estate';
+  }
+  return 'Other';
+}
+
 // Simple cookie jar memory storage for NSE India sessions
 let nseCookies = '';
 let lastCookieFetch = 0;
@@ -177,6 +215,12 @@ async function fetchScreenerData(symbol) {
     const response = await axios.get(url, { headers: DEFAULT_HEADERS, timeout: 12000 });
     const $ = cheerio.load(response.data);
     
+    // Scrape sector and industry breadcrumbs
+    const broadSector = $('a[title="Broad Sector"]').text().trim();
+    const sectorVal = $('a[title="Sector"]').text().trim();
+    const industryVal = $('a[title="Industry"]').text().trim();
+    const resolvedSector = getEtfSectorName(broadSector || sectorVal || industryVal || '');
+
     const fund = {};
     
     // Parse key ratios
@@ -384,7 +428,9 @@ async function fetchScreenerData(symbol) {
         quarterly: quarterly.reverse().slice(0, 12),
         annual: annual.reverse().slice(0, 5)
       },
-      shareholding
+      shareholding,
+      sector: resolvedSector,
+      industry: industryVal
     };
   } catch (e) {
     console.warn(`Screener scraping failed for ${baseSymbol}: ${e.message}`);
@@ -514,7 +560,7 @@ async function fetchYahooQuoteFundamentals(symbol) {
  * Fetch Yahoo Finance quote summary as primary source for US stocks or missing Indian data
  */
 async function fetchYahooFundamentals(symbol) {
-  const modules = 'summaryDetail,defaultKeyStatistics,financialData,earningsTrend';
+  const modules = 'summaryDetail,defaultKeyStatistics,financialData,earningsTrend,assetProfile';
   
   try {
     const { cookie, crumb } = await getYahooAuth();
@@ -532,6 +578,11 @@ async function fetchYahooFundamentals(symbol) {
     const sd = result.summaryDetail || {};
     const ks = result.defaultKeyStatistics || {};
     const fd = result.financialData || {};
+    const ap = result.assetProfile || {};
+    
+    const yahooSector = ap.sector || '';
+    const yahooIndustry = ap.industry || '';
+    const resolvedSector = getEtfSectorName(yahooSector || yahooIndustry || '');
 
     const insiders = ks.heldPercentInsiders?.raw ? parseFloat((ks.heldPercentInsiders.raw * 100).toFixed(2)) : null;
     const institutions = ks.heldPercentInstitutions?.raw ? parseFloat((ks.heldPercentInstitutions.raw * 100).toFixed(2)) : null;
@@ -563,7 +614,9 @@ async function fetchYahooFundamentals(symbol) {
         insiders,
         institutions,
         public: publicHeld
-      }
+      },
+      sector: resolvedSector,
+      industry: yahooIndustry
     };
   } catch (e) {
     console.warn(`Yahoo Summary API failed for ${symbol}: ${e.message}. Trying quote endpoint fallback...`);

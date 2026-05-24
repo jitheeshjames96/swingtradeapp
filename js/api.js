@@ -393,6 +393,16 @@ const STOCK_CATALOG_IN = [
   { symbol: 'HAL.NS',        name: 'Hindustan Aeronautics',     sector: 'Aerospace', cap: 'large' },
   { symbol: 'IRFC.NS',       name: 'Indian Railway Finance',    sector: 'NBFC', cap: 'large' },
   { symbol: 'TATAMOTORS.NS', name: 'Tata Motors Limited',       sector: 'Auto', cap: 'large' },
+  { symbol: 'DMART.NS',      name: 'Avenue Supermarts',         sector: 'Consumer', cap: 'large' },
+  { symbol: 'IOC.NS',        name: 'Indian Oil Corp',           sector: 'Energy', cap: 'large' },
+  { symbol: 'GAIL.NS',       name: 'GAIL (India) Ltd',          sector: 'Energy', cap: 'large' },
+  { symbol: 'TVSMOTOR.NS',   name: 'TVS Motor Company',         sector: 'Auto', cap: 'large' },
+  { symbol: 'LICI.NS',       name: 'Life Insurance Corp',       sector: 'Financials', cap: 'large' },
+  { symbol: 'SRF.NS',        name: 'SRF Limited',               sector: 'Materials', cap: 'large' },
+  { symbol: 'SHREECEM.NS',   name: 'Shree Cement',              sector: 'Cement', cap: 'large' },
+  { symbol: 'ICICIPRULI.NS', name: 'ICICI Prudential Life',     sector: 'Financials', cap: 'large' },
+  { symbol: 'ICICIGI.NS',    name: 'ICICI Lombard Gen Insurance', sector: 'Financials', cap: 'large' },
+  { symbol: 'INDHOTEL.NS',   name: 'Indian Hotels Company',     sector: 'Consumer', cap: 'large' },
 
   // ── Mid Cap ──
   { symbol: 'BAJAJFINSV.NS', name: 'Bajaj Finserv',             sector: 'NBFC', cap: 'mid' },
@@ -432,6 +442,87 @@ const STOCK_CATALOG_IN = [
   { symbol: 'NHPC.NS',       name: 'NHPC Limited',              sector: 'Utilities', cap: 'mid' },
   { symbol: 'IREDA.NS',      name: 'IREDA',                     sector: 'Renewables', cap: 'mid' },
   { symbol: 'SJVN.NS',       name: 'SJVN Limited',              sector: 'Utilities', cap: 'mid' },
+  { symbol: 'KPITTECH.NS',   name: 'KPIT Technologies',         sector: 'IT', cap: 'mid' },
+  { symbol: 'COFORGE.NS',    name: 'Coforge Ltd',               sector: 'IT', cap: 'mid' },
+  { symbol: 'PERSISTENT.NS', name: 'Persistent Systems',        sector: 'IT', cap: 'mid' },
+  { symbol: 'TATAELXSI.NS',  name: 'Tata Elxsi',                sector: 'IT', cap: 'mid' },
+  { symbol: 'IDFCFIRSTB.NS', name: 'IDFC First Bank',           sector: 'Banking', cap: 'mid' },
+  { symbol: 'FEDERALBNK.NS', name: 'Federal Bank',              sector: 'Banking', cap: 'mid' },
+  { symbol: 'LICHSGFIN.NS',  name: 'LIC Housing Finance',       sector: 'NBFC', cap: 'mid' },
+  { symbol: 'MUTHOOTFIN.NS', name: 'Muthoot Finance',           sector: 'NBFC', cap: 'mid' },
+  { symbol: 'CHOLAFIN.NS',   name: 'Cholamandalam Inv',         sector: 'NBFC', cap: 'mid' },
+  { symbol: 'COLPAL.NS',     name: 'Colgate-Palmolive India',   sector: 'FMCG', cap: 'mid' },
+  { symbol: 'DABUR.NS',      name: 'Dabur India',               sector: 'FMCG', cap: 'mid' },
+  { symbol: 'MARICO.NS',     name: 'Marico Ltd',                sector: 'FMCG', cap: 'mid' },
+  { symbol: 'GODREJCP.NS',   name: 'Godrej Consumer Products',  sector: 'FMCG', cap: 'mid' },
+  { symbol: 'BATAINDIA.NS',  name: 'Bata India',                sector: 'Consumer', cap: 'mid' },
+  { symbol: 'KALYANKJIL.NS', name: 'Kalyan Jewellers',          sector: 'Consumer', cap: 'mid' },
+  { symbol: 'ADANIPOWER.NS', name: 'Adani Power',               sector: 'Utilities', cap: 'mid' },
+  { symbol: 'ADANIGREEN.NS', name: 'Adani Green Energy',        sector: 'Renewables', cap: 'mid' },
+  { symbol: 'JSWENERGY.NS',  name: 'JSW Energy',                sector: 'Utilities', cap: 'mid' },
+  { symbol: 'BHEL.NS',       name: 'Bharat Heavy Electricals',  sector: 'Engineering', cap: 'mid' },
+  { symbol: 'GMRINFRA.NS',   name: 'GMR Airports Infra',        sector: 'Infrastructure', cap: 'mid' },
+  { symbol: 'LUPIN.NS',      name: 'Lupin Ltd',                 sector: 'Pharma', cap: 'mid' },
+  { symbol: 'AUROPHARMA.NS', name: 'Aurobindo Pharma',          sector: 'Pharma', cap: 'mid' },
+  { symbol: 'MAXHEALTH.NS',  name: 'Max Healthcare',            sector: 'Healthcare', cap: 'mid' },
+  { symbol: 'JINDALSTEL.NS', name: 'Jindal Steel & Power',      sector: 'Metals', cap: 'mid' },
+  { symbol: 'NMDC.NS',       name: 'NMDC Ltd',                  sector: 'Metals', cap: 'mid' },
+  { symbol: 'AMBUJACEM.NS',  name: 'Ambuja Cements',            sector: 'Cement', cap: 'mid' },
+  { symbol: 'GODREJPROP.NS', name: 'Godrej Properties',         sector: 'Real Estate', cap: 'mid' },
+  { symbol: 'LODHA.NS',      name: 'Macrotech Developers',      sector: 'Real Estate', cap: 'mid' },
+  { symbol: 'TATACOMM.NS',   name: 'Tata Communications',       sector: 'Telecom', cap: 'mid' },
+  { symbol: 'TATACHEM.NS',   name: 'Tata Chemicals',            sector: 'Materials', cap: 'mid' },
+  { symbol: 'ASHOKLEY.NS',   name: 'Ashok Leyland',             sector: 'Auto', cap: 'mid' },
+  { symbol: 'MRF.NS',        name: 'MRF Ltd',                   sector: 'Auto', cap: 'mid' },
+  { symbol: 'BALKRISIND.NS', name: 'Balkrishna Industries',     sector: 'Auto', cap: 'mid' },
+  { symbol: 'COROMANDEL.NS', name: 'Coromandel International',  sector: 'Materials', cap: 'mid' },
+  { symbol: 'DEEPAKNTR.NS',  name: 'Deepak Nitrite',            sector: 'Materials', cap: 'mid' },
+  { symbol: 'AARTIIND.NS',   name: 'Aarti Industries',          sector: 'Materials', cap: 'mid' },
+  { symbol: 'ABFRL.NS',      name: 'Aditya Birla Fashion',      sector: 'Consumer', cap: 'mid' },
+  { symbol: 'APLLTD.NS',     name: 'Alembic Pharma',            sector: 'Pharma', cap: 'mid' },
+  { symbol: 'BALRAMCHIN.NS', name: 'Balrampur Chini',           sector: 'Consumer', cap: 'mid' },
+  { symbol: 'BANDHANBNK.NS', name: 'Bandhan Bank',              sector: 'Banking', cap: 'mid' },
+  { symbol: 'BERGEPAINT.NS', name: 'Berger Paints',             sector: 'Materials', cap: 'mid' },
+  { symbol: 'BHARATFORG.NS', name: 'Bharat Forge',              sector: 'Engineering', cap: 'mid' },
+  { symbol: 'CESC.NS',       name: 'CESC Limited',              sector: 'Utilities', cap: 'mid' },
+  { symbol: 'CGPOWER.NS',    name: 'CG Power & Industrial',     sector: 'Engineering', cap: 'mid' },
+  { symbol: 'CHAMBLSHR.NS',  name: 'Chambal Fertilisers',       sector: 'Materials', cap: 'mid' },
+  { symbol: 'CONCOR.NS',     name: 'Container Corp of India',   sector: 'Infrastructure', cap: 'mid' },
+  { symbol: 'CUMMINSIND.NS', name: 'Cummins India',             sector: 'Engineering', cap: 'mid' },
+  { symbol: 'DELHIVERY.NS',  name: 'Delhivery Limited',         sector: 'Infrastructure', cap: 'mid' },
+  { symbol: 'EXIDEIND.NS',   name: 'Exide Industries',          sector: 'Engineering', cap: 'mid' },
+  { symbol: 'GLENMARK.NS',   name: 'Glenmark Pharma',           sector: 'Pharma', cap: 'mid' },
+  { symbol: 'GUJGASLTD.NS',  name: 'Gujarat Gas',               sector: 'Energy', cap: 'mid' },
+  { symbol: 'HUDCO.NS',      name: 'HUDCO',                     sector: 'Financials', cap: 'mid' },
+  { symbol: 'IPCALAB.NS',    name: 'Ipca Laboratories',         sector: 'Pharma', cap: 'mid' },
+  { symbol: 'JUBLFOOD.NS',   name: 'Jubilant FoodWorks',        sector: 'Consumer', cap: 'mid' },
+  { symbol: 'LTTS.NS',       name: 'L&T Technology Services',   sector: 'IT', cap: 'mid' },
+  { symbol: 'MANAPPURAM.NS', name: 'Manappuram Finance',        sector: 'NBFC', cap: 'mid' },
+  { symbol: 'MGL.NS',        name: 'Mahanagar Gas',             sector: 'Energy', cap: 'mid' },
+  { symbol: 'OFSS.NS',       name: 'Oracle Financial Services', sector: 'IT', cap: 'mid' },
+  { symbol: 'OIL.NS',        name: 'Oil India Limited',         sector: 'Energy', cap: 'mid' },
+  { symbol: 'PAGEIND.NS',    name: 'Page Industries',           sector: 'Consumer', cap: 'mid' },
+  { symbol: 'PEL.NS',        name: 'Piramal Enterprises',       sector: 'NBFC', cap: 'mid' },
+  { symbol: 'PETRONET.NS',   name: 'Petronet LNG',              sector: 'Energy', cap: 'mid' },
+  { symbol: 'POLYCAB.NS',    name: 'Polycab India',             sector: 'Engineering', cap: 'mid' },
+  { symbol: 'RAMCOMCEM.NS',  name: 'Ramco Cements',             sector: 'Cement', cap: 'mid' },
+  { symbol: 'RBLBANK.NS',    name: 'RBL Bank',                  sector: 'Banking', cap: 'mid' },
+  { symbol: 'SYNGENE.NS',    name: 'Syngene International',     sector: 'Pharma', cap: 'mid' },
+  { symbol: 'TORNTPOWER.NS', name: 'Torrent Power',             sector: 'Utilities', cap: 'mid' },
+  { symbol: 'UBL.NS',        name: 'United Breweries',          sector: 'Consumer', cap: 'mid' },
+  { symbol: 'WHIRLPOOL.NS',  name: 'Whirlpool of India',        sector: 'Consumer', cap: 'mid' },
+  { symbol: 'SONACOMS.NS',   name: 'Sona BLW Precision',        sector: 'Auto', cap: 'mid' },
+  { symbol: 'DEVYANI.NS',    name: 'Devyani International',     sector: 'Consumer', cap: 'mid' },
+  { symbol: 'POONAWALLA.NS', name: 'Poonawalla Fincorp',        sector: 'NBFC', cap: 'mid' },
+  { symbol: 'ESCORT.NS',     name: 'Escorts Kubota',            sector: 'Auto', cap: 'mid' },
+  { symbol: 'RAYMOND.NS',    name: 'Raymond Limited',           sector: 'Materials', cap: 'mid' },
+  { symbol: 'KIMS.NS',       name: 'Krishna Institute of Med',  sector: 'Healthcare', cap: 'mid' },
+  { symbol: 'MEDANTA.NS',    name: 'Global Health',             sector: 'Healthcare', cap: 'mid' },
+  { symbol: 'NATCOPHARM.NS', name: 'Natco Pharma',              sector: 'Pharma', cap: 'mid' },
+  { symbol: 'JBCHEPHARM.NS', name: 'J.B. Chemicals',            sector: 'Pharma', cap: 'mid' },
+  { symbol: 'GLAXO.NS',      name: 'GlaxoSmithKline Pharma',    sector: 'Pharma', cap: 'mid' },
+  { symbol: 'PFIZER.NS',     name: 'Pfizer Limited',            sector: 'Pharma', cap: 'mid' },
+  { symbol: 'SANOFI.NS',     name: 'Sanofi India',              sector: 'Pharma', cap: 'mid' },
 
   // ── Small Cap ──
   { symbol: 'RPOWER.NS',     name: 'Reliance Power',            sector: 'Utilities', cap: 'small' },
@@ -439,7 +530,59 @@ const STOCK_CATALOG_IN = [
   { symbol: 'PCJEWELLER.NS', name: 'PC Jeweller',               sector: 'Consumer', cap: 'small' },
   { symbol: 'GTLINFRA.NS',   name: 'GTL Infrastructure',        sector: 'Telecom', cap: 'small' },
   { symbol: 'MOREPENLAB.NS', name: 'Morepen Laboratories',      sector: 'Healthcare', cap: 'small' },
-  { symbol: 'SUVENPHAR.NS',  name: 'Suven Pharmaceuticals',     sector: 'Healthcare', cap: 'small' }
+  { symbol: 'SUVENPHAR.NS',  name: 'Suven Pharmaceuticals',     sector: 'Healthcare', cap: 'small' },
+  { symbol: 'IRCON.NS',      name: 'Ircon International',       sector: 'Infrastructure', cap: 'small' },
+  { symbol: 'PAYTM.NS',      name: 'One97 Communications',      sector: 'Consumer Tech', cap: 'small' },
+  { symbol: 'NYKAA.NS',      name: 'FSN E-Commerce',            sector: 'Consumer Tech', cap: 'small' },
+  { symbol: 'IDEA.NS',       name: 'Vodafone Idea',             sector: 'Telecom', cap: 'small' },
+  { symbol: 'YESBANK.NS',    name: 'Yes Bank',                  sector: 'Banking', cap: 'small' },
+  { symbol: 'TATAINVEST.NS', name: 'Tata Investment Corp',      sector: 'Financials', cap: 'small' },
+  { symbol: 'ALOKINDS.NS',   name: 'Alok Industries',           sector: 'Materials', cap: 'small' },
+  { symbol: 'ANGELONE.NS',   name: 'Angel One',                 sector: 'Financials', cap: 'small' },
+  { symbol: 'AVANTIFEED.NS', name: 'Avanti Feeds',              sector: 'FMCG', cap: 'small' },
+  { symbol: 'NETWORK18.NS',  name: 'Network18 Media',           sector: 'Consumer', cap: 'small' },
+  { symbol: 'BIRLACORPN.NS', name: 'Birla Corporation',         sector: 'Cement', cap: 'small' },
+  { symbol: 'CAMPUS.NS',     name: 'Campus Activewear',         sector: 'Consumer', cap: 'small' },
+  { symbol: 'CERA.NS',       name: 'Cera Sanitaryware',         sector: 'Materials', cap: 'small' },
+  { symbol: 'CSBBANK.NS',    name: 'CSB Bank',                  sector: 'Banking', cap: 'small' },
+  { symbol: 'DATAPATTERNS.NS', name: 'Data Patterns India',     sector: 'Engineering', cap: 'small' },
+  { symbol: 'EASEMYTRIP.NS', name: 'Easy Trip Planners',        sector: 'Consumer', cap: 'small' },
+  { symbol: 'EIDPARRY.NS',   name: 'E.I.D. Parry India',        sector: 'FMCG', cap: 'small' },
+  { symbol: 'ELGIEQUIP.NS',  name: 'Elgi Equipments',           sector: 'Engineering', cap: 'small' },
+  { symbol: 'FILATEX.NS',    name: 'Filatex India',             sector: 'Materials', cap: 'small' },
+  { symbol: 'FINPIPE.NS',    name: 'Finolex Industries',        sector: 'Materials', cap: 'small' },
+  { symbol: 'GODREJIND.NS',  name: 'Godrej Industries',         sector: 'Conglomerate', cap: 'small' },
+  { symbol: 'GPIL.NS',       name: 'Godawari Power',            sector: 'Metals', cap: 'small' },
+  { symbol: 'GREAVESCOT.NS', name: 'Greaves Cotton',            sector: 'Engineering', cap: 'small' },
+  { symbol: 'HFCL.NS',       name: 'HFCL Limited',              sector: 'Telecom', cap: 'small' },
+  { symbol: 'HGS.NS',        name: 'Hinduja Global Solutions',  sector: 'IT', cap: 'small' },
+  { symbol: 'INDIACEM.NS',   name: 'The India Cements',         sector: 'Cement', cap: 'small' },
+  { symbol: 'INFIBEAM.NS',   name: 'Infibeam Avenues',          sector: 'Consumer Tech', cap: 'small' },
+  { symbol: 'IONEXCHANG.NS', name: 'Ion Exchange India',        sector: 'Engineering', cap: 'small' },
+  { symbol: 'J&KBANK.NS',    name: 'Jammu & Kashmir Bank',      sector: 'Banking', cap: 'small' },
+  { symbol: 'JKTYRE.NS',     name: 'JK Tyre & Industries',      sector: 'Auto', cap: 'small' },
+  { symbol: 'KSCL.NS',       name: 'Kaveri Seed Company',       sector: 'FMCG', cap: 'small' },
+  { symbol: 'KRBL.NS',       name: 'KRBL Limited',              sector: 'FMCG', cap: 'small' },
+  { symbol: 'MARKSANS.NS',   name: 'Marksans Pharma',           sector: 'Pharma', cap: 'small' },
+  { symbol: 'MASTEK.NS',     name: 'Mastek Limited',            sector: 'IT', cap: 'small' },
+  { symbol: 'NBCC.NS',       name: 'NBCC India',                sector: 'Infrastructure', cap: 'small' },
+  { symbol: 'NCC.NS',        name: 'NCC Limited',               sector: 'Infrastructure', cap: 'small' },
+  { symbol: 'NOCIL.NS',      name: 'NOCIL Limited',             sector: 'Materials', cap: 'small' },
+  { symbol: 'PPLPHARMA.NS',  name: 'Piramal Pharma',            sector: 'Pharma', cap: 'small' },
+  { symbol: 'RAILTEL.NS',    name: 'RailTel Corporation',       sector: 'Telecom', cap: 'small' },
+  { symbol: 'RENUKA.NS',     name: 'Shree Renuka Sugars',       sector: 'FMCG', cap: 'small' },
+  { symbol: 'SANSERA.NS',    name: 'Sansera Engineering',       sector: 'Engineering', cap: 'small' },
+  { symbol: 'SHOPERSTOP.NS', name: 'Shoppers Stop',             sector: 'Consumer', cap: 'small' },
+  { symbol: 'SPARC.NS',      name: 'Sun Pharma Advanced Res',   sector: 'Pharma', cap: 'small' },
+  { symbol: 'SUBEXLTD.NS',   name: 'Subex Limited',             sector: 'IT', cap: 'small' },
+  { symbol: 'SURYAROSNI.NS', name: 'Surya Roshni',              sector: 'Engineering', cap: 'small' },
+  { symbol: 'TEJASNET.NS',   name: 'Tejas Networks',            sector: 'Telecom', cap: 'small' },
+  { symbol: 'TRIDENT.NS',    name: 'Trident Limited',           sector: 'Materials', cap: 'small' },
+  { symbol: 'TV18BRDCAST.NS', name: 'TV18 Broadcast',           sector: 'Consumer', cap: 'small' },
+  { symbol: 'UCOBANK.NS',    name: 'UCO Bank',                  sector: 'Banking', cap: 'small' },
+  { symbol: 'VIPIND.NS',     name: 'VIP Industries',            sector: 'Consumer', cap: 'small' },
+  { symbol: 'WELSPUNLIV.NS', name: 'Welspun Living',            sector: 'Materials', cap: 'small' },
+  { symbol: 'ZEEL.NS',       name: 'Zee Entertainment',         sector: 'Consumer', cap: 'small' }
 ];
 
 // De-duplicate STOCK_CATALOG_IN by symbol
@@ -466,6 +609,44 @@ const STOCK_CATALOG_US = [
   { symbol: 'DIS',   name: 'The Walt Disney Co.',      sector: 'Consumer', cap: 'large' },
   { symbol: 'PG',    name: 'Procter & Gamble Co.',     sector: 'Consumer', cap: 'large' },
   { symbol: 'HD',    name: 'Home Depot Inc.',          sector: 'Consumer', cap: 'large' },
+  { symbol: 'BRK-B', name: 'Berkshire Hathaway Inc.',   sector: 'Financials', cap: 'large' },
+  { symbol: 'LLY',   name: 'Eli Lilly & Co.',          sector: 'Healthcare', cap: 'large' },
+  { symbol: 'UNH',   name: 'UnitedHealth Group Inc.',  sector: 'Healthcare', cap: 'large' },
+  { symbol: 'XOM',   name: 'Exxon Mobil Corp.',        sector: 'Energy', cap: 'large' },
+  { symbol: 'CVX',   name: 'Chevron Corp.',            sector: 'Energy', cap: 'large' },
+  { symbol: 'JNJ',   name: 'Johnson & Johnson',        sector: 'Healthcare', cap: 'large' },
+  { symbol: 'MRK',   name: 'Merck & Co. Inc.',         sector: 'Healthcare', cap: 'large' },
+  { symbol: 'COST',  name: 'Costco Wholesale Corp.',   sector: 'Consumer', cap: 'large' },
+  { symbol: 'PEP',   name: 'PepsiCo Inc.',             sector: 'Consumer', cap: 'large' },
+  { symbol: 'KO',    name: 'The Coca-Cola Co.',        sector: 'Consumer', cap: 'large' },
+  { symbol: 'ADBE',  name: 'Adobe Inc.',               sector: 'Technology', cap: 'large' },
+  { symbol: 'CRM',   name: 'Salesforce Inc.',          sector: 'Technology', cap: 'large' },
+  { symbol: 'AVGO',  name: 'Broadcom Inc.',            sector: 'Technology', cap: 'large' },
+  { symbol: 'QCOM',  name: 'Qualcomm Inc.',            sector: 'Technology', cap: 'large' },
+  { symbol: 'TXN',   name: 'Texas Instruments Inc.',   sector: 'Technology', cap: 'large' },
+  { symbol: 'INTC',  name: 'Intel Corp.',              sector: 'Technology', cap: 'large' },
+  { symbol: 'CSCO',  name: 'Cisco Systems Inc.',       sector: 'Technology', cap: 'large' },
+  { symbol: 'BAC',   name: 'Bank of America Corp.',    sector: 'Financials', cap: 'large' },
+  { symbol: 'MS',    name: 'Morgan Stanley',           sector: 'Financials', cap: 'large' },
+  { symbol: 'GS',    name: 'The Goldman Sachs Group',  sector: 'Financials', cap: 'large' },
+  { symbol: 'NKE',   name: 'Nike Inc.',                sector: 'Consumer', cap: 'large' },
+  { symbol: 'SBUX',  name: 'Starbucks Corp.',          sector: 'Consumer', cap: 'large' },
+  { symbol: 'MCD',   name: "McDonald's Corp.",         sector: 'Consumer', cap: 'large' },
+  { symbol: 'CAT',   name: 'Caterpillar Inc.',         sector: 'Industrials', cap: 'large' },
+  { symbol: 'GE',    name: 'General Electric Co.',     sector: 'Industrials', cap: 'large' },
+  { symbol: 'HON',   name: 'Honeywell International',  sector: 'Industrials', cap: 'large' },
+  { symbol: 'UPS',   name: 'United Parcel Service',    sector: 'Industrials', cap: 'large' },
+  { symbol: 'T',     name: 'AT&T Inc.',                sector: 'Telecom', cap: 'large' },
+  { symbol: 'VZ',    name: 'Verizon Communications',   sector: 'Telecom', cap: 'large' },
+  { symbol: 'TMUS',  name: 'T-Mobile US Inc.',         sector: 'Telecom', cap: 'large' },
+  { symbol: 'AMT',   name: 'American Tower Corp.',     sector: 'Real Estate', cap: 'large' },
+  { symbol: 'PLD',   name: 'Prologis Inc.',            sector: 'Real Estate', cap: 'large' },
+  { symbol: 'NEE',   name: 'NextEra Energy Inc.',      sector: 'Utilities', cap: 'large' },
+  { symbol: 'DUK',   name: 'Duke Energy Corp.',        sector: 'Utilities', cap: 'large' },
+  { symbol: 'SO',    name: 'Southern Co.',             sector: 'Utilities', cap: 'large' },
+  { symbol: 'BABA',  name: 'Alibaba Group Holding',    sector: 'Consumer', cap: 'large' },
+  { symbol: 'PDD',   name: 'PDD Holdings Inc.',        sector: 'Consumer', cap: 'large' },
+  { symbol: 'JD',    name: 'JD.com Inc.',              sector: 'Consumer', cap: 'large' },
 
   // ── Mid Cap ──
   { symbol: 'AMD',   name: 'Advanced Micro Devices',   sector: 'Technology', cap: 'mid' },
@@ -474,13 +655,55 @@ const STOCK_CATALOG_US = [
   { symbol: 'SNAP',  name: 'Snap Inc.',                sector: 'Technology', cap: 'mid' },
   { symbol: 'ROKU',  name: 'Roku Inc.',                sector: 'Consumer', cap: 'mid' },
   { symbol: 'HOOD',  name: 'Robinhood Markets',        sector: 'Financials', cap: 'mid' },
+  { symbol: 'COIN',  name: 'Coinbase Global Inc.',     sector: 'Financials', cap: 'mid' },
+  { symbol: 'SQ',    name: 'Block Inc.',               sector: 'Financials', cap: 'mid' },
+  { symbol: 'PYPL',  name: 'PayPal Holdings Inc.',     sector: 'Financials', cap: 'mid' },
+  { symbol: 'UBER',  name: 'Uber Technologies Inc.',   sector: 'Consumer', cap: 'mid' },
+  { symbol: 'LYFT',  name: 'Lyft Inc.',                sector: 'Consumer', cap: 'mid' },
+  { symbol: 'ABNB',  name: 'Airbnb Inc.',              sector: 'Consumer', cap: 'mid' },
+  { symbol: 'DASH',  name: 'DoorDash Inc.',            sector: 'Consumer', cap: 'mid' },
+  { symbol: 'RBLX',  name: 'Roblox Corp.',             sector: 'Consumer', cap: 'mid' },
+  { symbol: 'PINS',  name: 'Pinterest Inc.',           sector: 'Technology', cap: 'mid' },
+  { symbol: 'ETSY',  name: 'Etsy Inc.',                sector: 'Consumer', cap: 'mid' },
+  { symbol: 'NET',   name: 'Cloudflare Inc.',          sector: 'Technology', cap: 'mid' },
+  { symbol: 'DDOG',  name: 'Datadog Inc.',             sector: 'Technology', cap: 'mid' },
+  { symbol: 'CRWD',  name: 'CrowdStrike Holdings',     sector: 'Technology', cap: 'mid' },
+  { symbol: 'OKTA',  name: 'Okta Inc.',                sector: 'Technology', cap: 'mid' },
+  { symbol: 'MDB',   name: 'MongoDB Inc.',             sector: 'Technology', cap: 'mid' },
+  { symbol: 'SNOW',  name: 'Snowflake Inc.',           sector: 'Technology', cap: 'mid' },
+  { symbol: 'DOCU',  name: 'DocuSign Inc.',            sector: 'Technology', cap: 'mid' },
+  { symbol: 'ZM',    name: 'Zoom Video Comm.',         sector: 'Technology', cap: 'mid' },
+  { symbol: 'TWLO',  name: 'Twilio Inc.',              sector: 'Technology', cap: 'mid' },
+  { symbol: 'U',     name: 'Unity Software Inc.',      sector: 'Technology', cap: 'mid' },
+  { symbol: 'SHOP',  name: 'Shopify Inc.',             sector: 'Consumer', cap: 'mid' },
+  { symbol: 'SPOT',  name: 'Spotify Technology S.A.',  sector: 'Consumer', cap: 'mid' },
+  { symbol: 'DKNG',  name: 'DraftKings Inc.',          sector: 'Consumer', cap: 'mid' },
+  { symbol: 'PTON',  name: 'Peloton Interactive',      sector: 'Consumer', cap: 'mid' },
+  { symbol: 'AFRM',  name: 'Affirm Holdings Inc.',     sector: 'Financials', cap: 'mid' },
+  { symbol: 'LCID',  name: 'Lucid Group Inc.',         sector: 'Auto', cap: 'mid' },
+  { symbol: 'RIVN',  name: 'Rivian Automotive Inc.',   sector: 'Auto', cap: 'mid' },
 
   // ── Small Cap ──
   { symbol: 'GME',   name: 'GameStop Corp.',           sector: 'Consumer', cap: 'small' },
   { symbol: 'AMC',   name: 'AMC Entertainment',        sector: 'Consumer', cap: 'small' },
   { symbol: 'SIRI',  name: 'Sirius XM Holdings',       sector: 'Telecom', cap: 'small' },
   { symbol: 'SPCE',  name: 'Virgin Galactic',          sector: 'Industrials', cap: 'small' },
-  { symbol: 'CLOV',  name: 'Clover Health',            sector: 'Healthcare', cap: 'small' }
+  { symbol: 'CLOV',  name: 'Clover Health',            sector: 'Healthcare', cap: 'small' },
+  { symbol: 'SOFI',  name: 'SoFi Technologies',        sector: 'Financials', cap: 'small' },
+  { symbol: 'CHPT',  name: 'ChargePoint Holdings',     sector: 'Industrials', cap: 'small' },
+  { symbol: 'BLNK',  name: 'Blink Charging Co.',       sector: 'Industrials', cap: 'small' },
+  { symbol: 'RUN',   name: 'Sunrun Inc.',              sector: 'Renewables', cap: 'small' },
+  { symbol: 'SPWR',  name: 'SunPower Corp.',           sector: 'Renewables', cap: 'small' },
+  { symbol: 'NIO',   name: 'NIO Inc.',                 sector: 'Auto', cap: 'small' },
+  { symbol: 'WKHS',  name: 'Workhorse Group Inc.',     sector: 'Auto', cap: 'small' },
+  { symbol: 'NKLA',  name: 'Nikola Corp.',             sector: 'Auto', cap: 'small' },
+  { symbol: 'OPEN',  name: 'Opendoor Technologies',    sector: 'Real Estate', cap: 'small' },
+  { symbol: 'RDFN',  name: 'Redfin Corp.',             sector: 'Real Estate', cap: 'small' },
+  { symbol: 'JMIA',  name: 'Jumia Technologies AG',    sector: 'Consumer', cap: 'small' },
+  { symbol: 'UPST',  name: 'Upstart Holdings Inc.',    sector: 'Financials', cap: 'small' },
+  { symbol: 'MARA',  name: 'Marathon Digital Holdings', sector: 'Technology', cap: 'small' },
+  { symbol: 'RIOT',  name: 'Riot Platforms Inc.',      sector: 'Technology', cap: 'small' },
+  { symbol: 'HUT',   name: 'Hut 8 Corp.',              sector: 'Technology', cap: 'small' }
 ];
 
 const SECTOR_MAP_IN = [
@@ -1324,6 +1547,50 @@ function generateDetailedFallbackReport(currentStockContext, userMessage) {
 }
 
 // ── INVY AI CHAT SYSTEM (Client-side, quota-friendly with backend fallback)
+function buildInvyRAGContext(currentStockContext, marketSummary) {
+  if (!currentStockContext || !currentStockContext.symbol) return '';
+
+  const symbol = currentStockContext.symbol;
+  const quote = currentStockContext.quote || {};
+  const scores = currentStockContext.scores || {};
+  const tradeSetup = currentStockContext.tradeSetup || {};
+  const composite = scores.composite || { total: 0 };
+  const momentum = scores.momentum?.indicators || {};
+  const technicalSetup = scores.technicalSetup?.indicators || {};
+  const bollinger = technicalSetup.bollinger || {};
+  const pivots = technicalSetup.pivots || {};
+  
+  const isUS = !symbol.endsWith('.NS') && !symbol.endsWith('.BO');
+  const cSym = isUS ? '$' : '₹';
+
+  let context = `[LIVE TECHNICAL RAG DATA FOR ${currentStockContext.name} (${symbol})]:
+- Price: ${cSym}${(quote.price || 0).toFixed(2)} (Daily Change: ${(quote.changePct || 0).toFixed(2)}%)
+- RSI-14: ${(momentum.rsi || 0).toFixed(1)} (${momentum.rsi < 30 ? 'Oversold' : momentum.rsi > 70 ? 'Overbought' : 'Neutral'})
+- MACD Line: ${(momentum.macd || 0).toFixed(4)} | Signal: ${(momentum.macdSignal || 0).toFixed(4)} | Histogram: ${(momentum.macdHist || 0).toFixed(4)} (Crossed: ${momentum.macdCrossover ? 'Fresh Bullish Crossover' : 'No Crossover'})
+- Moving Averages: SMA20: ${cSym}${(technicalSetup.sma20 || 0).toFixed(2)} | SMA50: ${cSym}${(technicalSetup.sma50 || 0).toFixed(2)} | SMA200: ${cSym}${(technicalSetup.sma200 || 0).toFixed(2)} (Trend: ${technicalSetup.trend || 'Sideways'})
+- Bollinger Bands: Upper: ${cSym}${(bollinger.upper || 0).toFixed(2)} | Mid: ${cSym}${(bollinger.mid || 0).toFixed(2)} | Lower: ${cSym}${(bollinger.lower || 0).toFixed(2)} | Width: ${bollinger.bandwidth ? (bollinger.bandwidth * 100).toFixed(1) + '%' : 'N/A'} (Squeeze: ${bollinger.bandwidth < 0.1 ? 'Active' : 'No'})
+- Volume Flow: Current Vol: ${quote.volume || 'N/A'} | 30-Day Avg Vol: ${quote.avgVolume || 'N/A'} | Ratio: ${(quote.volume / (quote.avgVolume || 1)).toFixed(2)}x (Volume Spike: ${quote.volume / (quote.avgVolume || 1) >= 1.5 ? 'Active' : 'No'})
+- ATR-14 Volatility: ${(tradeSetup.atr || 0).toFixed(2)}
+- Daily Pivots: Pivot Point: ${cSym}${(pivots.pivot || 0).toFixed(2)} | S1: ${cSym}${(pivots.s1 || 0).toFixed(2)} | R1: ${cSym}${(pivots.r1 || 0).toFixed(2)}
+- 5-Pillar Scores: Fundamentals: ${scores.fundamental?.score || 0}/25 | Technicals: ${scores.technicalSetup?.score || 0}/20 | Momentum: ${scores.momentum?.score || 0}/20 | News & Sentiment: ${scores.sentiment?.score || 0}/15 | Institutional Flows: ${scores.institutional?.score || 0}/20 (Total Composite: ${composite.total}/100, Rating: ${composite.rating || 'N/A'})
+- Logical Setup Parameters: Stop Loss: ${cSym}${tradeSetup.stopLoss || 'N/A'} | Target 1: ${cSym}${tradeSetup.target1 || 'N/A'} | Target 2: ${cSym}${tradeSetup.target2 || 'N/A'} | Risk/Reward: ${tradeSetup.riskReward || 'N/A'}:1
+`;
+
+  // Events-to-Action layer for news
+  const news = currentStockContext.news || [];
+  if (news.length > 0) {
+    context += `- Recent News Catalysts:\n`;
+    news.slice(0, 3).forEach((n, idx) => {
+      context += `  * Article ${idx + 1}: "${n.title}" | Source: ${n.source || 'News'} | Link: ${n.link || 'N/A'}\n    Summary: ${n.summary || 'N/A'}\n`;
+    });
+  } else {
+    context += `- Recent News Catalysts: None available.\n`;
+  }
+  
+  return context;
+}
+
+// ── INVY AI CHAT SYSTEM (Client-side, quota-friendly with backend fallback)
 async function sendInvyChatMessage(history, message, currentStockContext, marketSummary) {
   const apiKey = localStorage.getItem('gemini_api_key');
   
@@ -1354,26 +1621,36 @@ async function sendInvyChatMessage(history, message, currentStockContext, market
 
   // Browser-direct query using user's saved Gemini API Key
   const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
-  const systemInstructionText = `You are "Invy AI", a highly advanced, intelligent swing trading assistant.
-Your goal is to guide users to pick stocks at the perfect price using a combination of fundamentals, technical setup, momentum, sentiment & flows, and disciplined risk management.
+  const systemInstructionText = `Act as a Quantitative Hedge Fund Strategist. Your objective is to provide high-conviction, data-driven analysis for swing trading.
 
-Formatting & Response Rules:
-1. If the user is asking about a specific stock setup or analyzing a stock, you must respond with a highly structured decision log in markdown:
-[AGENT STATUS: COMPLETED]
-[DECISION LOG]
-- Verdict: [Strong Buy / Buy / Hold / Avoid]
-- Score: [Composite Score]/100
-- Entry Trigger: [Price level or setup condition]
-- Stop Loss: [Price level]
-- Targets: T1: [Price] | T2: [Price] | T3: [Price]
+Rules for Interaction:
+1. Data-First: When asked about a stock, prioritize technicals (RSI, Volume, EMA levels, Bollinger bands, ATR, MACD) over sentiment. Never give a 'generic' bullish/bearish answer.
+2. Professional Structure: Always format stock analysis responses exactly as follows in clean markdown:
 
-[ANALYSIS LOG]
-- [Brief 1-2 sentence technical summary]
-- [Brief 1-2 sentence fundamental summary]
-- Win Probability: [Calculated probability]%
+Status: [Buy/Hold/Sell/Watch]
 
-2. If the user is asking a general trading question (e.g. "What is RSI?", "How does swing trading work?"), do NOT use the rigid log/verdict tables above. Instead, provide a highly conversational, educational, clear, and customized explanation in elegant markdown. Keep it engaging, direct, and helpful.
-3. Be professional and concise. Keep responses under 200 words. Avoid generic or overly wordy text.`;
+Technical Thesis:
+- [Data-backed point 1: Price action, EMAs, Support/Resistance]
+- [Data-backed point 2: RSI momentum & MACD trend]
+- [Data-backed point 3: Bollinger width & Volume spike activity]
+
+Risk/Reward:
+- Entry: [Price]
+- Stop-Loss: [Logical Stop-Loss price level based on current chart volatility]
+- Target 1 & 2: [Logical Target price levels]
+- Risk/Reward Ratio: [e.g. 2.1:1]
+
+Institutional Context:
+[Brief analysis of whether smart money flows and volume accumulation indicate institutions are entering or exiting.]
+
+Next Action:
+[Clear, actionable instruction, e.g. "Await breakout above $X" or "Exit if $Y level fails".]
+
+Source Citations:
+[Always provide a direct link to the news source for any fundamental or news-based claims made (e.g. "Company news on MarketWatch [link]"). If no news is available, state "No recent news catalyst cited."]
+
+3. Efficiency: Minimize token usage by using concise, high-density professional trading terminology. Do not explain basic concepts unless explicitly asked.
+4. For general trading questions (e.g. "Explain RSI"), explain the concept concisely, in 1-2 paragraphs using professional quantitative trader terminology.`;
 
   const contents = [...history];
   let messageWithContext = message;
@@ -1389,26 +1666,9 @@ Formatting & Response Rules:
   }
 
   if (currentStockContext?.symbol) {
-    const symbol = currentStockContext.symbol;
-    const quote = currentStockContext.quote || {};
-    const scores = currentStockContext.scores || {};
-    const composite = scores.composite || { total: 0 };
-    const tradeSetup = currentStockContext.tradeSetup || {};
-    const checklist = scores.checklist || [];
-    const passedChecks = checklist.filter(c => c.passed).length;
-    const totalChecks = checklist.length || 12;
-    const winChance = Math.round(35 + (passedChecks / totalChecks) * 50);
-
-    const isUS = !symbol.endsWith('.NS') && !symbol.endsWith('.BO');
-    const cSym = isUS ? '$' : '₹';
-
+    const ragContext = buildInvyRAGContext(currentStockContext, marketSummary);
     messageWithContext = `${summaryText}
-[Context for currently selected stock: ${currentStockContext.name} (${currentStockContext.symbol})
-- Price: ${cSym}${(quote.price || 0).toFixed(2)} (Change: ${(quote.changePct || 0).toFixed(2)}%)
-- Scores (out of 25 each): Fundamentals: ${scores.fundamental?.score || 0}, Technicals: ${scores.technicalSetup?.score || 0}, Momentum: ${scores.momentum?.score || 0}, Sentiment & Flows: ${scores.sentimentFlow?.score || 0} (Total: ${composite.total}/100)
-- Trade Setup: Entry: ${cSym}${(quote.price || 0).toFixed(2)}, Stop Loss: ${cSym}${tradeSetup.stopLoss || 0}, Target 1: ${cSym}${tradeSetup.target1 || 0}, Target 2: ${cSym}${tradeSetup.target2 || 0}, Target 3: ${cSym}${tradeSetup.target3 || 0}
-- Win Probability: ${winChance}%, Risk/Reward: ${tradeSetup.riskReward || 0}:1]
-
+${ragContext}
 User Query: ${message}`;
   } else if (summaryText) {
     messageWithContext = `${summaryText}
@@ -1568,7 +1828,7 @@ async function saveSettings(settings) {
   return settings;
 }
 
-async function sendTestSignal(symbol, telegram_chat_id, whatsapp_phone, telegram_bot_token, whatsapp_apikey) {
+async function sendTestSignal(symbol, telegram_chat_id, whatsapp_phone) {
   try {
     const activeBackend = await checkBackend();
     if (activeBackend) {
@@ -1578,7 +1838,7 @@ async function sendTestSignal(symbol, telegram_chat_id, whatsapp_phone, telegram
           'Content-Type': 'application/json',
           ...getAuthHeaders()
         },
-        body: JSON.stringify({ symbol, telegram_chat_id, whatsapp_phone, telegram_bot_token, whatsapp_apikey })
+        body: JSON.stringify({ symbol, telegram_chat_id, whatsapp_phone })
       });
       if (res.ok) {
         return await res.json();
@@ -1590,6 +1850,141 @@ async function sendTestSignal(symbol, telegram_chat_id, whatsapp_phone, telegram
   return null;
 }
 
+async function runBacktest(symbol, params) {
+  try {
+    const activeBackend = await checkBackend();
+    if (activeBackend) {
+      const res = await fetchWithTimeout(`${BACKEND_URL}/api/backtest`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...getAuthHeaders()
+        },
+        body: JSON.stringify({ symbol, ...params })
+      });
+      if (res.ok) {
+        return await res.json();
+      } else {
+        const errData = await res.json();
+        throw new Error(errData.error || 'Failed to run backtest');
+      }
+    }
+  } catch (e) {
+    console.error('Failed to run backtest:', e);
+    throw e;
+  }
+  return null;
+}
+
+async function runScreener(filters, weights, activeRegime) {
+  try {
+    const activeBackend = await checkBackend();
+    if (activeBackend) {
+      const res = await fetchWithTimeout(`${BACKEND_URL}/api/screener/query`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...getAuthHeaders()
+        },
+        body: JSON.stringify({ filters, weights, activeRegime })
+      });
+      if (res.ok) {
+        return await res.json();
+      } else {
+        const errData = await res.json();
+        throw new Error(errData.error || 'Failed to run screener');
+      }
+    }
+  } catch (e) {
+    console.error('Failed to run screener:', e);
+    throw e;
+  }
+  return null;
+}
+
+async function fetchPerformanceStats() {
+  try {
+    const activeBackend = await checkBackend();
+    if (activeBackend) {
+      const res = await fetchWithTimeout(`${BACKEND_URL}/api/performance-stats`, {
+        headers: getAuthHeaders()
+      });
+      if (res.ok) {
+        return await res.json();
+      }
+    }
+  } catch (e) {
+    console.warn('Failed to fetch performance stats:', e);
+  }
+  return {
+    active_count: 0,
+    settled_count: 0,
+    win_rate: 0.0,
+    target_hit_count: 0,
+    stop_loss_hit_count: 0
+  };
+}
+
+async function registerUser(email, password) {
+  const res = await fetch(`${BACKEND_URL}/api/auth/register`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email, password })
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || 'Registration failed');
+  return data;
+}
+
+async function loginUser(email, password) {
+  const res = await fetch(`${BACKEND_URL}/api/auth/email-login`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email, password })
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || 'Login failed');
+  return data;
+}
+
+async function connectBroker(brokerName, apiKey, accessToken) {
+  const res = await fetch(`${BACKEND_URL}/api/portfolio/connect`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      ...getAuthHeaders()
+    },
+    body: JSON.stringify({ brokerName, apiKey, accessToken })
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || 'Failed to connect broker');
+  return data;
+}
+
+async function disconnectBroker(brokerName) {
+  const res = await fetch(`${BACKEND_URL}/api/portfolio/disconnect`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      ...getAuthHeaders()
+    },
+    body: JSON.stringify({ brokerName })
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || 'Failed to disconnect broker');
+  return data;
+}
+
+async function analyzePortfolio() {
+  const res = await fetch(`${BACKEND_URL}/api/portfolio/analyze`, {
+    method: 'GET',
+    headers: getAuthHeaders()
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || 'Failed to analyze portfolio');
+  return data;
+}
+
 // Export
 window.API = {
   fetchQuote, fetchFundamentals, fetchHistorical, fetchEarnings,
@@ -1597,6 +1992,8 @@ window.API = {
   fetchNewsSentiment, fetchGeminiAnalysis, searchStocks, STOCK_CATALOG, SECTOR_MAP,
   checkBackend, fetchFullAnalysisFromBackend, fetchAndCacheAnalysis, fetchMarketPulseFromBackend, fetchMarketSummary, setBackendUrl,
   sendInvyChatMessage, fetchAuthConfig, fetchWithTimeout, setMarketMode,
-  fetchRecommendations, fetchSettings, saveSettings, sendTestSignal,
+  fetchRecommendations, fetchSettings, saveSettings, sendTestSignal, runBacktest, runScreener, fetchPerformanceStats,
+  registerUser, loginUser, connectBroker, disconnectBroker, analyzePortfolio,
   getBackendUrl: () => BACKEND_URL
 };
+

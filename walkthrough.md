@@ -1,62 +1,63 @@
-# Walkthrough & Status - Swing Trading App Upgrades (Phase 3)
+# Walkthrough & Status - Swing Trading App Upgrades (Phase 5)
 
-This walkthrough documents the technical upgrades made to the **Swing Trading App** in Phase 3 across the frontend UI layout, backend APIs, authentication verification bypass, alert dispatch webhooks, and chatbot prompt context.
+This walkthrough documents the technical upgrades made to the **Swing Trading App** in Phase 5, focusing on SSO premium gating, right-side mini-analysis drawer, advanced Invy AI strategist prompt & RAG context, customized share templates, Confluence recommendations scan, and automated indicator alerts.
 
 ---
 
 ## Key Achievements
 
-### 1. Always-Visible Stock Detail Chart
-- Relocated the TradingView interactive chart widget from the sub-tabs pane directly below the detail panel header in [index.html](index.html).
-- The interactive chart is now always visible, large, and loaded immediately upon selecting a stock, while sub-tabs below it focus on textual metrics (Overview, Fundamentals, Technical levels, Sentiment, and Institutional).
-- Updated [js/ui.js](js/ui.js) and [js/app.js](js/app.js) to target the new always-visible `#detail-live-chart-container` box, and removed the redundant `Live Chart` button and tab content pane.
+### 1. Premium Google SSO Gating for Nexus Robo-Advisory
+- **Gating Mechanism**: Implemented premium locks on the personalized Nexus wealth matrix and automated rebalancing alerts inside the dropdown.
+- **Demo Mode Restrictions**: If `google_sso_token` is `'DEMO_BYPASS'` (guest key) or if the user is unauthenticated, the onboarding form and portfolio doughnut chart are hidden, showing a high-impact lock screen layout asking the user to sign in with a verified Google account.
+- **Unlock Trigger**: Configured the "🔑 Sign In with Google" button inside the lock overlay to close the dropdown and launch the Google SSO sign-in modal instantly.
 
-### 2. SSO Backend Bypass Token (`DEMO_BYPASS`)
-- Updated the "Continue in Demo Mode" bypass button click handler in [js/app.js](js/app.js) to store `'DEMO_BYPASS'` inside `localStorage` under `google_sso_token`.
-- Configured backend `authMiddleware` in both Vercel [api/index.js](api/index.js) and Node server [server/src/index.js](server/src/index.js) to recognize `Bearer DEMO_BYPASS`, bypassing Google validation and assigning a simulated guest profile (`demo@guest.com`) to allow full stock analysis fetches.
+### 2. Interactive Right-Side Mini-Analysis Side-Drawer
+- **Sliding Interface**: Added `#mini-analysis-drawer` using high-performance sliding CSS animations (`right: -420px` to `right: 0`), smooth glassmorphic blur backdrop filters, and a dark themed dashboard sidebar.
+- **Dynamic Indicators**: Clicking any stock badge or card in the Sector Heatmap triggers the side-drawer, populating it with live data:
+  - Daily Price metrics & volatility risk flags.
+  - Directional trend strength indicators.
+  - RSI-14 gauge indicator and MACD cross-over statuses.
+  - Volume ratio comparison (vs. 30-day average) and Bollinger Band squeeze status.
+  - News catalyst summaries with clickable source links.
+- **Action Integrations**: Embedded triggers to load the stock inside the main dashboard chart pane, toggle watchlist membership, share the swing trade signal, or set up price alerts.
 
-### 3. Header Sign-In Trigger
-- Inserted a `🔑 Sign In` button (`#btn-login`) next to the sign out button in the header in [index.html](index.html).
-- Added click events and implemented `updateAuthButtons()` inside [js/app.js](js/app.js) to toggle display states dynamically:
-  - If authenticated (via Google SSO or Demo Bypass), show `Exit Demo Mode` or `Sign Out` and hide `Sign In`.
-  - If unauthenticated, show `Sign In` and hide the logout button. Clicking `Sign In` opens the Google SSO overlay manually.
+### 3. Invy AI Technical RAG & Quant Strategist Prompt
+- **Technical Indicator RAG**: Implemented `buildInvyRAGContext` to serialize live metrics (pivots, EMAs, ATR, RSI, volume, Bollinger bands) and news catalysts into the chatbot's prompt injection layer.
+- **Rigid Prompt persona**: Modified system instructions in client (`js/api.js`) and backends (`server/src/index.js` & `api/index.js`) to enforce a **Quantitative Hedge Fund Strategist** persona:
+  - Prioritizes numbers and metrics over generic bullish/bearish sentiment.
+  - Follows a strict markdown structure: *Status*, *Technical Thesis* (3 bullet points), *Risk/Reward levels* (Entry/Stop-loss/Targets), *Institutional Context*, *Next Action*, and *Source Citations*.
 
-### 4. Dynamic Sector averages in Heatmap
-- Modified `/api/market-summary` in [api/index.js](api/index.js) and [server/src/index.js](server/src/index.js) to calculate sector changes as the dynamic average of the change percentage of all catalog stocks mapped to that sector.
-- The index quote change percentage is used as a fallback only when no stock quotes are retrieved.
+### 4. Concise WhatsApp Trade Signal Sharing
+- **Formatted Template**: Overhauled the WhatsApp trade dispatch inside `js/ui.js` and the side-drawer action to output swing trade alerts using a highly professional, compact format:
+  `[TICKER] | [ACTION] | [ENTRY/EXIT] | [STOP LOSS] | [REASONING]`
+- **Keyless Dispatch**: Redirects instantly to WhatsApp Web or WhatsApp mobile using public URL encoding.
 
-### 5. Expanded Indian Stock Catalog
-- Added missing Nifty 50 and highly active stocks to `STOCK_CATALOG_IN` and `STOCK_CATALOG`: `ITC.NS` (FMCG), `SBILIFE.NS` (Financials), `SHRIRAMFIN.NS` (NBFC), `TATACONSUM.NS` (FMCG), `JIOFIN.NS` (NBFC), `BEL.NS` (Electronics), `HAL.NS` (Aerospace), `IRFC.NS` (NBFC), `TATAMOTORS.NS` (Auto), `RVNL.NS` (Infrastructure), `RECLTD.NS` (NBFC), `PFC.NS` (NBFC), `NHPC.NS` (Utilities), `IREDA.NS` (Renewables), `SJVN.NS` (Utilities).
-- Corrected the typo `MAHINDM.NS` to Yahoo Finance ticker `M&M.NS` across both client and server files.
-- Added the `Consumer` sector mapped to `^CNXFMCG` (India) and `XLY` (US).
-- Updated `getEtfSectorName()` in [api/index.js](api/index.js), [server/src/index.js](server/src/index.js), and [js/ui.js](js/ui.js) to map:
-  - FMCG/Retail/Consumer -> `'Consumer'`
-  - Aerospace/Defense/Electronics/Infrastructure -> `'Industrials'`
-
-### 6. Settings Save Alert Dispatches
-- Implemented `sendWelcomeActiveRecommendationsAlert()` on the backend. When user settings are saved under `/api/settings` and alerts are enabled, the backend immediately fetches all active recomendation picks and dispatches a welcome alert listing current swing trading setups to Telegram or WhatsApp CallMeBot.
-
-### 7. AI Chat Context Boost
-- Injected `state.marketSummary` inside chatbot queries in [js/app.js](js/app.js) and [js/api.js](js/api.js).
-- Updated `/api/chat` backend handlers to parse `marketSummary` and append current top gainers/losers and sector performance details to the Gemini prompt context, allowing the bot to respond accurately to general market performance queries.
+### 5. Confluence Filters & Automated Price Alerts
+- **⚡ Confluence Scan**: Added a Confluence tab inside recommendations. Filters assets matching strict convergence criteria:
+  - Overall trend is bullish (Bullish Uptrend).
+  - MACD displays a Bullish Crossover OR RSI-14 is in a strong momentum range ($30 < RSI < 68$).
+  - Institutional scoring is strong ($\ge 12$) OR volume ratio is elevated ($\ge 1.2x$).
+- **Client-Side Alerts**: Added an automated alert setting utility inside the drawer. Active alerts are saved in `localStorage.stid_alerts` and checked on quote reloads, firing real-time high-visibility toast warnings when trigger conditions (Price & RSI thresholds) are met.
 
 ---
 
 ## Files Modified
 
-1. **[index.html](index.html)**: Relocated live chart widget box, added Sign-In button markup, and removed redundant tabs.
-2. **[js/api.js](js/api.js)**: Expanded stock catalog, added Consumer sector, and updated client-side chatbot context prompt builder.
-3. **[js/app.js](js/app.js)**: Configured DEMO_BYPASS localStorage token, bound sign-in triggers, called `updateAuthButtons()`, and passed market summary context to the chat API.
-4. **[js/ui.js](js/ui.js)**: Updated `getEtfSectorName` mappings and pointed TradingView chart target to the always-visible header box.
-5. **[api/index.js](api/index.js)**: Implemented token bypass middleware rules, dynamic sector average calculators, welcome alert settings webhook triggers, and backend Gemini prompt contexts.
-6. **[server/src/index.js](server/src/index.js)**: Synced with Vercel backend index.
+1. **[index.html](index.html)**: Appended side-drawer markup, added Nexus Robo lock overlays, injected the Confluence recommendation filter tab, and bumped `style.css` stylesheet version to `?v=5.0.0` to bypass browser caching.
+2. **[css/style.css](css/style.css)**: Implemented right drawer layout, blur filters, sliding transitions, and Confluence active button colors.
+3. **[js/app.js](js/app.js)**: Integrated the side-drawer triggers, wired the Nexus locked view and rebalancing controls, set up price alert evaluations on reload, and added Confluence filter counts.
+4. **[js/api.js](js/api.js)**: Built `buildInvyRAGContext` and synced client-side Gemini prompt rules.
+5. **[js/ui.js](js/ui.js)**: Customized WhatsApp trade cards template.
+6. **[server/src/index.js](server/src/index.js)**: Updated Express server Gemini system Instruction.
+7. **[api/index.js](api/index.js)**: Mirror-updated Vercel backend `/api/chat` prompts.
 
 ---
 
 ## Verification & Build Status
 
-### 1. Backend Syntax Verification
-```bash
-node -c api/index.js && node -c server/src/index.js
-# Status: SUCCESS (0 compilation or syntax errors detected)
-```
+- **Syntax & Compilation**: Verified using `node -c` on all client and server javascript components (Passed with 0 compilation errors).
+- **Docker Backend Status**: Successfully rebuilt `swing_trading_backend` container using local file changes. Verified healthy status on local port `3000`.
+- **Vercel Production Deployment**: Successfully built and deployed to production at:
+  - **Live URL**: https://swing-trading-app-nine.vercel.app
+  - **Health Test**: Returned status `healthy` via Serverless Endpoint.
+  - **Market Summary Test**: Successfully returned real-time Indian and US asset summaries on production.

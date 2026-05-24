@@ -24,7 +24,7 @@
   <script src="https://accounts.google.com/gsi/client" async defer></script>
 
   <!-- Dashboard CSS -->
-  <link rel="stylesheet" href="css/style.css" />
+  <link rel="stylesheet" href="css/style.css?v=5.0.0" />
 </head>
 <body>
 
@@ -82,6 +82,11 @@
           <div class="market-dot" style="width:8px; height:8px; background-color:#22c55e; border-radius:50%; display:inline-block; margin-right:4px;"></div>
           <span>Checking...</span>
         </div>
+
+        <!-- Market Regime Status Badge -->
+        <div id="regime-status" class="regime-badge regime-badge-auto-bull" title="Market Regime: Click to cycle Auto / Manual Bull / Manual Bear" role="button" tabindex="0" style="display: flex; align-items: center; gap: 6px; padding: 6px 12px; border-radius: 6px; font-size: 0.75rem; font-weight: 700; cursor: pointer; transition: all 0.2s ease; user-select: none;">
+          <span id="regime-text">🐂 AUTO: BULL</span>
+        </div>
         <div style="font-size:11px; color:var(--text-muted); display:flex; align-items:center; gap:4px;" title="Last data refresh time">
           🕐 <span id="last-updated-time">--:--</span>
         </div>
@@ -91,6 +96,9 @@
         </button>
         <button id="btn-settings" class="btn btn-ghost btn-sm" title="AI Settings (Gemini API Key)" aria-label="AI Settings">
           ⚙️ AI Settings
+        </button>
+        <button id="btn-nexus" class="btn btn-ghost btn-sm" title="Nexus Robo-Advisory Profile" aria-label="Nexus Robo-Advisory">
+          🔮 Nexus Robo
         </button>
         <button id="btn-login" class="btn btn-ghost btn-sm" style="display:none;" title="Sign In to Google SSO" aria-label="Sign In">
           🔑 Sign In
@@ -123,6 +131,129 @@
           <button id="btn-reset-watchlist" class="btn btn-ghost btn-sm" style="padding:4px 8px; color:#f87171; border-color:#f8717155;" title="Reset watchlist to defaults (fixes stuck loading / bad tickers)">🔄 Reset List</button>
           <button id="btn-settings-cancel" class="btn btn-ghost btn-sm" style="padding:4px 8px;">Cancel</button>
           <button id="btn-settings-save" class="btn btn-primary btn-sm" style="padding:4px 10px;">Save</button>
+        </div>
+      </div>
+
+      <!-- Nexus Robo-Advisory Modal -->
+      <div id="nexus-dropdown" style="display:none; position:absolute; right:24px; top:65px; background:var(--bg-card); border:1px solid var(--border); padding:16px; border-radius:var(--radius-md); box-shadow:var(--shadow-lg); z-index:999; width:360px; max-height: 85vh; overflow-y: auto;">
+        <h4 style="margin-bottom:12px; font-size:0.95rem; color:var(--text-primary); border-bottom:1px solid var(--border); padding-bottom:8px; display:flex; justify-content:space-between; align-items:center;">
+          <span>🔮 Nexus Robo-Advisory Profile</span>
+          <button type="button" id="btn-nexus-close-x" style="background:none; border:none; color:var(--text-muted); cursor:pointer; font-size:1.1rem;">✕</button>
+        </h4>
+        
+        <div id="nexus-form-view">
+          <form id="nexus-profile-form" style="display:flex; flex-direction:column; gap:10px;">
+            <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
+              <div>
+                <label for="nx-age" style="font-size:0.75rem; color:var(--text-secondary); display:block; margin-bottom:4px; font-weight:600;">Age</label>
+                <input id="nx-age" type="number" value="30" min="18" max="100" style="width:100%; background:var(--bg-input); border:1px solid var(--border); color:var(--text-primary); padding:6px 10px; border-radius:4px; font-size:0.8rem; outline:none;" required />
+              </div>
+              <div>
+                <label for="nx-profession" style="font-size:0.75rem; color:var(--text-secondary); display:block; margin-bottom:4px; font-weight:600;">Profession</label>
+                <input id="nx-profession" type="text" value="Engineer" style="width:100%; background:var(--bg-input); border:1px solid var(--border); color:var(--text-primary); padding:6px 10px; border-radius:4px; font-size:0.8rem; outline:none;" required />
+              </div>
+            </div>
+
+            <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
+              <div>
+                <label for="nx-income-stability" style="font-size:0.75rem; color:var(--text-secondary); display:block; margin-bottom:4px; font-weight:600;">Income Stability</label>
+                <select id="nx-income-stability" style="width:100%; background:var(--bg-input); border:1px solid var(--border); color:var(--text-primary); padding:6px; border-radius:4px; font-size:0.8rem; outline:none; height:32px;">
+                  <option value="High" selected>High</option>
+                  <option value="Medium">Medium</option>
+                  <option value="Low">Low</option>
+                </select>
+              </div>
+              <div>
+                <label for="nx-dependents" style="font-size:0.75rem; color:var(--text-secondary); display:block; margin-bottom:4px; font-weight:600;">Dependents</label>
+                <input id="nx-dependents" type="number" value="0" min="0" max="10" style="width:100%; background:var(--bg-input); border:1px solid var(--border); color:var(--text-primary); padding:6px 10px; border-radius:4px; font-size:0.8rem; outline:none;" required />
+              </div>
+            </div>
+
+            <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
+              <div>
+                <label for="nx-net-income" style="font-size:0.75rem; color:var(--text-secondary); display:block; margin-bottom:4px; font-weight:600;">Net Monthly Income</label>
+                <input id="nx-net-income" type="number" value="100000" style="width:100%; background:var(--bg-input); border:1px solid var(--border); color:var(--text-primary); padding:6px 10px; border-radius:4px; font-size:0.8rem; outline:none;" required />
+              </div>
+              <div>
+                <label for="nx-capital" style="font-size:0.75rem; color:var(--text-secondary); display:block; margin-bottom:4px; font-weight:600;">Allocated Capital</label>
+                <input id="nx-capital" type="number" value="500000" style="width:100%; background:var(--bg-input); border:1px solid var(--border); color:var(--text-primary); padding:6px 10px; border-radius:4px; font-size:0.8rem; outline:none;" required />
+              </div>
+            </div>
+
+            <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
+              <div>
+                <label for="nx-risk" style="font-size:0.75rem; color:var(--text-secondary); display:block; margin-bottom:4px; font-weight:600;">Risk Appetite</label>
+                <select id="nx-risk" style="width:100%; background:var(--bg-input); border:1px solid var(--border); color:var(--text-primary); padding:6px; border-radius:4px; font-size:0.8rem; outline:none; height:32px;">
+                  <option value="Conservative">Conservative</option>
+                  <option value="Moderate" selected>Moderate</option>
+                  <option value="Aggressive">Aggressive</option>
+                </select>
+              </div>
+              <div>
+                <label for="nx-stress" style="font-size:0.75rem; color:var(--text-secondary); display:block; margin-bottom:4px; font-weight:600;">Stress Response</label>
+                <select id="nx-stress" style="width:100%; background:var(--bg-input); border:1px solid var(--border); color:var(--text-primary); padding:6px; border-radius:4px; font-size:0.8rem; outline:none; height:32px;">
+                  <option value="Sell Everything">Sell Everything</option>
+                  <option value="Do Nothing" selected>Do Nothing</option>
+                  <option value="Buy the Dip">Buy the Dip</option>
+                </select>
+              </div>
+            </div>
+
+            <div style="display:flex; justify-content:flex-end; align-items:center; gap:8px; margin-top:8px;">
+              <button type="button" id="btn-nexus-cancel" class="btn btn-ghost btn-sm" style="padding:4px 8px;">Cancel</button>
+              <button type="submit" id="btn-nexus-save" class="btn btn-primary btn-sm" style="padding:4px 10px;">Submit Profile</button>
+            </div>
+          </form>
+        </div>
+
+        <div id="nexus-results-view" style="display:none; flex-direction:column; gap:12px;">
+          <div style="text-align:center; padding:8px 0; border-bottom:1px solid var(--border);">
+            <div style="font-size:0.75rem; color:var(--text-muted); text-transform:uppercase; font-weight:700;">Assigned Profile</div>
+            <h3 id="nx-assigned-tier" style="margin:4px 0 0 0; color:var(--text-accent); font-weight:800; font-size:1.2rem;">Moderate Balanced</h3>
+          </div>
+          
+          <div style="display:flex; justify-content:center; align-items:center; height:180px; margin:8px 0;">
+            <canvas id="nexus-pie-chart" width="160" height="160"></canvas>
+          </div>
+
+          <div id="nx-allocation-details" style="font-size:0.78rem; display:flex; flex-direction:column; gap:6px; background:var(--bg-elevated); padding:10px; border-radius:6px; border:1px solid var(--border);">
+            <!-- Filled dynamically -->
+          </div>
+
+          <!-- Rebalancing Alerts Block -->
+          <div id="nexus-rebalancing-section" style="margin-top:4px; border-top:1px solid var(--border); padding-top:10px;">
+            <div style="font-size:0.75rem; color:var(--text-muted); text-transform:uppercase; font-weight:700; margin-bottom:6px; display:flex; justify-content:space-between; align-items:center;">
+              <span>🔔 Rebalancing Alerts</span>
+              <span style="font-size:0.6rem; background:rgba(16,185,129,0.15); color:#10b981; padding:1px 5px; border-radius:3px; font-weight:700;">Active</span>
+            </div>
+            <p style="font-size:0.72rem; color:var(--text-secondary); margin-bottom:8px; line-height:1.35;">
+              Get real-time trade signals and weight alerts when your portfolio anchors drift from targets.
+            </p>
+            <label class="switch" style="display:inline-flex; align-items:center; gap:8px; cursor:pointer; font-size:0.75rem; color:var(--text-primary);">
+              <input type="checkbox" id="nx-alert-toggle" checked style="accent-color:var(--text-accent); cursor:pointer;" />
+              <span>Enable Telegram/WhatsApp Rebalance Signals</span>
+            </label>
+          </div>
+
+          <div style="display:flex; justify-content:space-between; align-items:center; gap:8px; margin-top:4px;">
+            <button type="button" id="btn-nexus-edit" class="btn btn-ghost btn-sm" style="padding:4px 8px; font-size:0.75rem;">✏️ Edit Profile</button>
+            <button type="button" id="btn-nexus-close" class="btn btn-primary btn-sm" style="padding:4px 10px; font-size:0.75rem;">Done</button>
+          </div>
+        </div>
+
+        <!-- Google SSO Locked Overlay for Premium Features -->
+        <div id="nexus-locked-view" style="display:none; flex-direction:column; gap:12px; text-align:center; padding:16px 8px;">
+          <div style="font-size:2.5rem; margin-bottom:4px;">🔒</div>
+          <h3 style="color:var(--text-primary); font-size:1.05rem; margin:0; font-weight:700;">Premium Feature Locked</h3>
+          <p style="font-size:0.78rem; color:var(--text-secondary); line-height:1.45; margin:0;">
+            Personalized <strong>Nexus Wealth Matrix Allocations</strong> and automated <strong>rebalancing alerts</strong> are reserved for premium users.
+          </p>
+          <p style="font-size:0.74rem; color:var(--text-muted); line-height:1.45; margin:0 0 4px 0;">
+            Please sign in with a verified Gmail account to unlock full wealth matrix services.
+          </p>
+          <button type="button" id="btn-nexus-unlock-login" class="btn btn-primary" style="width:100%; padding:10px; font-size:0.8rem; font-weight:600; display:flex; justify-content:center; align-items:center; gap:6px;">
+            🔑 Sign In with Google
+          </button>
         </div>
       </div>
 
@@ -298,9 +429,12 @@
               </div>
             </div>
 
-            <div class="rec-toggle-tabs" style="display:flex; gap:16px; margin-bottom:16px; border-bottom:1px solid var(--border); padding-bottom:8px;">
-              <button id="btn-show-picks" class="rec-tab-btn active" style="background:none; border:none; color:var(--text-primary); font-weight:700; font-size:1rem; padding:4px 8px; cursor:pointer; border-bottom:2px solid var(--text-accent); transition: all 0.2s;">🎯 Smart Picks</button>
-              <button id="btn-show-performance" class="rec-tab-btn" style="background:none; border:none; color:var(--text-muted); font-weight:600; font-size:1rem; padding:4px 8px; cursor:pointer; transition: all 0.2s;">📈 Performance Report</button>
+            <div class="rec-toggle-tabs" style="display:flex; gap:16px; margin-bottom:16px; border-bottom:1px solid var(--border); padding-bottom:8px; overflow-x:auto;">
+              <button id="btn-show-picks" class="rec-tab-btn active" style="background:none; border:none; color:var(--text-primary); font-weight:700; font-size:1rem; padding:4px 8px; cursor:pointer; border-bottom:2px solid var(--text-accent); transition: all 0.2s; white-space:nowrap;">🎯 Smart Picks</button>
+              <button id="btn-show-portfolio" class="rec-tab-btn" style="background:none; border:none; color:var(--text-muted); font-weight:600; font-size:1rem; padding:4px 8px; cursor:pointer; transition: all 0.2s; white-space:nowrap;">💼 My Portfolio</button>
+              <button id="btn-show-screener" class="rec-tab-btn" style="background:none; border:none; color:var(--text-muted); font-weight:600; font-size:1rem; padding:4px 8px; cursor:pointer; transition: all 0.2s; white-space:nowrap;">🔍 Custom Screener</button>
+              <button id="btn-show-backtester" class="rec-tab-btn" style="background:none; border:none; color:var(--text-muted); font-weight:600; font-size:1rem; padding:4px 8px; cursor:pointer; transition: all 0.2s; white-space:nowrap;">⏱️ Backtester</button>
+              <button id="btn-show-performance" class="rec-tab-btn" style="background:none; border:none; color:var(--text-muted); font-weight:600; font-size:1rem; padding:4px 8px; cursor:pointer; transition: all 0.2s; white-space:nowrap;">📈 Performance Report</button>
             </div>
 
             <div id="picks-section-container">
@@ -312,6 +446,54 @@
                   <button class="filter-btn" data-filter="buy" onclick="App.setRecFilter('buy')">🟡 Buy <span class="filter-count" id="count-buy">0</span></button>
                   <button class="filter-btn" data-filter="watch" onclick="App.setRecFilter('watch')">🟠 Hold/Watch <span class="filter-count" id="count-watch">0</span></button>
                   <button class="filter-btn" data-filter="avoid" onclick="App.setRecFilter('avoid')">🔴 Avoid/Ignore <span class="filter-count" id="count-avoid">0</span></button>
+                  <button class="filter-btn" data-filter="confluence" onclick="App.setRecFilter('confluence')" style="border-color:rgba(168,85,247,0.3); color:#c084fc;">⚡ Confluence <span class="filter-count" id="count-confluence" style="background:rgba(168,85,247,0.2); color:#e9d5ff;">0</span></button>
+                </div>
+              </div>
+
+              <!-- Modular Weighting System (Koyfin style) -->
+              <div class="weights-panel-container">
+                <div class="weights-panel-header">
+                  <div class="weights-title">
+                    ⚙️ Weight Tuning Engine <span style="font-size:0.7rem; color:var(--text-muted); font-weight:400; border:1px solid var(--border); padding:2px 6px; border-radius:4px; margin-left:4px;">Locks at 100% Total</span>
+                  </div>
+                  <button type="button" class="weights-reset-btn" id="btn-weights-reset">Reset Defaults</button>
+                </div>
+                <div class="weights-grid">
+                  <div class="slider-group">
+                    <div class="slider-label-row">
+                      <span style="color:#10b981">📈 Fundamentals</span>
+                      <span id="weight-lbl-fundamental" class="slider-value">25%</span>
+                    </div>
+                    <input type="range" id="weight-slider-fundamental" class="weight-slider" min="0" max="100" value="25" step="1">
+                  </div>
+                  <div class="slider-group">
+                    <div class="slider-label-row">
+                      <span style="color:#3b82f6">📊 Technical Setup</span>
+                      <span id="weight-lbl-technical" class="slider-value">30%</span>
+                    </div>
+                    <input type="range" id="weight-slider-technical" class="weight-slider" min="0" max="100" value="30" step="1">
+                  </div>
+                  <div class="slider-group">
+                    <div class="slider-label-row">
+                      <span style="color:#f59e0b">⚡ Momentum</span>
+                      <span id="weight-lbl-momentum" class="slider-value">20%</span>
+                    </div>
+                    <input type="range" id="weight-slider-momentum" class="weight-slider" min="0" max="100" value="20" step="1">
+                  </div>
+                  <div class="slider-group">
+                    <div class="slider-label-row">
+                      <span style="color:#ec4899">🧠 Sentiment</span>
+                      <span id="weight-lbl-sentiment" class="slider-value">10%</span>
+                    </div>
+                    <input type="range" id="weight-slider-sentiment" class="weight-slider" min="0" max="100" value="10" step="1">
+                  </div>
+                  <div class="slider-group">
+                    <div class="slider-label-row">
+                      <span style="color:#8b5cf6">🏢 Institutional</span>
+                      <span id="weight-lbl-institutional" class="slider-value">15%</span>
+                    </div>
+                    <input type="range" id="weight-slider-institutional" class="weight-slider" min="0" max="100" value="15" step="1">
+                  </div>
                 </div>
               </div>
 
@@ -352,6 +534,265 @@
 
             <div id="performance-section-container" style="display:none;">
               <!-- Filled dynamically by UI.renderPerformanceDashboard() -->
+            </div>
+
+            <!-- Live Portfolio & AI Robo-Advisor Section -->
+            <div id="portfolio-section-container" style="display:none; margin-top: 16px;">
+              
+              <!-- Connection State pane (when not connected) -->
+              <div id="portfolio-disconnected-pane" class="glass-card" style="padding: 24px; text-align: center; border-radius: var(--radius-md); border: 1px solid var(--border); background: rgba(255,255,255,0.02); backdrop-filter: blur(15px); -webkit-backdrop-filter: blur(15px);">
+                <div style="font-size: 3rem; margin-bottom: 12px;">💼</div>
+                <h3 style="font-size: 1.25rem; font-weight: 700; margin-bottom: 8px;">Connect Your Brokerage Account</h3>
+                <p style="color: var(--text-muted); max-width: 480px; margin: 0 auto 20px auto; font-size: 0.9rem; line-height: 1.5;">
+                  Link your Zerodha Kite or Upstox account to sync your current holdings, calculate real-time technical setups, and receive AI Robo-Advisor signals.
+                </p>
+                
+                <div style="max-width: 400px; margin: 0 auto; text-align: left; padding: 20px; background: rgba(255,255,255,0.01); border: 1px solid var(--border); border-radius: var(--radius-sm);">
+                  <div class="form-group" style="margin-bottom: 14px;">
+                    <label style="display:block; font-size:0.75rem; font-weight:700; color:var(--text-muted); margin-bottom:6px; text-transform:uppercase;">Select Broker</label>
+                    <select id="portfolio-broker-select" class="screener-select" style="width:100%; height:38px; border-radius:4px; background:rgba(0,0,0,0.2); color:var(--text-primary); border:1px solid var(--border); padding:0 8px; font-weight:600; outline:none; transition:border-color 0.2s;">
+                      <option value="ZERODHA">Zerodha Kite</option>
+                      <option value="UPSTOX">Upstox API</option>
+                    </select>
+                  </div>
+                  
+                  <!-- API Key (only shown for Zerodha) -->
+                  <div class="form-group" id="portfolio-api-key-group" style="margin-bottom: 14px;">
+                    <label style="display:block; font-size:0.75rem; font-weight:700; color:var(--text-muted); margin-bottom:6px; text-transform:uppercase;">API Key</label>
+                    <input type="text" id="portfolio-api-key-input" placeholder="Enter Kite API Key" class="screener-input" style="width:100%; height:38px; padding:0 8px; border-radius:4px; border:1px solid var(--border); background:rgba(0,0,0,0.2); color:var(--text-primary); outline:none; transition:border-color 0.2s;">
+                  </div>
+                  
+                  <!-- Access Token -->
+                  <div class="form-group" style="margin-bottom: 18px;">
+                    <label style="display:block; font-size:0.75rem; font-weight:700; color:var(--text-muted); margin-bottom:6px; text-transform:uppercase;">Access Token</label>
+                    <input type="password" id="portfolio-access-token-input" placeholder="Enter Access Token" class="screener-input" style="width:100%; height:38px; padding:0 8px; border-radius:4px; border:1px solid var(--border); background:rgba(0,0,0,0.2); color:var(--text-primary); outline:none; transition:border-color 0.2s;">
+                  </div>
+
+                  <div style="display:flex; align-items:center; gap:8px; margin-bottom:18px;">
+                    <input type="checkbox" id="portfolio-demo-bypass-chk" style="cursor:pointer; width:15px; height:15px;">
+                    <label for="portfolio-demo-bypass-chk" style="font-size:0.8rem; color:var(--text-muted); cursor:pointer; user-select:none;">Use Sandbox Mock Account (Local Bypass)</label>
+                  </div>
+                  
+                  <button id="btn-portfolio-connect" class="btn btn-primary" style="width:100%; padding:10px 16px; font-weight:700; font-size:0.9rem; cursor:pointer;">🔐 Save & Authorize</button>
+                </div>
+              </div>
+              
+              <!-- Connected State Pane -->
+              <div id="portfolio-connected-pane" style="display:none;">
+                <!-- Summary Card Row -->
+                <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap:16px; margin-bottom:20px;">
+                  
+                  <!-- Metrics card -->
+                  <div class="glass-card" style="padding:16px; border-radius:var(--radius-sm); border:1px solid var(--border); background:rgba(255,255,255,0.02); display:flex; flex-direction:column; justify-content:center;">
+                    <div style="font-size:0.75rem; font-weight:700; color:var(--text-muted); text-transform:uppercase; margin-bottom:6px;">Portfolio Summary</div>
+                    <div style="display:flex; justify-content:space-between; margin-bottom:4px;">
+                      <span style="font-size:0.8rem; color:var(--text-muted);">Total Cost:</span>
+                      <span id="portfolio-total-cost" style="font-weight:600; font-size:0.85rem;">₹0.00</span>
+                    </div>
+                    <div style="display:flex; justify-content:space-between; margin-bottom:4px;">
+                      <span style="font-size:0.8rem; color:var(--text-muted);">Current Value:</span>
+                      <span id="portfolio-total-value" style="font-weight:600; font-size:0.85rem;">₹0.00</span>
+                    </div>
+                    <div style="display:flex; justify-content:space-between;">
+                      <span style="font-size:0.8rem; color:var(--text-muted);">Total P&L:</span>
+                      <span id="portfolio-total-pnl" style="font-weight:700; font-size:0.85rem;">₹0.00 (0.00%)</span>
+                    </div>
+                  </div>
+
+                  <!-- Robo score card -->
+                  <div class="glass-card" style="padding:16px; border-radius:var(--radius-sm); border:1px solid var(--border); background:rgba(255,255,255,0.02); text-align:center; display:flex; flex-direction:column; justify-content:center; align-items:center;">
+                    <div style="font-size:0.75rem; font-weight:700; color:var(--text-muted); text-transform:uppercase; margin-bottom:6px;">Overall Health Score</div>
+                    <div style="font-size:2rem; font-weight:800; color:#34d399;" id="portfolio-health-score">0</div>
+                    <div style="font-size:0.72rem; color:var(--text-muted); margin-top:2px;">Weighted technical strength</div>
+                  </div>
+
+                  <!-- Actions alert card -->
+                  <div class="glass-card" style="padding:16px; border-radius:var(--radius-sm); border:1px solid var(--border); background:rgba(255,255,255,0.02); display:flex; flex-direction:column; justify-content:center;">
+                    <div style="font-size:0.75rem; font-weight:700; color:var(--text-muted); text-transform:uppercase; margin-bottom:8px;">Robo-Advisor Alerts</div>
+                    <div id="portfolio-alert-box" style="display:flex; align-items:center; gap:8px; padding:8px; border-radius:4px; background:rgba(52,211,153,0.1); border:1px solid rgba(52,211,153,0.2); color:#34d399; font-size:0.78rem; font-weight:600;">
+                      <span>✅</span> <span id="portfolio-alert-text">All setups healthy. No urgent action required.</span>
+                    </div>
+                  </div>
+
+                  <!-- Controls card -->
+                  <div class="glass-card" style="padding:16px; border-radius:var(--radius-sm); border:1px solid var(--border); background:rgba(255,255,255,0.02); display:flex; flex-direction:column; justify-content:center; gap:8px;">
+                    <div style="display:flex; justify-content:space-between; align-items:center;">
+                      <span style="font-size:0.75rem; color:var(--text-muted); font-weight:700;">Connected: <span id="portfolio-connected-broker" style="color:var(--text-accent);">ZERODHA</span></span>
+                      <button id="btn-portfolio-disconnect" style="background:none; border:none; color:#f87171; font-size:0.72rem; cursor:pointer; font-weight:600; text-decoration:underline;">Disconnect</button>
+                    </div>
+                    <button id="btn-portfolio-sync" class="btn btn-primary" style="padding:8px 12px; font-size:0.75rem; font-weight:700; width:100%; cursor:pointer;">🔄 Sync & Refresh Portfolio</button>
+                  </div>
+                </div>
+
+                <!-- Holdings Table panel -->
+                <div class="glass-card" style="border:1px solid var(--border); border-radius:var(--radius-sm); overflow:hidden; background:rgba(255,255,255,0.01);">
+                  <div style="padding:12px 16px; border-bottom:1px solid var(--border); font-weight:700; font-size:0.9rem; color:var(--text-primary);">
+                    📋 Active Holdings Analysis
+                  </div>
+                  <div style="overflow-x:auto;">
+                    <table class="screener-table" style="margin-top:0;" id="portfolio-holdings-table">
+                      <thead>
+                        <tr>
+                          <th>Symbol</th>
+                          <th>Qty</th>
+                          <th>Avg Buy</th>
+                          <th>Current LTP</th>
+                          <th>Cost Basis</th>
+                          <th>Value</th>
+                          <th>P&L (%)</th>
+                          <th>AI Score</th>
+                          <th>AI Verdict</th>
+                          <th>Advice Details</th>
+                        </tr>
+                      </thead>
+                      <tbody id="portfolio-holdings-tbody">
+                        <!-- Filled dynamically -->
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Custom Screener Section -->
+            <div id="screener-section-container" style="display:none;">
+              <div class="screener-container">
+                <div class="panel-title-row" style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; flex-wrap:wrap; gap:8px;">
+                  <h3 style="font-size:1.15rem; font-weight:700; margin:0;">🔍 Dynamic Custom Screener</h3>
+                  <div style="font-size:0.75rem; color:var(--text-muted);">Query 300+ Stocks across multiple fundamental and technical metrics</div>
+                </div>
+                <div class="screener-builder">
+                  <div id="screener-filter-list" class="screener-row-list">
+                    <!-- Filter rows will be inserted here dynamically -->
+                  </div>
+                  <div class="screener-actions">
+                    <button type="button" class="btn btn-secondary" id="btn-screener-add-filter" style="padding: 6px 12px; font-size: 0.78rem;">➕ Add Condition</button>
+                    <button type="button" class="btn btn-primary" id="btn-screener-run" style="padding: 6px 16px; font-size: 0.78rem; font-weight:700;">🚀 Run Query</button>
+                    <button type="button" class="btn btn-secondary" id="btn-screener-clear" style="padding: 6px 12px; font-size: 0.78rem; background:rgba(255,255,255,0.02); border-color:var(--border);">Reset Filters</button>
+                  </div>
+                </div>
+
+                <!-- Screener Results Panel -->
+                <div class="backtest-results-panel" style="min-height: 200px;">
+                  <div style="font-size:0.7rem; font-weight:700; color:var(--text-secondary); text-transform:uppercase; letter-spacing:0.05em; border-bottom:1px solid var(--border); padding-bottom:6px; display:flex; justify-content:space-between;">
+                    <span>Results</span>
+                    <span id="screener-result-count" style="color:var(--text-accent); font-weight:700;">0 stocks matched</span>
+                  </div>
+                  <div style="overflow-x: auto; margin-top:8px;">
+                    <table class="screener-table" id="screener-results-table">
+                      <thead>
+                        <tr>
+                          <th>Symbol</th>
+                          <th>Company Name</th>
+                          <th>Price</th>
+                          <th>Change %</th>
+                          <th>Score</th>
+                          <th>Market Cap</th>
+                          <th>Actions</th>
+                        </tr>
+                      </thead>
+                      <tbody id="screener-results-tbody">
+                        <tr>
+                          <td colspan="7" style="text-align:center; padding:32px 0; color:var(--text-muted); font-size:0.8rem;">
+                            No query run yet. Add conditions and click "Run Query" to search.
+                          </td>
+                        </tr>
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Backtester Section -->
+            <div id="backtester-section-container" style="display:none;">
+              <div class="backtest-grid">
+                <!-- Backtest Parameters Form -->
+                <div class="backtest-form">
+                  <h3 style="font-size:0.95rem; font-weight:700; margin:0 0 6px 0; border-bottom:1px solid var(--border); padding-bottom:6px; display:flex; align-items:center; gap:6px;">⏱️ Backtest Config</h3>
+                  
+                  <div style="display:flex; flex-direction:column; gap:4px; margin-bottom:8px;">
+                    <label style="font-size:0.7rem; color:var(--text-secondary); font-weight:600;">BACKTEST TARGET</label>
+                    <span id="backtest-target-stock" style="font-size:0.85rem; font-weight:700; color:var(--text-accent); background:rgba(255,255,255,0.03); padding:4px 8px; border-radius:4px;">Select stock below</span>
+                  </div>
+                  
+                  <div style="display:flex; flex-direction:column; gap:4px; margin-bottom:8px;">
+                    <label for="backtest-param-threshold" style="font-size:0.7rem; color:var(--text-secondary); font-weight:600;">BUY SCORE THRESHOLD</label>
+                    <input type="number" id="backtest-param-threshold" class="screener-input" min="1" max="100" value="80" style="width:100%;">
+                    <span style="font-size:0.6rem; color:var(--text-muted);">Trigger trade when composite score >= this</span>
+                  </div>
+
+                  <div style="display:flex; flex-direction:column; gap:4px; margin-bottom:8px;">
+                    <label for="backtest-param-holding" style="font-size:0.7rem; color:var(--text-secondary); font-weight:600;">HOLDING PERIOD (DAYS)</label>
+                    <input type="number" id="backtest-param-holding" class="screener-input" min="1" max="365" value="30" style="width:100%;">
+                    <span style="font-size:0.6rem; color:var(--text-muted);">Time to hold position in calendar days</span>
+                  </div>
+
+                  <div style="display:flex; flex-direction:column; gap:4px; margin-bottom:12px;">
+                    <label for="backtest-param-lookback" style="font-size:0.7rem; color:var(--text-secondary); font-weight:600;">LOOKBACK PERIOD (DAYS)</label>
+                    <select id="backtest-param-lookback" class="screener-select" style="width:100%;">
+                      <option value="365" selected>1 Year (365 days)</option>
+                      <option value="180">6 Months (180 days)</option>
+                      <option value="90">3 Months (90 days)</option>
+                    </select>
+                  </div>
+
+                  <button type="button" class="btn btn-primary" id="btn-backtest-run" style="width:100%; padding:8px 0; font-size:0.8rem; font-weight:700;">🚀 Run Simulation</button>
+                </div>
+
+                <!-- Backtest Results Display -->
+                <div class="backtest-results-panel">
+                  <div style="font-size:0.7rem; font-weight:700; color:var(--text-secondary); text-transform:uppercase; letter-spacing:0.05em; border-bottom:1px solid var(--border); padding-bottom:6px;">
+                    📈 Historical Performance Results
+                  </div>
+                  
+                  <!-- Metrics Cards Row -->
+                  <div class="backtest-stats-row" id="backtest-stats-container" style="display:none; margin-top:8px;">
+                    <div class="backtest-card">
+                      <div class="backtest-card-val" id="backtest-stat-winrate" style="color:var(--green);">0.0%</div>
+                      <div class="backtest-card-lbl">Win Rate</div>
+                    </div>
+                    <div class="backtest-card">
+                      <div class="backtest-card-val" id="backtest-stat-avgreturn">0.0%</div>
+                      <div class="backtest-card-lbl">Avg Return</div>
+                    </div>
+                    <div class="backtest-card">
+                      <div class="backtest-card-val" id="backtest-stat-trades">0</div>
+                      <div class="backtest-card-lbl">Trades</div>
+                    </div>
+                    <div class="backtest-card">
+                      <div class="backtest-card-val" id="backtest-stat-alpha">0.0%</div>
+                      <div class="backtest-card-lbl">Alpha vs Bench</div>
+                    </div>
+                  </div>
+
+                  <!-- Trade Details List -->
+                  <div id="backtest-trades-log-wrap" style="flex:1; display:flex; flex-direction:column; overflow-y:auto; margin-top:8px;">
+                    <div style="font-size:0.72rem; color:var(--text-secondary); font-weight:700; text-transform:uppercase; margin-bottom:6px; border-bottom:1px solid rgba(255,255,255,0.03); padding-bottom:4px;">Trade Simulation Ledger</div>
+                    <div style="flex:1; min-height: 120px; overflow-x: auto;">
+                      <table class="screener-table" style="margin-top:0;" id="backtest-ledger-table">
+                        <thead>
+                          <tr>
+                            <th>Entry Date</th>
+                            <th>Entry Price</th>
+                            <th>Exit Date</th>
+                            <th>Exit Price</th>
+                            <th>Hold Days</th>
+                            <th>Return %</th>
+                          </tr>
+                        </thead>
+                        <tbody id="backtest-ledger-tbody">
+                          <tr>
+                            <td colspan="6" style="text-align:center; padding:32px 0; color:var(--text-muted); font-size:0.8rem;">
+                              No simulation has been run yet. Select a stock, set parameters, and run.
+                            </td>
+                          </tr>
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
         </div>
@@ -399,17 +840,22 @@
             <div class="dh-score-item">
               <div class="score-label">📊 Technical Setup</div>
               <div id="dh-tech-score" class="score-val">—</div>
-              <div class="score-sub">/ 25</div>
+              <div class="score-sub">/ 20</div>
             </div>
             <div class="dh-score-item">
               <div class="score-label">⚡ Momentum</div>
-              <div id="dh-sent-score" class="score-val">—</div>
-              <div class="score-sub">/ 25</div>
+              <div id="dh-mom-score" class="score-val">—</div>
+              <div class="score-sub">/ 20</div>
             </div>
             <div class="dh-score-item">
-              <div class="score-label">🧠 Sentiment &amp; Flows</div>
+              <div class="score-label">🧠 News &amp; Sentiment</div>
+              <div id="dh-sent-score" class="score-val">—</div>
+              <div class="score-sub">/ 15</div>
+            </div>
+            <div class="dh-score-item">
+              <div class="score-label">🐳 Institutional Flows</div>
               <div id="dh-inst-score" class="score-val">—</div>
-              <div class="score-sub">/ 25</div>
+              <div class="score-sub">/ 20</div>
             </div>
           </div>
         </div>
@@ -536,6 +982,162 @@
   </div>
 </div>
 
+<!-- Interactive Side Drawer for Mini-Analysis -->
+<div id="mini-analysis-drawer" class="mini-analysis-drawer" aria-hidden="true">
+  <!-- Drawer Header -->
+  <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid var(--border); padding-bottom:12px; margin-bottom:14px;">
+    <div style="display:flex; gap:12px; align-items:center;">
+      <!-- Score Circle Badge -->
+      <div id="drawer-score-badge" style="width:38px; height:38px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-family:'JetBrains Mono',monospace; font-weight:900; font-size:1.1rem; border:2.5px solid var(--border); margin-right:4px;" title="Composite Score">
+        --
+      </div>
+      <div>
+        <h3 id="drawer-symbol" style="margin:0; font-size:1.2rem; color:var(--text-primary); font-weight:800; display:flex; align-items:center; gap:4px;">
+          <span id="drawer-ticker-name">TICKER</span>
+        </h3>
+        <span id="drawer-company-name" style="font-size:0.75rem; color:var(--text-secondary); display:block; margin-top:2px;">Company Name</span>
+      </div>
+    </div>
+    <button id="mini-analysis-close" style="background:none; border:none; color:var(--text-muted); cursor:pointer; font-size:1.3rem; transition:color 0.2s;" onmouseover="this.style.color='var(--text-primary)'" onmouseout="this.style.color='var(--text-muted)'">✕</button>
+  </div>
+
+  <!-- Drawer Body -->
+  <div id="drawer-body-content" style="flex:1; overflow-y:auto; display:flex; flex-direction:column; gap:14px; padding-right:4px;">
+    <!-- Price Row -->
+    <div style="display:flex; justify-content:space-between; align-items:center; background:var(--bg-elevated); padding:10px; border-radius:8px; border:1px solid var(--border);">
+      <div>
+        <div style="font-size:0.65rem; color:var(--text-muted); text-transform:uppercase; font-weight:700;">Current Price</div>
+        <div id="drawer-price" style="font-size:1.5rem; font-weight:800; color:var(--text-primary); margin-top:2px;">$00.00</div>
+      </div>
+      <div style="text-align:right;">
+        <div style="font-size:0.65rem; color:var(--text-muted); text-transform:uppercase; font-weight:700;">Daily Change</div>
+        <div id="drawer-change" style="font-size:1.05rem; font-weight:700; margin-top:4px;">+0.00%</div>
+      </div>
+    </div>
+
+    <!-- Trend & Technical Setup -->
+    <div>
+      <h4 style="margin:0 0 6px 0; font-size:0.72rem; color:var(--text-muted); text-transform:uppercase; font-weight:700; letter-spacing:0.5px;">Technical Thesis</h4>
+      <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px;">
+        <div style="background:var(--bg-elevated); padding:8px; border-radius:6px; border:1px solid var(--border); text-align:center;">
+          <div style="font-size:0.65rem; color:var(--text-secondary); margin-bottom:2px;">Trend Strength</div>
+          <strong id="drawer-trend-strength" style="font-size:0.8rem; color:var(--text-accent);">Bullish</strong>
+        </div>
+        <div style="background:var(--bg-elevated); padding:8px; border-radius:6px; border:1px solid var(--border); text-align:center;">
+          <div style="font-size:0.65rem; color:var(--text-secondary); margin-bottom:2px;">Pivot Level</div>
+          <strong id="drawer-pivot" style="font-size:0.8rem; color:var(--text-primary);">$00.00</strong>
+        </div>
+      </div>
+    </div>
+
+    <!-- RSI & MACD Snapshots -->
+    <div>
+      <h4 style="margin:0 0 6px 0; font-size:0.72rem; color:var(--text-muted); text-transform:uppercase; font-weight:700; letter-spacing:0.5px;">Momentum Snapshot</h4>
+      <div style="display:flex; flex-direction:column; gap:8px;">
+        <!-- RSI Row -->
+        <div style="background:var(--bg-elevated); padding:8px; border-radius:6px; border:1px solid var(--border);">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
+            <span style="font-size:0.72rem; color:var(--text-secondary); font-weight:600;">Relative Strength Index (RSI-14)</span>
+            <strong id="drawer-rsi-val" style="font-size:0.75rem; color:var(--text-primary);">52.3</strong>
+          </div>
+          <!-- RSI indicator bar -->
+          <div style="height:6px; background:rgba(255,255,255,0.06); border-radius:3px; position:relative; overflow:hidden;">
+            <div id="drawer-rsi-bar" style="position:absolute; left:0; top:0; height:100%; width:50%; background:var(--text-accent); transition: width 0.3s;"></div>
+            <div style="position:absolute; left:30%; top:0; width:1px; height:100%; background:rgba(255,255,255,0.25);"></div>
+            <div style="position:absolute; left:70%; top:0; width:1px; height:100%; background:rgba(255,255,255,0.25);"></div>
+          </div>
+        </div>
+        <!-- MACD Row -->
+        <div style="background:var(--bg-elevated); padding:8px; border-radius:6px; border:1px solid var(--border); display:flex; justify-content:space-between; align-items:center;">
+          <div>
+            <span style="font-size:0.72rem; color:var(--text-secondary); font-weight:600; display:block;">MACD Signal</span>
+            <span id="drawer-macd-details" style="font-size:0.68rem; color:var(--text-muted);">Signal crossover</span>
+          </div>
+          <span id="drawer-macd-badge" class="badge" style="font-size:0.68rem; padding:2px 6px; border-radius:4px;">Bullish</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Vol & Bollinger Bands -->
+    <div>
+      <h4 style="margin:0 0 6px 0; font-size:0.72rem; color:var(--text-muted); text-transform:uppercase; font-weight:700; letter-spacing:0.5px;">Volatility & Volume</h4>
+      <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px;">
+        <div style="background:var(--bg-elevated); padding:8px; border-radius:6px; border:1px solid var(--border);">
+          <span style="font-size:0.65rem; color:var(--text-secondary); display:block; margin-bottom:2px;">Volume vs Avg</span>
+          <strong id="drawer-vol-ratio" style="font-size:0.78rem; color:var(--text-primary);">1.2x</strong>
+        </div>
+        <div style="background:var(--bg-elevated); padding:8px; border-radius:6px; border:1px solid var(--border);">
+          <span style="font-size:0.65rem; color:var(--text-secondary); display:block; margin-bottom:2px;">Bollinger Squeeze</span>
+          <strong id="drawer-bb-status" style="font-size:0.78rem; color:var(--text-primary);">Active</strong>
+        </div>
+      </div>
+    </div>
+
+    <!-- News & Catalyst Source -->
+    <div>
+      <h4 style="margin:0 0 6px 0; font-size:0.72rem; color:var(--text-muted); text-transform:uppercase; font-weight:700; letter-spacing:0.5px;">Primary News Catalyst</h4>
+      <div id="drawer-news-box" style="background:rgba(99,102,241,0.03); border:1px solid rgba(99,102,241,0.1); padding:10px; border-radius:6px; display:flex; flex-direction:column; gap:4px;">
+        <div id="drawer-news-title" style="font-weight:600; font-size:0.78rem; color:var(--text-primary); line-height:1.3;">No news available.</div>
+        <div id="drawer-news-summary" style="font-size:0.7rem; color:var(--text-secondary); line-height:1.4;">—</div>
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-top:2px;">
+          <span id="drawer-news-source" style="font-size:0.62rem; color:var(--text-muted); font-weight:500;">Source: N/A</span>
+          <a id="drawer-news-link" href="#" target="_blank" style="font-size:0.68rem; color:var(--text-accent); text-decoration:none; font-weight:600;">Read Article ↗</a>
+        </div>
+      </div>
+    </div>
+
+    <!-- Alerts setup inside drawer -->
+    <div id="drawer-alert-setup" style="display:none; background:rgba(99,102,241,0.05); border:1px solid rgba(99,102,241,0.2); padding:10px; border-radius:6px; flex-direction:column; gap:8px;">
+      <div style="font-size:0.75rem; font-weight:700; color:var(--text-accent); display:flex; justify-content:space-between; align-items:center;">
+        <span>🔔 Create Price/RSI Alert</span>
+        <button id="btn-drawer-alert-close" style="background:none; border:none; color:var(--text-muted); cursor:pointer; font-size:0.8rem;">✕</button>
+      </div>
+      <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px;">
+        <div>
+          <label style="font-size:0.62rem; color:var(--text-muted); display:block; margin-bottom:2px;">Trigger Price</label>
+          <input id="alert-setup-price" type="number" step="any" style="width:100%; background:var(--bg-input); border:1px solid var(--border); color:var(--text-primary); padding:4px 6px; border-radius:4px; font-size:0.75rem;" />
+        </div>
+        <div>
+          <label style="font-size:0.62rem; color:var(--text-muted); display:block; margin-bottom:2px;">Condition</label>
+          <select id="alert-setup-cond" style="width:100%; background:var(--bg-input); border:1px solid var(--border); color:var(--text-primary); padding:4px; border-radius:4px; font-size:0.72rem; height:24px; outline:none;">
+            <option value="below">Price Goes Below</option>
+            <option value="above">Price Goes Above</option>
+          </select>
+        </div>
+      </div>
+      <div>
+        <label style="font-size:0.62rem; color:var(--text-muted); display:block; margin-bottom:2px;">RSI Condition (Optional)</label>
+        <select id="alert-setup-rsi-cond" style="width:100%; background:var(--bg-input); border:1px solid var(--border); color:var(--text-primary); padding:4px; border-radius:4px; font-size:0.72rem; height:24px; outline:none;">
+          <option value="any">Any RSI Value</option>
+          <option value="oversold">Oversold (< 35)</option>
+          <option value="overbought">Overbought (> 65)</option>
+        </select>
+      </div>
+      <button id="btn-drawer-alert-save" class="btn btn-primary btn-sm" style="width:100%; padding:6px; font-size:0.72rem; font-weight:600;">Create Alert Signal</button>
+    </div>
+  </div>
+
+  <!-- Drawer Actions Footer -->
+  <div style="border-top:1px solid var(--border); padding-top:12px; display:flex; flex-direction:column; gap:8px; margin-top:auto;">
+    <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px;">
+      <button id="btn-drawer-full-analysis" class="btn btn-primary btn-sm" style="padding:8px; font-size:0.75rem; font-weight:600;">🔍 Full Dashboard View</button>
+      <button id="btn-drawer-watchlist" class="btn btn-secondary btn-sm" style="padding:8px; font-size:0.75rem; font-weight:600;">➕ Watchlist</button>
+    </div>
+    <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px;">
+      <button id="btn-drawer-share-wa" class="btn btn-ghost btn-sm" style="padding:8px; font-size:0.75rem; border:1px solid rgba(34,197,94,0.3); color:#22c55e; display:flex; align-items:center; justify-content:center; gap:4px;" onmouseover="this.style.background='rgba(34,197,94,0.06)'" onmouseout="this.style.background='none'">
+        WhatsApp Signal
+      </button>
+      <button id="btn-drawer-alert" class="btn btn-ghost btn-sm" style="padding:8px; font-size:0.75rem; border:1px solid rgba(59,130,246,0.3); color:#60a5fa; display:flex; align-items:center; justify-content:center; gap:4px;" onmouseover="this.style.background='rgba(59,130,246,0.06)'" onmouseout="this.style.background='none'">
+        Set Indicator Alert
+      </button>
+    </div>
+  </div>
+</div>
+
+<footer style="background:var(--bg-card); border-top:1px solid var(--border); padding:12px; text-align:center; font-size:0.7rem; color:var(--text-muted); font-weight:600; letter-spacing:0.3px; position:relative; z-index:99;">
+  ⚠️ CRUCIAL COMPLIANCE NOTICE: This AI generates educational model portfolios based on quantitative data. It is not registered financial advice.
+</footer>
+
 <!-- Google SSO Login Screen Overlay -->
 <div id="login-overlay" class="login-overlay" style="display: none;">
   <div class="login-card" style="position: relative;">
@@ -545,21 +1147,45 @@
       <span class="logo-text">Antigravity<span style="color:var(--text-accent)">Swing</span></span>
     </div>
     <h2>Access Restricted</h2>
-    <p>Please sign in with your authorized Google Account to unlock the Swing Trading intelligence dashboard.</p>
-    <div id="google-signin-btn"></div>
-    <button id="btn-bypass-sso" class="btn btn-secondary" style="margin-top: 12px; width: 250px; display: inline-block; background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.15); color: var(--text-primary); border-radius: 4px; padding: 10px 16px; font-weight: 600; cursor: pointer; transition: all 0.2s;" onmouseover="this.style.background='rgba(255,255,255,0.15)'" onmouseout="this.style.background='rgba(255,255,255,0.08)'">Continue in Demo Mode</button>
-    <div id="login-error-msg" class="login-error-msg" style="display: none;"></div>
+    <p>Sign in with your Google Account or use Email/Password fallback to unlock the dashboard.</p>
+    <div id="google-signin-btn" style="display:flex; justify-content:center; margin-bottom:12px;"></div>
+    
+    <!-- Separator -->
+    <div style="display:flex; align-items:center; width:100%; margin:16px 0; color:var(--text-muted); font-size:0.75rem; text-transform:uppercase; user-select:none;">
+      <div style="flex:1; height:1px; background:var(--border);"></div>
+      <div style="padding:0 8px;">OR EMAIL CREDENTIALS</div>
+      <div style="flex:1; height:1px; background:var(--border);"></div>
+    </div>
+    
+    <!-- Email/Password block -->
+    <div id="email-auth-block" style="width:100%; max-width:280px; margin:0 auto; text-align:left;">
+      <div class="form-group" style="margin-bottom:10px;">
+        <input type="email" id="auth-email-input" placeholder="Email Address" class="screener-input" style="width:100%; height:36px; padding:0 8px; border-radius:4px; border:1px solid var(--border); background:rgba(0,0,0,0.2); color:var(--text-primary); outline:none;">
+      </div>
+      <div class="form-group" style="margin-bottom:12px;">
+        <input type="password" id="auth-password-input" placeholder="Password" class="screener-input" style="width:100%; height:36px; padding:0 8px; border-radius:4px; border:1px solid var(--border); background:rgba(0,0,0,0.2); color:var(--text-primary); outline:none;">
+      </div>
+      <div style="display:flex; gap:8px;">
+        <button id="btn-auth-login" class="btn btn-primary" style="flex:1; padding:8px; font-size:0.8rem; font-weight:700; cursor:pointer;">Sign In</button>
+        <button id="btn-auth-register" class="btn btn-secondary" style="flex:1; padding:8px; font-size:0.8rem; font-weight:600; background:rgba(255,255,255,0.02); border-color:var(--border); cursor:pointer;">Register</button>
+      </div>
+    </div>
+
+    <div style="margin: 16px 0 8px 0; width: 100%; height: 1px; background: var(--border);"></div>
+
+    <button id="btn-bypass-sso" class="btn btn-secondary" style="width: 250px; display: inline-block; background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.15); color: var(--text-primary); border-radius: 4px; padding: 10px 16px; font-weight: 600; cursor: pointer; transition: all 0.2s;" onmouseover="this.style.background='rgba(255,255,255,0.15)'" onmouseout="this.style.background='rgba(255,255,255,0.08)'">Continue in Demo Mode</button>
+    <div id="login-error-msg" class="login-error-msg" style="display: none; margin-top: 10px; color: #f87171; font-size: 0.8rem;"></div>
   </div>
 </div>
 
 <!-- ════════════════════════════════════════
      SCRIPTS — order matters
 ════════════════════════════════════════ -->
-<script src="js/api.js"></script>
-<script src="js/analysis.js"></script>
-<script src="js/charts.js"></script>
-<script src="js/ui.js"></script>
-<script src="js/app.js"></script>
+<script src="js/api.js?v=5.0.0"></script>
+<script src="js/analysis.js?v=5.0.0"></script>
+<script src="js/charts.js?v=5.0.0"></script>
+<script src="js/ui.js?v=5.0.0"></script>
+<script src="js/app.js?v=5.0.0"></script>
 
 </body>
 </html>

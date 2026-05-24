@@ -459,14 +459,15 @@ function renderRadarChart(canvasId, scores) {
   _charts[canvasId] = new Chart(ctx, {
     type: 'radar',
     data: {
-      labels: ['Fundamentals', 'Technical Setup', 'Momentum', 'Sentiment & Flows'],
+      labels: ['Fundamentals', 'Technical Setup', 'Momentum', 'Sentiment', 'Institutional'],
       datasets: [{
         label: 'Score',
         data: [
           (scores.fundamental.score / 25) * 100,
-          (scores.technicalSetup.score / 25) * 100,
-          (scores.momentum.score / 25) * 100,
-          (scores.sentimentFlow.score / 25) * 100,
+          (scores.technicalSetup.score / 20) * 100,
+          (scores.momentum.score / 20) * 100,
+          (scores.sentiment.score / 15) * 100,
+          (scores.institutional.score / 20) * 100,
         ],
         borderColor: '#3b82f6',
         backgroundColor: 'rgba(59,130,246,0.2)',
@@ -484,7 +485,7 @@ function renderRadarChart(canvasId, scores) {
           min: 0, max: 100,
           grid: { color: 'rgba(255,255,255,0.06)' },
           angleLines: { color: 'rgba(255,255,255,0.06)' },
-          pointLabels: { font: { size: 11, weight: '600' }, color: '#94a3b8' },
+          pointLabels: { font: { size: 10, weight: '600' }, color: '#94a3b8' },
           ticks: { display: false, stepSize: 25 },
         },
       },
@@ -632,9 +633,143 @@ function renderShareholdingChart(canvasId, shareholding) {
   }
 }
 
+function renderHistoricalScoreChart(symbol) {
+  const canvasId = 'chart-historical-score';
+  const ctx = getOrCreate(canvasId);
+  if (!ctx) return;
+
+  const result = window.App?.state?.results?.get(symbol);
+  if (!result) return;
+
+  const customWeights = window.App?.state?.weights;
+  const activeRegime = window.App?.state?.activeRegime;
+
+  const historicalSeries = Analysis.getHistoricalScoreSeries(result, customWeights, activeRegime);
+  if (!historicalSeries || historicalSeries.length === 0) {
+    ctx.font = '12px sans-serif';
+    ctx.fillStyle = '#94a3b8';
+    ctx.textAlign = 'center';
+    ctx.fillText('Insufficient historical data for score trajectory', ctx.canvas.width / 2, ctx.canvas.height / 2);
+    return;
+  }
+
+  // Slice last 90 trading days or all if less
+  const data = historicalSeries.slice(-90);
+  const mode = localStorage.getItem('stid_market_mode') || 'IN';
+  const fmtLoc = mode === 'US' ? 'en-US' : 'en-IN';
+  const labels = data.map(d => new Date(d.date).toLocaleDateString(fmtLoc, { month: 'short', day: 'numeric' }));
+  const scores = data.map(d => d.score);
+
+  // Update regime hint in UI
+  const regimeHint = document.getElementById('score-regime-hint');
+  if (regimeHint) {
+    if (activeRegime === 'bear') {
+      regimeHint.textContent = 'Bear Regime Overrides Active (Value boosted, Momentum penalized)';
+      regimeHint.style.color = 'var(--red)';
+    } else {
+      regimeHint.textContent = 'Bull Regime Multipliers Active';
+      regimeHint.style.color = 'var(--green)';
+    }
+  }
+
+  const gradient = ctx.createLinearGradient(0, 0, 0, 200);
+  gradient.addColorStop(0, 'rgba(59, 130, 246, 0.2)');
+  gradient.addColorStop(1, 'rgba(59, 130, 246, 0)');
+
+  _charts[canvasId] = new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels,
+      datasets: [{
+        label: 'Composite Score',
+        data: scores,
+        borderColor: '#3b82f6',
+        backgroundColor: gradient,
+        borderWidth: 2,
+        pointRadius: 0,
+        pointHoverRadius: 4,
+        fill: true,
+        tension: 0.3
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      interaction: { intersect: false, mode: 'index' },
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          backgroundColor: '#1a2235',
+          borderColor: 'rgba(255, 255, 255, 0.1)',
+          borderWidth: 1,
+          callbacks: {
+            label: ctx => ` Score: ${ctx.parsed.y.toFixed(1)} / 100`
+          }
+        },
+        annotation: {
+          annotations: {
+            buyZone: {
+              type: 'box',
+              yMin: 70,
+              yMax: 100,
+              backgroundColor: 'rgba(16, 185, 129, 0.08)',
+              borderWidth: 0
+            },
+            neutralZone: {
+              type: 'box',
+              yMin: 50,
+              yMax: 70,
+              backgroundColor: 'rgba(245, 158, 11, 0.05)',
+              borderWidth: 0
+            },
+            avoidZone: {
+              type: 'box',
+              yMin: 0,
+              yMax: 50,
+              backgroundColor: 'rgba(239, 68, 68, 0.08)',
+              borderWidth: 0
+            },
+            buyLine: {
+              type: 'line',
+              yMin: 70,
+              yMax: 70,
+              borderColor: 'rgba(16, 185, 129, 0.25)',
+              borderWidth: 1,
+              borderDash: [5, 5]
+            },
+            avoidLine: {
+              type: 'line',
+              yMin: 50,
+              yMax: 50,
+              borderColor: 'rgba(239, 68, 68, 0.25)',
+              borderWidth: 1,
+              borderDash: [5, 5]
+            }
+          }
+        }
+      },
+      scales: {
+        x: {
+          grid: { display: false },
+          ticks: { maxTicksLimit: 8, font: { size: 9 } }
+        },
+        y: {
+          min: 0,
+          max: 100,
+          position: 'right',
+          grid: { color: 'rgba(255, 255, 255, 0.04)' },
+          ticks: { font: { size: 9 }, stepSize: 20 }
+        }
+      }
+    }
+  });
+}
+
+window.renderHistoricalScoreChart = renderHistoricalScoreChart;
+
 window.Charts = {
   initChartDefaults,
   renderPriceChart, renderRSIChart, renderMACDChart, renderVolumeChart,
   renderEarningsChart, renderAnnualEarningsChart, renderRadarChart, renderBBChart,
-  renderShareholdingChart, destroyChart,
+  renderShareholdingChart, renderHistoricalScoreChart, destroyChart,
 };

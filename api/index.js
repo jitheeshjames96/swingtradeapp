@@ -2844,7 +2844,7 @@ User Query: ${message}`;
         parts: [{ text: systemInstructionText }]
       },
       generationConfig: {
-        maxOutputTokens: 250,
+        maxOutputTokens: 600,
         temperature: 0.7
       }
     });
@@ -2858,6 +2858,78 @@ User Query: ${message}`;
   } catch (err) {
     console.error('Backend Chat error:', err.message);
     res.status(500).json({ error: 'Failed to generate response from Gemini API', details: err.message });
+  }
+});
+
+// ============================================================
+// NEXUS ROBO-ADVISORY — AI WEALTH MATRIX ENDPOINT
+// ============================================================
+
+app.post('/api/nexus-profile', authMiddleware, async (req, res) => {
+  const { age, profession, incomeStability, dependents, netIncome, capitalAllocation, riskAppetite, behavioralStressResponse } = req.body;
+  const email = req.user?.email || 'unknown';
+
+  if (!age || !riskAppetite) {
+    return res.status(400).json({ error: 'Profile data incomplete.' });
+  }
+
+  await logToDatabase(email, 'nexus_profile', null, `Nexus profile generated: ${riskAppetite}, age ${age}`);
+
+  const apiKey = process.env.GEMINI_API_KEY;
+  if (!apiKey) {
+    return res.status(503).json({ error: 'AI service unavailable. GEMINI_API_KEY not configured.' });
+  }
+
+  const investmentHorizon = age < 30 ? '20+ years' : age < 45 ? '10-20 years' : age < 60 ? '5-10 years' : '1-5 years';
+  const sipSuggestion = Math.round((netIncome || 0) * (riskAppetite === 'Aggressive' ? 0.30 : riskAppetite === 'Moderate' ? 0.20 : 0.10));
+
+  const systemPrompt = `You are Nexus, an elite AI wealth advisor at a top Indian private bank. Generate a precise, data-driven wealth matrix for this client. Be direct, professional, and specific. Use Indian financial context (NSE/BSE, Indian MF categories, INR).`;
+
+  const userPrompt = `Client Profile:
+- Age: ${age} | Profession: ${profession} | Income Stability: ${incomeStability}
+- Dependents: ${dependents} | Net Monthly Income: ₹${(netIncome || 0).toLocaleString('en-IN')}
+- Allocated Trading Capital: ₹${(capitalAllocation || 0).toLocaleString('en-IN')}
+- Risk Appetite: ${riskAppetite} | Stress Response: ${behavioralStressResponse}
+- Investment Horizon: ${investmentHorizon}
+- Suggested Monthly SIP: ₹${sipSuggestion.toLocaleString('en-IN')}
+
+Generate a complete wealth matrix with these exact sections:
+
+## Risk Profile
+One sentence summary of this investor's profile and behavioral type.
+
+## Asset Allocation
+Exact % split: Large Cap Equity / Mid+Small Cap Equity / Debt (MF/FD) / Gold (SGB/ETF) / Cash Reserve. Show as bullet list.
+
+## Equity Sector Weights
+For the equity portion, give top 5 sectors with % weight. E.g. Banking & NBFC: 25%.
+
+## Monthly SIP Plan
+Recommend exact SIP amounts across 3-4 categories from the ₹${sipSuggestion.toLocaleString('en-IN')} monthly budget.
+
+## Crash Scenario (20% Market Fall)
+What happens to this portfolio in a 20% NIFTY drawdown. Specific ₹ impact on ₹${(capitalAllocation || 0).toLocaleString('en-IN')} capital. What action to take.
+
+## 3 Trading Rules For This Profile
+Specific rules based on risk appetite and behavioral stress response.
+
+Keep each section concise. No disclaimers. No generic advice.`;
+
+  try {
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
+    const response = await axios.post(url, {
+      contents: [{ role: 'user', parts: [{ text: userPrompt }] }],
+      system_instruction: { parts: [{ text: systemPrompt }] },
+      generationConfig: { maxOutputTokens: 900, temperature: 0.6 }
+    });
+
+    const text = response.data?.candidates?.[0]?.content?.parts?.[0]?.text;
+    if (!text) throw new Error('No content from Gemini');
+
+    res.json({ analysis: text, profile: riskAppetite, horizon: investmentHorizon, sipSuggestion });
+  } catch (err) {
+    console.error('Nexus profile error:', err.message);
+    res.status(500).json({ error: 'Failed to generate wealth matrix.', details: err.message });
   }
 });
 

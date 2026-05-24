@@ -1590,128 +1590,28 @@ function buildInvyRAGContext(currentStockContext, marketSummary) {
   return context;
 }
 
-// ── INVY AI CHAT SYSTEM (Client-side, quota-friendly with backend fallback)
+// ── INVY AI CHAT SYSTEM (Backend-proxy only — Gemini key is server-side)
 async function sendInvyChatMessage(history, message, currentStockContext, marketSummary) {
-  const apiKey = localStorage.getItem('gemini_api_key');
-  
-  if (!apiKey) {
-    // Backend fallback proxy (handles free tier proxy using server key or rule-based response)
-    const url = `${BACKEND_URL}/api/chat`;
-    try {
-      const res = await fetchWithTimeout(url, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          ...getAuthHeaders()
-        },
-        body: JSON.stringify({ history, message, currentStockContext, marketSummary }),
-        timeout: 7000
-      });
-      if (!res.ok) {
-        const errorData = await res.json().catch(() => ({}));
-        throw new Error(errorData.error || `Server responded with status ${res.status}`);
-      }
-      const data = await res.json();
-      return data.response;
-    } catch (e) {
-      console.warn('Backend proxy chat failed, using client-side offline generator:', e.message);
-      return generateDetailedFallbackReport(currentStockContext, message);
-    }
-  }
-
-  // Browser-direct query using user's saved Gemini API Key
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
-  const systemInstructionText = `Act as a Quantitative Hedge Fund Strategist. Your objective is to provide high-conviction, data-driven analysis for swing trading.
-
-Rules for Interaction:
-1. Data-First: When asked about a stock, prioritize technicals (RSI, Volume, EMA levels, Bollinger bands, ATR, MACD) over sentiment. Never give a 'generic' bullish/bearish answer.
-2. Professional Structure: Always format stock analysis responses exactly as follows in clean markdown:
-
-Status: [Buy/Hold/Sell/Watch]
-
-Technical Thesis:
-- [Data-backed point 1: Price action, EMAs, Support/Resistance]
-- [Data-backed point 2: RSI momentum & MACD trend]
-- [Data-backed point 3: Bollinger width & Volume spike activity]
-
-Risk/Reward:
-- Entry: [Price]
-- Stop-Loss: [Logical Stop-Loss price level based on current chart volatility]
-- Target 1 & 2: [Logical Target price levels]
-- Risk/Reward Ratio: [e.g. 2.1:1]
-
-Institutional Context:
-[Brief analysis of whether smart money flows and volume accumulation indicate institutions are entering or exiting.]
-
-Next Action:
-[Clear, actionable instruction, e.g. "Await breakout above $X" or "Exit if $Y level fails".]
-
-Source Citations:
-[Always provide a direct link to the news source for any fundamental or news-based claims made (e.g. "Company news on MarketWatch [link]"). If no news is available, state "No recent news catalyst cited."]
-
-3. Efficiency: Minimize token usage by using concise, high-density professional trading terminology. Do not explain basic concepts unless explicitly asked.
-4. For general trading questions (e.g. "Explain RSI"), explain the concept concisely, in 1-2 paragraphs using professional quantitative trader terminology.`;
-
-  const contents = [...history];
-  let messageWithContext = message;
-  let summaryText = "";
-  if (marketSummary) {
-    const topGainersStr = (marketSummary.gainers || []).map(g => `${g.symbol}: ${g.quote?.changePct >= 0 ? '+' : ''}${(g.quote?.changePct || 0).toFixed(2)}%`).join(', ');
-    const topLosersStr = (marketSummary.losers || []).map(l => `${l.symbol}: ${l.quote?.changePct >= 0 ? '+' : ''}${(l.quote?.changePct || 0).toFixed(2)}%`).join(', ');
-    const sectorPerfStr = (marketSummary.sectors || []).map(s => `${s.name}: ${s.change >= 0 ? '+' : ''}${(s.change || 0).toFixed(2)}%`).join(', ');
-    summaryText = `[Current Market Summary Context:
-- Top Gainers: ${topGainersStr || 'N/A'}
-- Top Losers: ${topLosersStr || 'N/A'}
-- Sector Performance: ${sectorPerfStr || 'N/A'}]`;
-  }
-
-  if (currentStockContext?.symbol) {
-    const ragContext = buildInvyRAGContext(currentStockContext, marketSummary);
-    messageWithContext = `${summaryText}
-${ragContext}
-User Query: ${message}`;
-  } else if (summaryText) {
-    messageWithContext = `${summaryText}
-
-User Query: ${message}`;
-  }
-
-  contents.push({
-    role: 'user',
-    parts: [{ text: messageWithContext }]
-  });
-
+  const url = `${BACKEND_URL}/api/chat`;
   try {
     const res = await fetchWithTimeout(url, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        contents: contents,
-        system_instruction: {
-          parts: [{ text: systemInstructionText }]
-        },
-        generationConfig: {
-          maxOutputTokens: 250,
-          temperature: 0.7
-        }
-      }),
-      timeout: 7000
+      headers: {
+        'Content-Type': 'application/json',
+        ...getAuthHeaders()
+      },
+      body: JSON.stringify({ history, message, currentStockContext, marketSummary }),
+      timeout: 12000
     });
-
     if (!res.ok) {
-      const errorText = await res.text();
-      throw new Error(`Gemini API error: ${res.status} - ${errorText}`);
+      const errorData = await res.json().catch(() => ({}));
+      throw new Error(errorData.error || `Server responded with status ${res.status}`);
     }
-
     const data = await res.json();
-    if (data.candidates && data.candidates[0] && data.candidates[0].content && data.candidates[0].content.parts[0]) {
-      return data.candidates[0].content.parts[0].text;
-    } else {
-      throw new Error('Invalid response structure from Gemini API');
-    }
-  } catch (error) {
-    console.error('Invy Chat error:', error);
-    throw error;
+    return data.response;
+  } catch (e) {
+    console.warn('Backend chat error:', e.message);
+    return generateDetailedFallbackReport(currentStockContext, message);
   }
 }
 
@@ -1985,6 +1885,30 @@ async function analyzePortfolio() {
   return data;
 }
 
+// ── NEXUS ROBO PROFILE — AI Wealth Matrix
+async function fetchNexusProfile(profile) {
+  const url = `${BACKEND_URL}/api/nexus-profile`;
+  try {
+    const res = await fetchWithTimeout(url, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...getAuthHeaders()
+      },
+      body: JSON.stringify(profile),
+      timeout: 20000
+    });
+    if (!res.ok) {
+      const errorData = await res.json().catch(() => ({}));
+      throw new Error(errorData.error || `Server responded with status ${res.status}`);
+    }
+    return await res.json();
+  } catch (e) {
+    console.warn('Nexus profile API error:', e.message);
+    throw e;
+  }
+}
+
 // Export
 window.API = {
   fetchQuote, fetchFundamentals, fetchHistorical, fetchEarnings,
@@ -1994,6 +1918,7 @@ window.API = {
   sendInvyChatMessage, fetchAuthConfig, fetchWithTimeout, setMarketMode,
   fetchRecommendations, fetchSettings, saveSettings, sendTestSignal, runBacktest, runScreener, fetchPerformanceStats,
   registerUser, loginUser, connectBroker, disconnectBroker, analyzePortfolio,
+  fetchNexusProfile,
   getBackendUrl: () => BACKEND_URL
 };
 

@@ -116,16 +116,14 @@
       <div id="settings-dropdown" style="display:none; position:absolute; right:24px; top:65px; background:var(--bg-card); border:1px solid var(--border); padding:16px; border-radius:var(--radius-md); box-shadow:var(--shadow-lg); z-index:999; width:320px;">
         <h4 style="margin-bottom:12px; font-size:0.95rem; color:var(--text-primary); border-bottom:1px solid var(--border); padding-bottom:8px;">⚙️ Settings & API Configuration</h4>
         
-        <!-- Gemini Key Section -->
-        <label for="api-key-input" style="font-size:0.75rem; color:var(--text-secondary); display:block; margin-bottom:4px; font-weight:600;">Gemini AI Key (100% Free)</label>
-        <input id="api-key-input" type="password" placeholder="AIzaSy..." style="width:100%; background:var(--bg-input); border:1px solid var(--border); color:var(--text-primary); padding:6px 10px; border-radius:4px; font-size:0.8rem; margin-bottom:4px; outline:none;" />
-        <div style="margin-bottom:12px; text-align:right;">
-          <a href="https://aistudio.google.com/" target="_blank" style="font-size:0.7rem; color:var(--text-accent); text-decoration:none;">Get Free Key ↗</a>
+        <!-- AI Status -->
+        <div style="display:flex; align-items:center; gap:8px; margin-bottom:16px; padding:8px 10px; background:rgba(16,185,129,0.08); border:1px solid rgba(16,185,129,0.25); border-radius:6px;">
+          <span style="font-size:1rem;">🤖</span>
+          <div>
+            <div style="font-size:0.75rem; font-weight:600; color:#10b981;">Invy AI — Backend Connected</div>
+            <div style="font-size:0.68rem; color:var(--text-muted);">AI runs on secure server. No API key needed.</div>
+          </div>
         </div>
-        
-        <!-- Backend URL Section -->
-        <label for="backend-url-input" style="font-size:0.75rem; color:var(--text-secondary); display:block; margin-bottom:4px; font-weight:600;">Production Backend URL</label>
-        <input id="backend-url-input" type="text" placeholder="http://localhost:3000" style="width:100%; background:var(--bg-input); border:1px solid var(--border); color:var(--text-primary); padding:6px 10px; border-radius:4px; font-size:0.8rem; margin-bottom:16px; outline:none;" />
         
         <div style="display:flex; justify-content:flex-end; align-items:center; gap:8px;">
           <button id="btn-reset-watchlist" class="btn btn-ghost btn-sm" style="padding:4px 8px; color:#f87171; border-color:#f8717155;" title="Reset watchlist to defaults (fixes stuck loading / bad tickers)">🔄 Reset List</button>
@@ -238,6 +236,15 @@
           <div style="display:flex; justify-content:space-between; align-items:center; gap:8px; margin-top:4px;">
             <button type="button" id="btn-nexus-edit" class="btn btn-ghost btn-sm" style="padding:4px 8px; font-size:0.75rem;">✏️ Edit Profile</button>
             <button type="button" id="btn-nexus-close" class="btn btn-primary btn-sm" style="padding:4px 10px; font-size:0.75rem;">Done</button>
+          </div>
+
+          <!-- AI Wealth Matrix Section -->
+          <div id="nexus-ai-matrix" style="margin-top:12px; border-top:1px solid var(--border); padding-top:12px; display:none;">
+            <div style="font-size:0.75rem; color:var(--text-muted); text-transform:uppercase; font-weight:700; margin-bottom:8px;">🧠 AI Wealth Matrix Analysis</div>
+            <div id="nexus-ai-loading" style="text-align:center; padding:16px; display:none;">
+              <div style="font-size:0.8rem; color:var(--text-secondary);">⏳ Generating your personalized wealth matrix...</div>
+            </div>
+            <div id="nexus-ai-content" style="font-size:0.76rem; color:var(--text-secondary); line-height:1.5; display:none;"></div>
           </div>
         </div>
 
@@ -380,11 +387,12 @@
           </div>
           <div style="margin-top:14px;padding-top:12px;border-top:1px solid var(--border)">
             <div style="font-size:0.68rem;color:var(--text-muted);line-height:1.6">
-              <strong style="color:var(--text-secondary)">Scoring Weights:</strong><br>
+              <strong style="color:var(--text-secondary)">Scoring Pillars (max pts):</strong><br>
               📈 Fundamental: 25 pts<br>
-              📊 Technical: 30 pts<br>
-              💬 Sentiment: 20 pts<br>
-              🏦 Institutional: 25 pts
+              📊 Technical Setup: 20 pts<br>
+              ⚡ Momentum: 20 pts<br>
+              💬 Sentiment: 15 pts<br>
+              🏦 Institutional: 20 pts
             </div>
           </div>
         </div>
@@ -965,12 +973,12 @@
     <div class="invy-message assistant">
       <div class="msg-sender">Invy AI</div>
       <div class="msg-text">
-        Hello! I am **Invy**, your AI stock market strategist representing 25 years of investment experience. 
+        I am <strong>Invy</strong> — your AI quant strategist. Backend-powered, always live.
         <br><br>
-        You can ask me about stock market concepts, sector trends, swing strategy, or directly query about the currently selected stock.
+        Select any stock on the watchlist, then ask me for a full analysis, entry/exit levels, or sector context. I have live access to RSI, MACD, Bollinger, pivots, volume, and your portfolio data.
         <br><br>
-        <div style="background:var(--bg-elevated);border:1px solid var(--border);padding:8px 10px;border-radius:4px;font-size:0.72rem;color:var(--yellow)">
-          ⚙️ <strong>Configuration Notice:</strong> Make sure you paste your free <strong>Gemini API Key</strong> in the header settings modal so we can interact!
+        <div style="background:rgba(16,185,129,0.08);border:1px solid rgba(16,185,129,0.2);padding:8px 10px;border-radius:4px;font-size:0.72rem;color:#10b981;">
+          ✅ <strong>AI Ready</strong> — No setup needed. Just type your question.
         </div>
       </div>
     </div>

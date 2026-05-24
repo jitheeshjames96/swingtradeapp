@@ -28,10 +28,10 @@ const App = (() => {  // ── State
     // --- Phase 6 Quant Additions ---
     weights: JSON.parse(localStorage.getItem('stid_weights') || 'null') || {
       fundamental: 25,
-      technical: 30,
+      technical: 20,
       momentum: 20,
-      sentiment: 10,
-      institutional: 15
+      sentiment: 15,
+      institutional: 20
     },
     regime: localStorage.getItem('stid_regime') || 'auto', // 'auto', 'bull', 'bear'
     activeRegime: 'bull', // Resolved active regime: 'bull' or 'bear'
@@ -482,22 +482,14 @@ const App = (() => {  // ── State
     // Settings Toggle
     const btnSettings = document.getElementById('btn-settings');
     const settingsDropdown = document.getElementById('settings-dropdown');
-    const apiKeyInput = document.getElementById('api-key-input');
-    const backendUrlInput = document.getElementById('backend-url-input');
+    const apiKeyInput = null; // Removed: Gemini key now server-side only
+    const backendUrlInput = null; // Removed: Backend URL is hardcoded server-side
     
     if (btnSettings && settingsDropdown) {
       btnSettings.addEventListener('click', e => {
         e.stopPropagation();
         const isShown = settingsDropdown.style.display === 'block';
         settingsDropdown.style.display = isShown ? 'none' : 'block';
-        if (!isShown) {
-          if (apiKeyInput) {
-            apiKeyInput.value = localStorage.getItem('gemini_api_key') || '';
-          }
-          if (backendUrlInput) {
-            backendUrlInput.value = localStorage.getItem('swing_backend_url') || '';
-          }
-        }
       });
     }
 
@@ -526,32 +518,8 @@ const App = (() => {  // ── State
     const btnSettingsSave = document.getElementById('btn-settings-save');
     if (btnSettingsSave && settingsDropdown) {
       btnSettingsSave.addEventListener('click', () => {
-        if (apiKeyInput) {
-          const key = apiKeyInput.value.trim();
-          if (key) {
-            localStorage.setItem('gemini_api_key', key);
-            UI.toast('Gemini API Key saved!', 'success');
-          } else {
-            localStorage.removeItem('gemini_api_key');
-            UI.toast('Gemini API Key removed.', 'info');
-          }
-        }
-
-        if (backendUrlInput) {
-          const url = backendUrlInput.value.trim();
-          if (url) {
-            localStorage.setItem('swing_backend_url', url);
-            API.setBackendUrl(url);
-            UI.toast('Backend URL updated!', 'success');
-          } else {
-            localStorage.removeItem('swing_backend_url');
-            API.setBackendUrl('');
-            UI.toast('Backend URL reset to default.', 'info');
-          }
-        }
-
         settingsDropdown.style.display = 'none';
-        // Reload analysis for current active symbol if present to apply the backend changes
+        // Reload analysis for current active symbol if present
         if (state.activeSymbol) {
           selectStock(state.activeSymbol);
         }
@@ -669,6 +637,37 @@ const App = (() => {  // ── State
         document.getElementById('nexus-form-view').style.display = 'none';
         document.getElementById('nexus-results-view').style.display = 'flex';
         updateNexusPieChart(userProfile);
+
+        // Trigger AI Wealth Matrix generation
+        const aiMatrix = document.getElementById('nexus-ai-matrix');
+        const aiLoading = document.getElementById('nexus-ai-loading');
+        const aiContent = document.getElementById('nexus-ai-content');
+        if (aiMatrix && aiLoading && aiContent) {
+          aiMatrix.style.display = 'block';
+          aiLoading.style.display = 'block';
+          aiContent.style.display = 'none';
+          API.fetchNexusProfile(userProfile).then(result => {
+            aiLoading.style.display = 'none';
+            if (result && result.analysis) {
+              // Convert markdown-style text to simple HTML
+              const html = result.analysis
+                .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+                .replace(/^### (.*$)/gm, '<div style="font-size:0.78rem;font-weight:700;color:var(--text-primary);margin:10px 0 4px;">$1</div>')
+                .replace(/^## (.*$)/gm, '<div style="font-size:0.8rem;font-weight:700;color:var(--text-accent);margin:10px 0 4px;">$1</div>')
+                .replace(/^- (.*$)/gm, '<div style="padding-left:8px;margin:2px 0;">• $1</div>')
+                .replace(/\n\n/g, '<br>');
+              aiContent.innerHTML = html;
+              aiContent.style.display = 'block';
+            } else {
+              aiContent.innerHTML = '<span style="color:var(--text-muted)">AI analysis unavailable. Check backend connection.</span>';
+              aiContent.style.display = 'block';
+            }
+          }).catch(err => {
+            aiLoading.style.display = 'none';
+            aiContent.innerHTML = `<span style="color:var(--red)">Analysis failed: ${err.message}</span>`;
+            aiContent.style.display = 'block';
+          });
+        }
 
         // Update UI
         updateWatchlistUI();
@@ -1466,10 +1465,10 @@ const App = (() => {  // ── State
       btnReset.addEventListener('click', () => {
         state.weights = {
           fundamental: 25,
-          technical: 30,
+          technical: 20,
           momentum: 20,
-          sentiment: 10,
-          institutional: 15
+          sentiment: 15,
+          institutional: 20
         };
         localStorage.setItem('stid_weights', JSON.stringify(state.weights));
         keys.forEach(k => {

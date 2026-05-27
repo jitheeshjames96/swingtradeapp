@@ -874,6 +874,20 @@ async function fetchFearGreed() {
 
 // ── YAHOO FINANCE QUOTE
 async function fetchQuote(symbol) {
+  if (await checkBackend()) {
+    try {
+      const res = await fetchWithTimeout(`${BACKEND_URL}/api/quote?symbol=${encodeURIComponent(symbol)}`, {
+        headers: getAuthHeaders(),
+        timeout: 6000
+      });
+      if (res.ok) {
+        return await res.json();
+      }
+    } catch (e) {
+      console.warn(`Backend fetchQuote failed for ${symbol}:`, e.message);
+    }
+  }
+
   const url = `${YAHOO_BASE}/v8/finance/chart/${symbol}?interval=1d&range=1d`;
   const data = await proxyFetch(url);
   if (!data || !data.chart || !data.chart.result) return generateMockQuote(symbol);
@@ -906,6 +920,20 @@ async function fetchQuote(symbol) {
 
 // ── YAHOO FINANCE SUMMARY (Fundamentals)
 async function fetchFundamentals(symbol) {
+  if (await checkBackend()) {
+    try {
+      const res = await fetchWithTimeout(`${BACKEND_URL}/api/fundamentals?symbol=${encodeURIComponent(symbol)}`, {
+        headers: getAuthHeaders(),
+        timeout: 10000
+      });
+      if (res.ok) {
+        return await res.json();
+      }
+    } catch (e) {
+      console.warn(`Backend fetchFundamentals failed for ${symbol}:`, e.message);
+    }
+  }
+
   const modules = 'summaryDetail,defaultKeyStatistics,financialData,earningsTrend';
   const url = `${YAHOO_BASE}/v10/finance/quoteSummary/${symbol}?modules=${modules}`;
   const data = await proxyFetch(url);
@@ -957,6 +985,24 @@ async function fetchFundamentals(symbol) {
 
 // ── HISTORICAL OHLCV (for technical analysis)
 async function fetchHistorical(symbol, range = '1y', interval = '1d') {
+  if (await checkBackend()) {
+    try {
+      const res = await fetchWithTimeout(`${BACKEND_URL}/api/historical?symbol=${encodeURIComponent(symbol)}&range=${encodeURIComponent(range)}&interval=${encodeURIComponent(interval)}`, {
+        headers: getAuthHeaders(),
+        timeout: 10000
+      });
+      if (res.ok) {
+        const data = await res.json();
+        return data.map(d => ({
+          ...d,
+          date: new Date(d.date)
+        }));
+      }
+    } catch (e) {
+      console.warn(`Backend fetchHistorical failed for ${symbol}:`, e.message);
+    }
+  }
+
   const url = `${YAHOO_CHART}/v8/finance/chart/${symbol}?interval=${interval}&range=${range}`;
   const data = await proxyFetch(url);
   if (!data || !data.chart || !data.chart.result) return generateMockHistorical();
@@ -981,6 +1027,20 @@ async function fetchHistorical(symbol, range = '1y', interval = '1d') {
 
 // ── QUARTERLY EARNINGS
 async function fetchEarnings(symbol) {
+  if (await checkBackend()) {
+    try {
+      const res = await fetchWithTimeout(`${BACKEND_URL}/api/earnings?symbol=${encodeURIComponent(symbol)}`, {
+        headers: getAuthHeaders(),
+        timeout: 10000
+      });
+      if (res.ok) {
+        return await res.json();
+      }
+    } catch (e) {
+      console.warn(`Backend fetchEarnings failed for ${symbol}:`, e.message);
+    }
+  }
+
   const url = `${YAHOO_BASE}/v10/finance/quoteSummary/${symbol}?modules=earningsHistory,incomeStatementHistoryQuarterly,incomeStatementHistory`;
   const data = await proxyFetch(url);
   if (!data || !data.quoteSummary || !data.quoteSummary.result) {

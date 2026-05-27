@@ -1332,13 +1332,61 @@ body {
   justify-content: center;
 }
 
+#settings-dropdown {
+  position: absolute;
+  right: 24px;
+  top: 65px;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  padding: 16px;
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-lg);
+  z-index: 999;
+  width: 320px;
+}
+
+#nexus-dropdown {
+  position: absolute;
+  right: 24px;
+  top: 65px;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  padding: 16px;
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-lg);
+  z-index: 999;
+  width: 360px;
+  max-height: 85vh;
+  overflow-y: auto;
+}
+
 /* Responsive adjustments */
-@media (max-width: 480px) {
+@media (max-width: 600px) {
   .invy-chat-drawer {
     width: 100%;
     right: -100%;
   }
+  .mini-analysis-drawer {
+    width: 100%;
+    right: -100%;
+  }
+  #settings-dropdown {
+    right: 10px;
+    left: 10px;
+    width: auto;
+    max-width: calc(100% - 20px);
+    top: 65px;
+  }
+  #nexus-dropdown {
+    right: 10px;
+    left: 10px;
+    width: auto;
+    max-width: calc(100% - 20px);
+    top: 65px;
+    max-height: 80vh;
+  }
 }
+
 
 /* ── GOOGLE SSO LOGIN OVERLAY ── */
 .login-overlay {

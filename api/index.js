@@ -507,6 +507,130 @@ app.get('/api/health', (req, res) => {
   res.json({ status: 'healthy', timestamp: new Date().toISOString() });
 });
 
+// Route: Get live stock quote
+app.get('/api/quote', authMiddleware, async (req, res) => {
+  const { symbol } = req.query;
+  if (!symbol) {
+    return res.status(400).json({ error: 'Symbol parameter is required' });
+  }
+  try {
+    const quote = await scraper.fetchQuote(symbol);
+    res.json(quote);
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to fetch quote', details: err.message });
+  }
+});
+
+// Route: Get cached or live historical prices
+app.get('/api/historical', authMiddleware, async (req, res) => {
+  const { symbol } = req.query;
+  if (!symbol) {
+    return res.status(400).json({ error: 'Symbol parameter is required' });
+  }
+  try {
+    const historical = await getCachedHistoricalPrices(symbol);
+    res.json(historical);
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to fetch historical data', details: err.message });
+  }
+});
+
+// Route: Get fundamentals (Screener + Yahoo merged)
+app.get('/api/fundamentals', authMiddleware, async (req, res) => {
+  const { symbol } = req.query;
+  if (!symbol) {
+    return res.status(400).json({ error: 'Symbol parameter is required' });
+  }
+  const cleanSymbol = symbol.trim().toUpperCase();
+  const isIndian = cleanSymbol.endsWith('.NS') || cleanSymbol.endsWith('.BO');
+  try {
+    let fundamentals = {};
+    if (isIndian) {
+      const screener = await scraper.fetchScreenerData(cleanSymbol).catch(() => null);
+      const yahooFund = await scraper.fetchYahooFundamentals(cleanSymbol).catch(() => null);
+      if (screener) {
+        fundamentals = {
+          ...yahooFund,
+          ...screener.fundamentals
+        };
+        try {
+          const quote = await scraper.fetchQuote(cleanSymbol).catch(() => null);
+          if (screener.fundamentals.bookValue && quote && quote.price) {
+            fundamentals.pb = parseFloat((quote.price / screener.fundamentals.bookValue).toFixed(2));
+          } else if (!fundamentals.pb && yahooFund?.pb) {
+            fundamentals.pb = yahooFund.pb;
+          }
+        } catch (e) {}
+        fundamentals.shareholding = screener.shareholding || yahooFund?.shareholding || null;
+      } else if (yahooFund) {
+        fundamentals = yahooFund;
+      }
+    } else {
+      fundamentals = await scraper.fetchYahooFundamentals(cleanSymbol).catch(() => null);
+    }
+    res.json(fundamentals || {});
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to fetch fundamentals', details: err.message });
+  }
+});
+
+// Route: Get quarterly and annual earnings
+app.get('/api/earnings', authMiddleware, async (req, res) => {
+  const { symbol } = req.query;
+  if (!symbol) {
+    return res.status(400).json({ error: 'Symbol parameter is required' });
+  }
+  const cleanSymbol = symbol.trim().toUpperCase();
+  const isIndian = cleanSymbol.endsWith('.NS') || cleanSymbol.endsWith('.BO');
+  try {
+    let earnings = { quarterly: [], annual: [] };
+    if (isIndian) {
+      const screener = await scraper.fetchScreenerData(cleanSymbol).catch(() => null);
+      if (screener && screener.earnings) {
+        earnings = screener.earnings;
+      }
+    } else {
+      try {
+        const auth = await scraper.getYahooAuth();
+        const { cookie, crumb } = auth;
+        const url = `https://query1.finance.yahoo.com/v10/finance/quoteSummary/${encodeURIComponent(cleanSymbol)}?modules=earningsHistory,incomeStatementHistoryQuarterly,incomeStatementHistory&crumb=${encodeURIComponent(crumb)}`;
+        const response = await axios.get(url, {
+          headers: {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+            'Accept': 'application/json',
+            'Cookie': cookie
+          },
+          timeout: 5000
+        });
+        const result = response.data.quoteSummary.result[0];
+        const quarterly = result.incomeStatementHistoryQuarterly?.incomeStatementHistory || [];
+        const annual = result.incomeStatementHistory?.incomeStatementHistory || [];
+
+        const parseQuarterly = quarterly.slice(0, 12).map(q => ({
+          period: q.endDate?.fmt || 'N/A',
+          revenue: q.totalRevenue?.raw || 0,
+          netIncome: q.netIncome?.raw || 0,
+          eps: q.dilutedEPS?.raw || null,
+        }));
+
+        const parseAnnual = annual.slice(0, 5).map(a => ({
+          period: a.endDate?.fmt || 'N/A',
+          revenue: a.totalRevenue?.raw || 0,
+          netIncome: a.netIncome?.raw || 0,
+          eps: a.dilutedEPS?.raw || null,
+        }));
+        earnings = { quarterly: parseQuarterly, annual: parseAnnual };
+      } catch (err) {
+        console.warn(`Yahoo earnings summary failed for ${cleanSymbol}:`, err.message);
+      }
+    }
+    res.json(earnings);
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to fetch earnings', details: err.message });
+  }
+});
+
+
 // Helper: Get cached historical prices with DB and Yahoo fallback
 async function getCachedHistoricalPrices(symbol) {
   const cacheKey = `hist_prices_${symbol}`;
@@ -3039,6 +3163,9 @@ async function sendAlertNotification(symbol, status, currentPrice, target2, stop
               `*Original Target:* ${cSym}${target2.toFixed(2)}\n` +
               `*Timestamp:* ${new Date().toLocaleString()}`;
 
+  // For WhatsApp, format as: [TICKER] | [ACTION] | [ENTRY/EXIT] | [STOP LOSS] | [REASONING]
+  const waMsg = `[${symbol.toUpperCase()}] | [EXIT (${status})] | [Exit Price ${cSym}${currentPrice.toFixed(2)} / Target ${cSym}${target2.toFixed(2)}] | [Stop Loss ${cSym}${stopLoss.toFixed(2)}] | [Closed via ${status === 'WIN' ? 'Target Hit' : status === 'LOSS' ? 'Stop Loss Hit' : 'Time Decay'}]`;
+
   // Send Telegram
   if (settings.telegram_enabled && settings.telegram_chat_id && settings.telegram_bot_token) {
     try {
@@ -3058,7 +3185,7 @@ async function sendAlertNotification(symbol, status, currentPrice, target2, stop
   if (settings.whatsapp_enabled && settings.whatsapp_phone && settings.whatsapp_apikey) {
     try {
       const cleanPhone = settings.whatsapp_phone.replace(/\+/g, '').trim();
-      const waUrl = `https://api.callmebot.com/whatsapp.php?phone=${encodeURIComponent(cleanPhone)}&text=${encodeURIComponent(msg)}&apikey=${encodeURIComponent(settings.whatsapp_apikey)}`;
+      const waUrl = `https://api.callmebot.com/whatsapp.php?phone=${encodeURIComponent(cleanPhone)}&text=${encodeURIComponent(waMsg)}&apikey=${encodeURIComponent(settings.whatsapp_apikey)}`;
       await axios.get(waUrl, { timeout: 8000 });
       console.log(`Dispatched real WhatsApp status update for ${symbol} (${status})`);
     } catch (err) {
@@ -3066,6 +3193,61 @@ async function sendAlertNotification(symbol, status, currentPrice, target2, stop
     }
   }
 }
+
+async function sendNewSignalNotification(symbol, entryPrice, targetPrice, stopLoss, score) {
+  let settings = simulatedSettings;
+  if (dbPool) {
+    try {
+      const res = await dbPool.query('SELECT * FROM user_settings ORDER BY id ASC LIMIT 1');
+      if (res.rows[0]) {
+        settings = res.rows[0];
+      }
+    } catch (e) {
+      console.warn('Failed to fetch user settings for alert notification:', e.message);
+    }
+  }
+
+  const isUS = !symbol.endsWith('.NS') && !symbol.endsWith('.BO');
+  const cSym = isUS ? '$' : '₹';
+  const alertMsg = `📈 *NEW SWING TRADE SIGNAL* 📈\n\n` +
+    `*Stock:* ${symbol.toUpperCase()}\n` +
+    `*Action:* BUY / ACCUMULATE\n` +
+    `*Entry Price:* ${cSym}${entryPrice.toFixed(2)}\n` +
+    `*Stop Loss:* ${cSym}${stopLoss.toFixed(2)}\n` +
+    `*Target:* ${cSym}${targetPrice.toFixed(2)}\n\n` +
+    `*Rationale:* Quant Screen Confluence (Score: ${score}/100)`;
+
+  // Keyless WhatsApp dispatch template format: [TICKER] | [ACTION] | [ENTRY/EXIT] | [STOP LOSS] | [REASONING]
+  const waMsg = `[${symbol.toUpperCase()}] | [BUY] | [Entry ${cSym}${entryPrice.toFixed(2)} / Target ${cSym}${targetPrice.toFixed(2)}] | [Stop Loss ${cSym}${stopLoss.toFixed(2)}] | [Confluence Score ${score}/100]`;
+
+  // Send Telegram
+  if (settings.telegram_enabled && settings.telegram_chat_id && settings.telegram_bot_token) {
+    try {
+      const tgUrl = `https://api.telegram.org/bot${settings.telegram_bot_token}/sendMessage`;
+      await axios.post(tgUrl, {
+        chat_id: settings.telegram_chat_id,
+        text: alertMsg,
+        parse_mode: 'Markdown'
+      }, { timeout: 8000 });
+      console.log(`Dispatched real Telegram alert for new signal: ${symbol}`);
+    } catch (err) {
+      console.error(`Failed to send Telegram alert for new signal:`, err.message);
+    }
+  }
+
+  // Send WhatsApp via CallMeBot
+  if (settings.whatsapp_enabled && settings.whatsapp_phone && settings.whatsapp_apikey) {
+    try {
+      const cleanPhone = settings.whatsapp_phone.replace(/\+/g, '').trim();
+      const waUrl = `https://api.callmebot.com/whatsapp.php?phone=${encodeURIComponent(cleanPhone)}&text=${encodeURIComponent(waMsg)}&apikey=${encodeURIComponent(settings.whatsapp_apikey)}`;
+      await axios.get(waUrl, { timeout: 8000 });
+      console.log(`Dispatched real WhatsApp alert for new signal: ${symbol}`);
+    } catch (err) {
+      console.error(`Failed to send WhatsApp alert for new signal:`, err.message);
+    }
+  }
+}
+
 
 async function sendWelcomeActiveRecommendationsAlert(settings) {
   let activeRecs = [];
@@ -3261,6 +3443,11 @@ async function checkAndInsertSignal(symbol, entryPrice, score) {
       [symbol, entryPrice, targetPrice, stopLoss, score]
     );
     console.log(`[Snapshot] Generated Strong Buy signal for ${symbol} at entry price ${entryPrice} (Score: ${score})`);
+    
+    // Send live Telegram and WhatsApp notifications for the new signal
+    sendNewSignalNotification(symbol, entryPrice, targetPrice, stopLoss, score).catch(err => {
+      console.error(`Failed to send new signal notifications for ${symbol}:`, err.message);
+    });
   } catch (err) {
     console.error(`[Snapshot] Failed to insert trade signal for ${symbol}:`, err.message);
   }
@@ -3388,6 +3575,17 @@ async function runDailyValidation() {
           else if (exitStatus === 'EXPIRED') expired++;
           
           console.log(`[Validation] Symbol ${symbol} resolved as ${exitStatus} (Rule: ${exitRule}, Price: ${exitPrice})`);
+
+          // Send exit alert notification to Telegram / WhatsApp live
+          sendAlertNotification(
+            symbol,
+            exitStatus === 'TARGET_HIT' ? 'WIN' : exitStatus === 'STOP_LOSS_HIT' ? 'LOSS' : 'EXPIRED',
+            parseFloat(exitPrice),
+            parseFloat(target_price),
+            parseFloat(stop_loss)
+          ).catch(err => {
+            console.error(`Failed to send exit alert notification for ${symbol}:`, err.message);
+          });
         } else {
           console.log(`[Validation] Symbol ${symbol} remains ACTIVE (Latest Price: ${latestBar.close})`);
         }

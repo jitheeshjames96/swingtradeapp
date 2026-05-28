@@ -330,6 +330,18 @@ async function fetchMarketSummary() {
       gainers,
       losers,
       sectors,
+      allQuotes: validQuotes.map(q => {
+        const catItem = STOCK_CATALOG.find(s => s.symbol === q.symbol);
+        return {
+          symbol: q.symbol,
+          name: q.name,
+          sector: q.sector,
+          cap: catItem ? catItem.cap : 'mid',
+          price: q.price,
+          change: q.change,
+          changePct: q.changePct
+        };
+      }),
       timestamp: new Date().toISOString()
     };
   } catch (error) {

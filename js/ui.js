@@ -1643,6 +1643,12 @@ const UI = (() => {
                   <span style="font-size:0.7rem; color:var(--text-secondary)">WhatsApp CallMeBot API Key</span>
                   <input type="password" id="sett-wa-apikey" value="${settings.whatsapp_apikey || ''}" placeholder="ApiKeyXXXXXX" style="background:var(--bg-body); border:1px solid var(--border); padding:8px; border-radius:4px; font-size:0.8rem; color:var(--text-primary)">
                 </div>
+                <div style="font-size:0.65rem; color:var(--text-muted); line-height:1.4; margin-top:4px; border-top:1px dashed rgba(255,255,255,0.06); padding-top:6px;">
+                  ℹ️ <strong>How to get WhatsApp API Key:</strong><br>
+                  1. Save CallMeBot contact: <strong>+34 644 97 50 14</strong><br>
+                  2. Send WhatsApp msg: <code>I allow callmebot to send me messages</code><br>
+                  3. Enter the received API Key above.
+                </div>
               </div>
             </div>
 

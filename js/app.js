@@ -241,6 +241,21 @@ const App = (() => {  // ── State
 
   async function finishInit() {
     updateAuthButtons();
+    
+    // Strict Dashboard Gate: If Google Client ID is configured and user is not authenticated, force the login screen overlay.
+    if (!state.isAuthenticated && googleClientId) {
+      const overlay = document.getElementById('login-overlay');
+      if (overlay) {
+        overlay.style.display = 'flex';
+        // Hide close button and demo bypass button to enforce login
+        const btnClose = document.getElementById('login-close');
+        if (btnClose) btnClose.style.display = 'none';
+        const btnBypass = document.getElementById('btn-bypass-sso');
+        if (btnBypass) btnBypass.style.display = 'none';
+      }
+      return; // Do not load watchlist or market data, fully gating the dashboard
+    }
+
     showWatchlistSkeleton();
     await loadMarketData();
     await loadAllWatchlistStocks();
@@ -628,7 +643,11 @@ const App = (() => {  // ── State
           netIncome: parseFloat(document.getElementById('nx-net-income').value),
           capitalAllocation: parseFloat(document.getElementById('nx-capital').value),
           riskAppetite: document.getElementById('nx-risk').value,
-          behavioralStressResponse: document.getElementById('nx-stress').value
+          behavioralStressResponse: document.getElementById('nx-stress').value,
+          horizon: document.getElementById('nx-horizon').value,
+          experience: document.getElementById('nx-experience').value,
+          goal: document.getElementById('nx-goal').value,
+          debt: document.getElementById('nx-debt').value
         };
 
         localStorage.setItem('nexus_profile', JSON.stringify(userProfile));
@@ -2832,20 +2851,78 @@ const App = (() => {  // ── State
     let cashPct = 15;
     let tierName = 'Moderate Balanced';
 
-    const isConservative = prof.age > 45 || prof.dependents > 2 || prof.riskAppetite === 'Conservative' || prof.incomeStability === 'Low';
-    const isAggressive = prof.age < 30 && prof.incomeStability === 'High' && prof.riskAppetite === 'Aggressive';
+    let score = 0;
+    
+    // 1. Age
+    const age = prof.age || 30;
+    if (age < 30) score += 3;
+    else if (age <= 45) score += 2;
 
-    if (isConservative) {
-      corePct = 70;
-      cashPct = 20;
-      alphaPct = 10;
+    // 2. Income Stability
+    const stability = prof.incomeStability || 'Medium';
+    if (stability === 'High') score += 3;
+    else if (stability === 'Medium') score += 2;
+
+    // 3. Dependents
+    const dependents = prof.dependents || 0;
+    if (dependents === 0) score += 3;
+    else if (dependents <= 2) score += 1;
+
+    // 4. Risk Appetite
+    const risk = prof.riskAppetite || 'Moderate';
+    if (risk === 'Aggressive') score += 3;
+    else if (risk === 'Moderate') score += 2;
+
+    // 5. Stress Response
+    const stress = prof.behavioralStressResponse || 'Do Nothing';
+    if (stress === 'Buy the Dip') score += 3;
+    else if (stress === 'Do Nothing') score += 2;
+
+    // 6. Horizon
+    const horizon = prof.horizon || 'Long term';
+    if (horizon === 'Long term') score += 3;
+    else if (horizon === 'Medium term') score += 2;
+
+    // 7. Experience
+    const exp = prof.experience || 'Intermediate';
+    if (exp === 'Expert') score += 3;
+    else if (exp === 'Intermediate') score += 2;
+
+    // 8. Investment Goal
+    const goal = prof.goal || 'Growth';
+    if (goal === 'Speculative') score += 4;
+    else if (goal === 'Growth') score += 3;
+    else if (goal === 'Income') score += 1;
+
+    // 9. Debt Liabilities
+    const debt = prof.debt || 'Low';
+    if (debt === 'Low') score += 3;
+    else if (debt === 'Medium') score += 1;
+
+    // Determine allocations based on score
+    if (score < 8) {
+      corePct = 80;
+      alphaPct = 5;
       specPct = 0;
-      tierName = 'Conservative Legacy Protection';
-    } else if (isAggressive) {
-      corePct = 40;
+      cashPct = 15;
+      tierName = 'Ultra Conservative Wealth Preserver';
+    } else if (score < 15) {
+      corePct = 65;
+      alphaPct = 20;
+      specPct = 0;
+      cashPct = 15;
+      tierName = 'Conservative Balanced';
+    } else if (score < 22) {
+      corePct = 45;
+      alphaPct = 40;
+      specPct = 5;
+      cashPct = 10;
+      tierName = 'Moderate Growth';
+    } else {
+      corePct = 30;
       alphaPct = 50;
-      specPct = 10;
-      cashPct = 0;
+      specPct = 15;
+      cashPct = 5;
       tierName = 'Aggressive Alpha Velocity';
     }
 

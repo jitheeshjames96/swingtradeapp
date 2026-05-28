@@ -197,6 +197,45 @@
               </div>
             </div>
 
+            <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
+              <div>
+                <label for="nx-horizon" style="font-size:0.75rem; color:var(--text-secondary); display:block; margin-bottom:4px; font-weight:600;">Investment Horizon</label>
+                <select id="nx-horizon" style="width:100%; background:var(--bg-input); border:1px solid var(--border); color:var(--text-primary); padding:6px; border-radius:4px; font-size:0.8rem; outline:none; height:32px;">
+                  <option value="Short term">Short term (<1 year)</option>
+                  <option value="Medium term">Medium term (1-3 years)</option>
+                  <option value="Long term" selected>Long term (>3 years)</option>
+                </select>
+              </div>
+              <div>
+                <label for="nx-experience" style="font-size:0.75rem; color:var(--text-secondary); display:block; margin-bottom:4px; font-weight:600;">Trading Experience</label>
+                <select id="nx-experience" style="width:100%; background:var(--bg-input); border:1px solid var(--border); color:var(--text-primary); padding:6px; border-radius:4px; font-size:0.8rem; outline:none; height:32px;">
+                  <option value="Beginner">Beginner (<1 year)</option>
+                  <option value="Intermediate" selected>Intermediate (1-3 years)</option>
+                  <option value="Expert">Expert (>3 years)</option>
+                </select>
+              </div>
+            </div>
+
+            <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
+              <div>
+                <label for="nx-goal" style="font-size:0.75rem; color:var(--text-secondary); display:block; margin-bottom:4px; font-weight:600;">Investment Goal</label>
+                <select id="nx-goal" style="width:100%; background:var(--bg-input); border:1px solid var(--border); color:var(--text-primary); padding:6px; border-radius:4px; font-size:0.8rem; outline:none; height:32px;">
+                  <option value="Preservation">Wealth Preservation</option>
+                  <option value="Income">Regular Income</option>
+                  <option value="Growth" selected>Capital Growth</option>
+                  <option value="Speculative">Speculative Gains</option>
+                </select>
+              </div>
+              <div>
+                <label for="nx-debt" style="font-size:0.75rem; color:var(--text-secondary); display:block; margin-bottom:4px; font-weight:600;">Debt Liabilities</label>
+                <select id="nx-debt" style="width:100%; background:var(--bg-input); border:1px solid var(--border); color:var(--text-primary); padding:6px; border-radius:4px; font-size:0.8rem; outline:none; height:32px;">
+                  <option value="High">High</option>
+                  <option value="Medium">Medium</option>
+                  <option value="Low" selected>Low / None</option>
+                </select>
+              </div>
+            </div>
+
             <div style="display:flex; justify-content:flex-end; align-items:center; gap:8px; margin-top:8px;">
               <button type="button" id="btn-nexus-cancel" class="btn btn-ghost btn-sm" style="padding:4px 8px;">Cancel</button>
               <button type="submit" id="btn-nexus-save" class="btn btn-primary btn-sm" style="padding:4px 10px;">Submit Profile</button>

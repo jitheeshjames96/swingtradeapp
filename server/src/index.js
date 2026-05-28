@@ -1362,6 +1362,28 @@ app.post('/api/backtest', authMiddleware, async (req, res) => {
     const totalReturn = sim.trades.reduce((a, b) => a + b.returnPct, 0);
     const alpha = totalReturn - indexRet;
 
+    if (dbPool) {
+      try {
+        await dbPool.query(
+          `INSERT INTO performance_reports (symbol, email, win_rate, avg_return, total_trades, alpha, benchmark_return, parameters)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
+          [
+            symbol,
+            req.user?.email || 'unknown',
+            parseFloat(sim.winRate.toFixed(2)),
+            parseFloat(sim.avgReturn.toFixed(4)),
+            sim.totalTrades,
+            parseFloat(alpha.toFixed(4)),
+            parseFloat(indexRet.toFixed(4)),
+            JSON.stringify({ threshold, holdingPeriod, lookback, weights, activeRegime })
+          ]
+        );
+        console.log(`[Backtest] Saved performance report to DB for ${symbol}`);
+      } catch (dbErr) {
+        console.error('Failed to save performance report to DB:', dbErr.message);
+      }
+    }
+
     res.json({
       symbol,
       winRate: sim.winRate,
@@ -3359,6 +3381,21 @@ async function initTables() {
           CONSTRAINT unique_user_symbol UNIQUE (user_id, symbol)
         );
       `);
+
+      await dbPool.query(`
+        CREATE TABLE IF NOT EXISTS performance_reports (
+          id SERIAL PRIMARY KEY,
+          symbol VARCHAR(20) NOT NULL,
+          email VARCHAR(255) NOT NULL,
+          win_rate DECIMAL(5,2),
+          avg_return DECIMAL(12,4),
+          total_trades INTEGER,
+          alpha DECIMAL(12,4),
+          benchmark_return DECIMAL(12,4),
+          parameters TEXT,
+          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        );
+      `);
     } catch (err) {
       console.error('Failed to initialize database tables / indices:', err.message);
     }
@@ -3677,7 +3714,7 @@ async function screenNewRecommendation(symbol, name, sector, market) {
     const smaMatch = currentPrice > sma50;
     const supportMatch = s1 && (currentPrice <= s1 * 1.05 && currentPrice >= s1 * 0.95);
 
-    let rating = 'WATCH / HOLD';
+    let rating = 'HOLD';
     if (rsiMatch && volMatch && smaMatch && supportMatch) rating = 'STRONG BUY';
     else if (rsiMatch && smaMatch) rating = 'BUY';
 
@@ -3794,39 +3831,43 @@ app.get('/api/recommendations', authMiddleware, async (req, res) => {
         if (addedCount >= needed) break;
         const newRec = await screenNewRecommendation(c.symbol, c.name, c.sector, market);
         if (newRec) {
-          if (newRec.rating === 'STRONG BUY') {
-            checkAndInsertSignal(newRec.symbol, newRec.price, 80).catch(err => {
+          if (newRec.rating === 'STRONG BUY' || newRec.rating === 'BUY') {
+            const score = newRec.rating === 'STRONG BUY' ? 85 : 70;
+            checkAndInsertSignal(newRec.symbol, newRec.price, score).catch(err => {
               console.error(`Error inserting trade signal from recommendation:`, err.message);
             });
-          }
-          if (dbPool) {
-            try {
-              const insertRes = await dbPool.query(
-                `INSERT INTO recommendations (symbol, name, sector, market, rating, price, target_1, target_2, stop_loss, status)
-                 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, 'ACTIVE')
-                 RETURNING *`,
-                [newRec.symbol, newRec.name, newRec.sector, newRec.market, newRec.rating, newRec.price, newRec.target_1, newRec.target_2, newRec.stop_loss]
-              );
-              if (insertRes.rows[0]) {
-                const inserted = insertRes.rows[0];
-                recs.unshift({
-                  ...inserted,
-                  price: parseFloat(inserted.price),
-                  target_1: parseFloat(inserted.target_1),
-                  target_2: parseFloat(inserted.target_2),
-                  stop_loss: parseFloat(inserted.stop_loss)
-                });
+            
+            if (dbPool) {
+              try {
+                const insertRes = await dbPool.query(
+                  `INSERT INTO recommendations (symbol, name, sector, market, rating, price, target_1, target_2, stop_loss, status)
+                   VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, 'ACTIVE')
+                   RETURNING *`,
+                  [newRec.symbol, newRec.name, newRec.sector, newRec.market, newRec.rating, newRec.price, newRec.target_1, newRec.target_2, newRec.stop_loss]
+                );
+                if (insertRes.rows[0]) {
+                  const inserted = insertRes.rows[0];
+                  recs.unshift({
+                    ...inserted,
+                    price: parseFloat(inserted.price),
+                    target_1: parseFloat(inserted.target_1),
+                    target_2: parseFloat(inserted.target_2),
+                    stop_loss: parseFloat(inserted.stop_loss)
+                  });
+                }
+              } catch (ie) {
+                console.error(`Database insertion failed for ${newRec.symbol}:`, ie.message);
               }
-            } catch (ie) {
-              console.error(`Database insertion failed for ${newRec.symbol}:`, ie.message);
+            } else {
+              newRec.id = recs.length + 1;
+              newRec.created_at = new Date().toISOString();
+              newRec.updated_at = new Date().toISOString();
+              recs.unshift(newRec);
             }
+            addedCount++;
           } else {
-            newRec.id = recs.length + 1;
-            newRec.created_at = new Date().toISOString();
-            newRec.updated_at = new Date().toISOString();
-            recs.unshift(newRec);
+            console.log(`[Screening] Evaluated ${newRec.symbol} as ${newRec.rating}. Skipped database storage.`);
           }
-          addedCount++;
         }
       }
 
@@ -3855,6 +3896,10 @@ app.get('/api/recommendations', authMiddleware, async (req, res) => {
                 stop_loss: stopLoss,
                 status: 'ACTIVE'
               };
+
+              checkAndInsertSignal(newRec.symbol, newRec.price, 70).catch(err => {
+                console.error(`Error inserting trade signal from relaxed recommendation:`, err.message);
+              });
 
               if (dbPool) {
                 const insertRes = await dbPool.query(
